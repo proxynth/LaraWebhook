@@ -1,0 +1,44 @@
+name: release-please.yml
+on:
+  push:
+    branches:
+      - main
+permissions:
+  contents: write
+  pull-requests: write
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+steps:
+  - uses: googleapis/release-please-action@v4
+    id: release
+    with:
+      token: ${{ secrets.GITHUB_TOKEN }}
+      release-type: simple
+
+  # Run tests before creating the release (only when release PR is merged)
+  - name: Checkout
+    if: ${{ steps.release.outputs.release_created }}
+    uses: actions/checkout@v4
+
+  - name: Setup PHP
+    if: ${{ steps.release.outputs.release_created }}
+    uses: shivammathur/setup-php@v2
+    with:
+      php-version: '8.3'
+      coverage: none
+
+  - name: Install dependencies
+    if: ${{ steps.release.outputs.release_created }}
+    run: composer install --no-interaction --prefer-dist --no-progress
+
+  - name: Run tests
+    if: ${{ steps.release.outputs.release_created }}
+    run: vendor/bin/pest
+
+  - name: Run static analysis
+    if: ${{ steps.release.outputs.release_created }}
+    run: vendor/bin/phpstan analyse --memory-limit=2G
+
+  # Note: Packagist automatically syncs with GitHub releases/tags
+  # No manual webhook trigger needed if auto-update is configured

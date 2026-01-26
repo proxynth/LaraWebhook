@@ -1,0 +1,26 @@
+name: release.yml
+on:
+  push:
+    tags:
+      - 'v*'
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+      - name: Install dependencies
+        run: composer install --prefer-dist --no-progress
+      - name: Run tests
+        run: vendor/bin/phpunit
+      - name: Publish to Packagist
+        env:
+          PACKAGIST_TOKEN: ${{ secrets.PACKAGIST_TOKEN }}
+        run: |
+          composer config --global github-oauth.github.com $PACKAGIST_TOKEN
+          composer config --global http-basic.packagist.org token $PACKAGIST_TOKEN
+          composer update --no-dev
+          git tag --list

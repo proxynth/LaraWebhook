@@ -1,0 +1,22 @@
+name: phpstan.yml
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+jobs:
+  phpstan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mbstring, ctype, json, dom
+      - name: Install dependencies
+        run: composer install --prefer-dist --no-progress
+      - name: Run PHPUnit
+        run: vendor/bin/phpstan analyze --no-progress

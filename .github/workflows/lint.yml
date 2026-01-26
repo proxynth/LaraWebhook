@@ -1,0 +1,19 @@
+name: lint.yml
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Run linter
+        uses: aglipanci/laravel-pint-action@latest
+        with:
+          preset: laravel
+          verboseMode: true
+          testMode: true
