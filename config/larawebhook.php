@@ -10,6 +10,6 @@ return [
 
         'github' => [
             'webhook_secret' => env('GITHUB_WEBHOOK_SECRET', 'github_webhook_secret_key_test'),
-        ]
-    ]
+        ],
+    ],
 ];

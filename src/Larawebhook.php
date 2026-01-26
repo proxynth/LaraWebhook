@@ -2,7 +2,4 @@
 
 namespace Proxynth\Larawebhook;
 
-class Larawebhook
-{
-
-}
+class Larawebhook {}
