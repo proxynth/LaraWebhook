@@ -5,6 +5,18 @@ All notable changes to `larawebhook` will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 1.0.0 (2026-01-26)
+
+
+### Features
+
+* :sparkles: add configuration for webhook services and update se… ([4bda43b](https://github.com/proxynth/LaraWebhook/commit/4bda43b3e66fc0530c6f60d3f0275b1b9bf6e8f4))
+* :sparkles: add configuration for webhook services and update service provider ([7eb4e78](https://github.com/proxynth/LaraWebhook/commit/7eb4e7837dcdfdc1c801fe09eb27811d168f0bfe))
+* :sparkles: add README, changelog, CI workflows, and PHPStan con… ([da35f79](https://github.com/proxynth/LaraWebhook/commit/da35f79309c72bd17619c51195ec553f11b460dd))
+* :sparkles: add README, changelog, CI workflows, and PHPStan configuration ([643104e](https://github.com/proxynth/LaraWebhook/commit/643104e7de341c6a26f59163d31a9306f0841dc8))
+* :sparkles: setup laravel package skeleton ([6e1f8e0](https://github.com/proxynth/LaraWebhook/commit/6e1f8e015b1c8b6b669565083e07b914706bcbbb))
+* :sparkles: setup laravel package skeleton ([fdbf8c0](https://github.com/proxynth/LaraWebhook/commit/fdbf8c0dcd1d57aefa6defb92a4eecdd50bd2a3e))
+
 ## [Unreleased]
 
 ### Features
