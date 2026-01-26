@@ -1,0 +1,78 @@
+{
+  "name": "proxynth/larawebhook",
+  "description": "LaraWebhook is an open-source Laravel package for securely and reliably managing incoming webhooks. It validates signatures, handles retries, and logs errors transparently. Ideal for Stripe, GitHub, Slack, and more!",
+  "type": "library",
+  "license": "GPL-3.0",
+  "keywords": [
+    "proxynth",
+    "laravel",
+    "larawebhook",
+    "webhooks",
+    "stripe",
+    "github",
+    "slack"
+  ],
+  "homepage": "https://github.com/proxynth/larawebhook",
+  "autoload": {
+    "psr-4": {
+      "Proxynth\\Larawebhook\\": "src/",
+      "Proxynth\\Larawebhook\\Database\\Factories\\": "database/factories/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Proxynth\\Larawebhook\\Tests\\": "tests/",
+      "Workbench\\App\\": "workbench/app/"
+    }
+  },
+  "authors": [
+    {
+      "name": "Proxynth",
+      "email": "proxynth.tech@gmail.com"
+    }
+  ],
+  "scripts": {
+    "post-autoload-dump": "@composer run prepare",
+    "prepare": "@php vendor/bin/testbench package:discover --ansi",
+    "analyse": "vendor/bin/phpstan analyse",
+    "test": "vendor/bin/pest",
+    "test-coverage": "vendor/bin/pest --coverage",
+    "format": "vendor/bin/pint"
+  },
+  "minimum-stability": "stable",
+  "require-dev": {
+    "larastan/larastan": "^3.0",
+    "laravel/pint": "^1.27",
+    "nunomaduro/collision": "^8.8",
+    "orchestra/testbench": "^10.0.0||^9.0.0",
+    "pestphp/pest": "^4.0",
+    "pestphp/pest-plugin-arch": "^4.0",
+    "pestphp/pest-plugin-laravel": "^4.0",
+    "phpstan/extension-installer": "^1.4",
+    "phpstan/phpstan-deprecation-rules": "^2.0",
+    "phpstan/phpstan-phpunit": "^2.0"
+  },
+  "require": {
+    "php": "^8.3",
+    "spatie/laravel-package-tools": "^1.12",
+    "illuminate/contracts": "*",
+    "symfony/mailer": "^7.0"
+  },
+  "config": {
+    "sort-packages": true,
+    "allow-plugins": {
+      "pestphp/pest-plugin": true,
+      "phpstan/extension-installer": true
+    }
+  },
+  "extra": {
+    "laravel": {
+      "providers": [
+        "Proxynth\\Larawebhook\\LarawebhookServiceProvider"
+      ],
+      "aliases": {
+        "Larawebhook": "Proxynth\\Larawebhook\\Facades\\Larawebhook"
+      }
+    }
+  }
+}
