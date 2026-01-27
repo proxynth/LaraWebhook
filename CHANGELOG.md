@@ -5,6 +5,14 @@ All notable changes to `larawebhook` will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0](https://github.com/proxynth/LaraWebhook/compare/v1.0.0...v1.1.0) (2026-01-27)
+
+
+### Features
+
+* :sparkles: implement webhook validation service with support fo… ([11c229f](https://github.com/proxynth/LaraWebhook/commit/11c229ff7629dbf0bb0d244f78f7e1a4c0b27aca))
+* :sparkles: implement webhook validation service with support for Stripe and GitHub signatures, including exception handling ([3a28b18](https://github.com/proxynth/LaraWebhook/commit/3a28b18b9adb594686a427bb8cd014ca04967f3e))
+
 ## 1.0.0 (2026-01-26)
 
 
