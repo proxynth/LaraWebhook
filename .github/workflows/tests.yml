@@ -17,7 +17,16 @@ jobs:
         with:
           php-version: '8.3'
           extensions: mbstring, ctype, json, dom
+          coverage: pcov
       - name: Install dependencies
         run: composer install --prefer-dist --no-progress
       - name: Run PHPUnit
         run: vendor/bin/pest --coverage-text --ci
+      - name: Run tests with coverage
+        run: vendor/bin/pest --coverage-text --coverage-clover=coverage.xml --ci
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          file: ./coverage.xml
+          fail_ci_if_error: false
+          verbose: true
