@@ -2,6 +2,7 @@
 
 [![Latest Version](https://img.shields.io/packagist/v/proxynth/larawebhook.svg)](https://packagist.org/packages/proxynth/larawebhook)
 [![Tests](https://github.com/proxynth/larawebhook/actions/workflows/tests.yml/badge.svg)](https://github.com/proxynth/larawebhook/actions)
+[![Codecov](https://codecov.io/gh/proxynth/larawebhook/branch/master/graph/badge.svg)](https://codecov.io/gh/proxynth/larawebhook)
 [![PHPStan](https://github.com/proxynth/larawebhook/actions/workflows/phpstan.yml/badge.svg)](https://github.com/proxynth/larawebhook/actions)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 

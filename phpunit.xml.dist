@@ -23,6 +23,13 @@
     <logging>
         <junit outputFile="build/report.junit.xml"/>
     </logging>
+    <coverage>
+        <report>
+            <clover outputFile="build/logs/clover.xml"/>
+            <html outputDirectory="build/coverage"/>
+            <text outputFile="php://stdout" showUncoveredFiles="false"/>
+        </report>
+    </coverage>
     <source>
         <include>
             <directory suffix=".php">./src</directory>
