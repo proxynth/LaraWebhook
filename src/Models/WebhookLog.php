@@ -6,6 +6,14 @@ namespace Proxynth\Larawebhook\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
+/**
+ * @property string $service
+ * @property string $event
+ * @property string $status
+ * @property array $payload
+ * @property string|null $error_message
+ * @property int $attempt
+ */
 class WebhookLog extends Model
 {
     protected $fillable = [

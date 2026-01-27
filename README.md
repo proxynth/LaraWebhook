@@ -43,37 +43,75 @@
 
 ## 🛠 Usage
 
-1. Create a route for webhooks
-   ```php
-   // routes/web.php
-   use Proxynth\LaraWebhook\Http\Controllers\WebhookController;
+### Using the Middleware (Recommended)
 
-   Route::post('/stripe-webhook', [WebhookController::class, 'handleWebhook']);
-   ```
+The easiest way to validate webhooks is using the `validate-webhook` middleware:
 
-2. Validate and process a webhook
-    ```php
-    // app/Http/Controllers/WebhookController.php
-    use Proxynth\LaraWebhook\Facades\LaraWebhook;
-    use Illuminate\Http\Request;
+```php
+// routes/web.php
+Route::post('/stripe-webhook', function () {
+    // Webhook is automatically validated and logged
+    // Process your webhook here
+    $payload = json_decode(request()->getContent(), true);
 
-    public function handleWebhook(Request $request)
-    {
-        $webhook = LaraWebhook::constructEvent(
-            $request->getContent(),
-            $request->header('Stripe-Signature'),
-            config('larawebhook.stripe.secret')
+    // Handle the event
+    event(new \App\Events\StripeWebhookReceived($payload));
+
+    return response()->json(['status' => 'success']);
+})->middleware('validate-webhook:stripe');
+
+Route::post('/github-webhook', function () {
+    // Webhook is automatically validated and logged
+    $payload = json_decode(request()->getContent(), true);
+
+    // Handle the event
+    event(new \App\Events\GithubWebhookReceived($payload));
+
+    return response()->json(['status' => 'success']);
+})->middleware('validate-webhook:github');
+```
+
+**What the middleware does:**
+- ✅ Validates the webhook signature
+- ✅ Automatically logs the event to the database
+- ✅ Returns 403 for invalid signatures
+- ✅ Returns 400 for missing headers or malformed payloads
+
+### Manual Validation (Advanced)
+
+For more control, you can manually validate webhooks:
+
+```php
+// app/Http/Controllers/WebhookController.php
+use Proxynth\Larawebhook\Services\WebhookValidator;
+use Illuminate\Http\Request;
+
+public function handleWebhook(Request $request)
+{
+    $payload = $request->getContent();
+    $signature = $request->header('Stripe-Signature');
+    $secret = config('larawebhook.services.stripe.webhook_secret');
+
+    $validator = new WebhookValidator($secret);
+
+    try {
+        // Validate and log in one call
+        $log = $validator->validateAndLog(
+            $payload,
+            $signature,
+            'stripe',
+            'payment_intent.succeeded'
         );
 
-        if ($webhook->isValid()) {
-            // Process the event (e.g., payment_intent.succeeded)
-            event(new \App\Events\StripeWebhookReceived($webhook));
-            return response()->json(['status' => 'success']);
-        }
+        // Process the event
+        event(new \App\Events\StripeWebhookReceived(json_decode($payload, true)));
 
-        abort(403, 'Invalid signature');
+        return response()->json(['status' => 'success']);
+    } catch (\Exception $e) {
+        return response($e->getMessage(), 403);
     }
-    ```
+}
+```
 
 ---
 

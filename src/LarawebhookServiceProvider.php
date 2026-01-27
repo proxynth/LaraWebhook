@@ -3,7 +3,9 @@
 namespace Proxynth\Larawebhook;
 
 use Illuminate\Foundation\Console\AboutCommand;
+use Illuminate\Routing\Router;
 use Proxynth\Larawebhook\Commands\SkeletonCommand;
+use Proxynth\Larawebhook\Middleware\ValidateWebhook;
 use Spatie\LaravelPackageTools\Package;
 use Spatie\LaravelPackageTools\PackageServiceProvider;
 
@@ -20,6 +22,10 @@ class LarawebhookServiceProvider extends PackageServiceProvider
         $this->publishesMigrations([
             __DIR__.'/../database/migrations' => database_path('migrations'),
         ]);
+
+        // Register middleware alias
+        $router = $this->app->make(Router::class);
+        $router->aliasMiddleware('validate-webhook', ValidateWebhook::class);
 
         AboutCommand::add('Larawebhook', fn () => [
             'name' => 'Larawebhook',
