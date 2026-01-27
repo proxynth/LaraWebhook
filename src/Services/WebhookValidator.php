@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Proxynth\Larawebhook\Services;
 
+use Exception;
 use Proxynth\Larawebhook\Exceptions\InvalidSignatureException;
 use Proxynth\Larawebhook\Exceptions\WebhookException;
 use Proxynth\Larawebhook\Models\WebhookLog;
@@ -89,7 +90,7 @@ class WebhookValidator
      * @param  string  $event  Event type (e.g., 'payment_intent.succeeded')
      * @return WebhookLog The created log entry
      *
-     * @throws \Exception
+     * @throws Exception
      */
     public function validateAndLog(
         string $payload,
@@ -133,6 +134,69 @@ class WebhookValidator
         }
 
         return $signatureHeader;
+    }
+
+    /**
+     * Validates webhook signature with automatic retries on failure.
+     *
+     * @param  string  $payload  Raw webhook content
+     * @param  string  $signature  Signature provided by the service
+     * @param  string  $service  Service name ('stripe' or 'github')
+     * @param  string  $event  Event type (e.g., 'payment_intent.succeeded')
+     * @return WebhookLog The final log entry (success or last failed attempt)
+     *
+     * @throws WebhookException|InvalidSignatureException If all retries fail
+     * @throws Exception
+     */
+    public function validateWithRetries(
+        string $payload,
+        string $signature,
+        string $service,
+        string $event
+    ): WebhookLog {
+        if (! config('larawebhook.retries.enabled', true)) {
+            return $this->validateAndLog($payload, $signature, $service, $event);
+        }
+
+        $logger = $this->logger ?? new WebhookLogger;
+        $decodedPayload = json_decode($payload, true) ?? ['raw' => $payload];
+        $maxAttempts = config('larawebhook.retries.max_attempts', 3);
+        $delays = config('larawebhook.retries.delays', [1, 5, 10]);
+
+        $lastException = null;
+
+        for ($attempt = 0; $attempt < $maxAttempts; $attempt++) {
+            try {
+                $this->validate($payload, $signature, $service);
+
+                // Success - log and return
+                return $logger->logSuccess($service, $event, $decodedPayload, $attempt);
+            } catch (WebhookException|InvalidSignatureException $e) {
+                $lastException = $e;
+
+                // Log the failure
+                $logger->logFailure(
+                    $service,
+                    $event,
+                    $decodedPayload,
+                    $e->getMessage(),
+                    $attempt
+                );
+
+                // If not the last attempt, wait before retrying
+                if ($attempt < $maxAttempts - 1 && isset($delays[$attempt])) {
+                    sleep($delays[$attempt]);
+                }
+            }
+        }
+
+        // All retries failed - throw the last exception
+        if ($lastException !== null) {
+            throw $lastException;
+        }
+
+        // This should never happen, but ensures type safety
+        throw new WebhookException('Validation failed with no recorded exception.');
     }
 
     private function isExpired(int $timestamp): bool
