@@ -16,13 +16,15 @@ class WebhookLogger
      * @param  string  $status  Status ('success' or 'failed')
      * @param  array  $payload  Webhook payload
      * @param  string|null  $errorMessage  Error message if failed
+     * @param  int  $attempt  Retry attempt number (0 = first try, 1 = first retry, etc.)
      */
     public function log(
         string $service,
         string $event,
         string $status,
         array $payload,
-        ?string $errorMessage = null
+        ?string $errorMessage = null,
+        int $attempt = 0
     ): WebhookLog {
         return WebhookLog::create([
             'service' => $service,
@@ -30,15 +32,16 @@ class WebhookLogger
             'status' => $status,
             'payload' => $payload,
             'error_message' => $errorMessage,
+            'attempt' => $attempt,
         ]);
     }
 
     /**
      * Log a successful webhook.
      */
-    public function logSuccess(string $service, string $event, array $payload): WebhookLog
+    public function logSuccess(string $service, string $event, array $payload, int $attempt = 0): WebhookLog
     {
-        return $this->log($service, $event, 'success', $payload);
+        return $this->log($service, $event, 'success', $payload, null, $attempt);
     }
 
     /**
@@ -48,8 +51,9 @@ class WebhookLogger
         string $service,
         string $event,
         array $payload,
-        string $errorMessage
+        string $errorMessage,
+        int $attempt = 0
     ): WebhookLog {
-        return $this->log($service, $event, 'failed', $payload, $errorMessage);
+        return $this->log($service, $event, 'failed', $payload, $errorMessage, $attempt);
     }
 }

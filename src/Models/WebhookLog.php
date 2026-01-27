@@ -14,10 +14,12 @@ class WebhookLog extends Model
         'status',
         'payload',
         'error_message',
+        'attempt',
     ];
 
     protected $casts = [
         'payload' => 'array',
+        'attempt' => 'integer',
     ];
 
     /**
@@ -58,5 +60,21 @@ class WebhookLog extends Model
     public function scopeSuccessful($query)
     {
         return $query->where('status', 'success');
+    }
+
+    /**
+     * Scope to filter by attempt number.
+     */
+    public function scopeAttempt($query, int $attempt)
+    {
+        return $query->where('attempt', $attempt);
+    }
+
+    /**
+     * Scope to get retried webhooks (attempt > 0).
+     */
+    public function scopeRetried($query)
+    {
+        return $query->where('attempt', '>', 0);
     }
 }
