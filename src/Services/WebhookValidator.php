@@ -6,12 +6,14 @@ namespace Proxynth\Larawebhook\Services;
 
 use Proxynth\Larawebhook\Exceptions\InvalidSignatureException;
 use Proxynth\Larawebhook\Exceptions\WebhookException;
+use Proxynth\Larawebhook\Models\WebhookLog;
 
 class WebhookValidator
 {
     public function __construct(
         private readonly string $secret,
-        private readonly int $tolerance = 300
+        private readonly int $tolerance = 300,
+        private readonly ?WebhookLogger $logger = null
     ) {}
 
     /**
@@ -76,6 +78,35 @@ class WebhookValidator
         }
 
         return $signatureHeader;
+    }
+
+    /**
+     * Validates webhook signature and logs the result.
+     *
+     * @param  string  $payload  Raw webhook content
+     * @param  string  $signature  Signature provided by the service
+     * @param  string  $service  Service name ('stripe' or 'github')
+     * @param  string  $event  Event type (e.g., 'payment_intent.succeeded')
+     * @return WebhookLog The created log entry
+     *
+     * @throws \Exception
+     */
+    public function validateAndLog(
+        string $payload,
+        string $signature,
+        string $service,
+        string $event
+    ): WebhookLog {
+        $logger = $this->logger ?? new WebhookLogger;
+        $decodedPayload = json_decode($payload, true) ?? ['raw' => $payload];
+
+        try {
+            $this->validate($payload, $signature, $service);
+
+            return $logger->logSuccess($service, $event, $decodedPayload);
+        } catch (WebhookException|InvalidSignatureException $e) {
+            return $logger->logFailure($service, $event, $decodedPayload, $e->getMessage());
+        }
     }
 
     /**
