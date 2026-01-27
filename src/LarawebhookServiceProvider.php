@@ -31,7 +31,8 @@ class LarawebhookServiceProvider extends PackageServiceProvider
     {
         $package->name('larawebhook')
             ->hasConfigFile()
-            ->hasMigration('create_larawebhook_table')
-            ->hasCommands(SkeletonCommand::class);
+            ->hasMigrations([
+                'create_webhook_logs_table',
+            ])->hasCommands(SkeletonCommand::class);
     }
 }
