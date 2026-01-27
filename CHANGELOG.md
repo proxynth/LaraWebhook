@@ -5,6 +5,13 @@ All notable changes to `larawebhook` will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0](https://github.com/proxynth/LaraWebhook/compare/v1.3.0...v1.4.0) (2026-01-27)
+
+
+### Features
+
+* :sparkles: introduce webhook validation middleware and enhance README ([#12](https://github.com/proxynth/LaraWebhook/issues/12)) ([74c3cfd](https://github.com/proxynth/LaraWebhook/commit/74c3cfde327d9efe5231871e7252c4dedf92acf3))
+
 ## [1.3.0](https://github.com/proxynth/LaraWebhook/compare/v1.2.0...v1.3.0) (2026-01-27)
 
 
