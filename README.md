@@ -116,6 +116,740 @@ public function handleWebhook(Request $request)
 
 ---
 
+## 🔌 Service Integration Examples
+
+Complete integration guides with real-world examples for popular webhook providers.
+
+### 🔵 Stripe Integration
+
+#### 1. Configuration
+
+Add your Stripe webhook secret to `.env`:
+
+```env
+STRIPE_WEBHOOK_SECRET=whsec_your_stripe_webhook_secret_here
+```
+
+Then configure the service in `config/larawebhook.php`:
+
+```php
+'services' => [
+    'stripe' => [
+        'secret' => env('STRIPE_WEBHOOK_SECRET'),
+        'tolerance' => 300, // 5 minutes tolerance for timestamp validation
+    ],
+],
+```
+
+#### 2. Create Route and Controller
+
+**Define the webhook route** in `routes/web.php`:
+
+```php
+use App\Http\Controllers\StripeWebhookController;
+
+Route::post('/stripe-webhook', [StripeWebhookController::class, 'handle'])
+    ->middleware('validate-webhook:stripe');
+```
+
+**Create the controller** at `app/Http/Controllers/StripeWebhookController.php`:
+
+```php
+<?php
+
+namespace App\Http\Controllers;
+
+use Illuminate\Http\Request;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Log;
+
+class StripeWebhookController extends Controller
+{
+    public function handle(Request $request): JsonResponse
+    {
+        // Webhook is already validated by the middleware
+        $payload = json_decode($request->getContent(), true);
+        $event = $payload['type'] ?? 'unknown';
+
+        // Route to specific event handlers
+        match ($event) {
+            'payment_intent.succeeded' => $this->handlePaymentIntentSucceeded($payload),
+            'payment_intent.payment_failed' => $this->handlePaymentIntentFailed($payload),
+            'charge.succeeded' => $this->handleChargeSucceeded($payload),
+            'charge.failed' => $this->handleChargeFailed($payload),
+            'customer.subscription.created' => $this->handleSubscriptionCreated($payload),
+            'customer.subscription.updated' => $this->handleSubscriptionUpdated($payload),
+            'customer.subscription.deleted' => $this->handleSubscriptionDeleted($payload),
+            'invoice.paid' => $this->handleInvoicePaid($payload),
+            'invoice.payment_failed' => $this->handleInvoicePaymentFailed($payload),
+            default => $this->handleUnknownEvent($event, $payload),
+        };
+
+        return response()->json(['status' => 'success']);
+    }
+
+    private function handlePaymentIntentSucceeded(array $payload): void
+    {
+        $paymentIntent = $payload['data']['object'];
+
+        Log::info('Stripe: Payment intent succeeded', [
+            'payment_intent_id' => $paymentIntent['id'],
+            'amount' => $paymentIntent['amount'],
+            'currency' => $paymentIntent['currency'],
+            'customer' => $paymentIntent['customer'],
+        ]);
+
+        // Example: Update order status in your database
+        // Order::where('stripe_payment_intent_id', $paymentIntent['id'])
+        //     ->update(['status' => 'paid']);
+    }
+
+    private function handlePaymentIntentFailed(array $payload): void
+    {
+        $paymentIntent = $payload['data']['object'];
+
+        Log::error('Stripe: Payment intent failed', [
+            'payment_intent_id' => $paymentIntent['id'],
+            'last_payment_error' => $paymentIntent['last_payment_error'],
+        ]);
+
+        // Example: Notify customer of payment failure
+        // $order = Order::where('stripe_payment_intent_id', $paymentIntent['id'])->first();
+        // Mail::to($order->customer->email)->send(new PaymentFailedMail($order));
+    }
+
+    private function handleChargeSucceeded(array $payload): void
+    {
+        $charge = $payload['data']['object'];
+
+        Log::info('Stripe: Charge succeeded', [
+            'charge_id' => $charge['id'],
+            'amount' => $charge['amount'],
+        ]);
+    }
+
+    private function handleChargeFailed(array $payload): void
+    {
+        $charge = $payload['data']['object'];
+
+        Log::error('Stripe: Charge failed', [
+            'charge_id' => $charge['id'],
+            'failure_message' => $charge['failure_message'],
+        ]);
+    }
+
+    private function handleSubscriptionCreated(array $payload): void
+    {
+        $subscription = $payload['data']['object'];
+
+        Log::info('Stripe: Subscription created', [
+            'subscription_id' => $subscription['id'],
+            'customer' => $subscription['customer'],
+            'status' => $subscription['status'],
+        ]);
+
+        // Example: Grant access to premium features
+        // User::where('stripe_customer_id', $subscription['customer'])
+        //     ->update(['subscription_status' => 'active']);
+    }
+
+    private function handleSubscriptionUpdated(array $payload): void
+    {
+        $subscription = $payload['data']['object'];
+
+        Log::info('Stripe: Subscription updated', [
+            'subscription_id' => $subscription['id'],
+            'status' => $subscription['status'],
+        ]);
+    }
+
+    private function handleSubscriptionDeleted(array $payload): void
+    {
+        $subscription = $payload['data']['object'];
+
+        Log::info('Stripe: Subscription deleted', [
+            'subscription_id' => $subscription['id'],
+        ]);
+
+        // Example: Revoke access to premium features
+        // User::where('stripe_customer_id', $subscription['customer'])
+        //     ->update(['subscription_status' => 'cancelled']);
+    }
+
+    private function handleInvoicePaid(array $payload): void
+    {
+        $invoice = $payload['data']['object'];
+
+        Log::info('Stripe: Invoice paid', [
+            'invoice_id' => $invoice['id'],
+            'amount_paid' => $invoice['amount_paid'],
+        ]);
+    }
+
+    private function handleInvoicePaymentFailed(array $payload): void
+    {
+        $invoice = $payload['data']['object'];
+
+        Log::error('Stripe: Invoice payment failed', [
+            'invoice_id' => $invoice['id'],
+            'attempt_count' => $invoice['attempt_count'],
+        ]);
+    }
+
+    private function handleUnknownEvent(string $event, array $payload): void
+    {
+        Log::warning('Stripe: Unknown event type received', [
+            'event_type' => $event,
+        ]);
+    }
+}
+```
+
+#### 3. Webhook Flow Diagram
+
+```
+┌─────────────────┐         ┌──────────────────────┐         ┌─────────────────────┐
+│                 │         │                      │         │                     │
+│  Stripe Server  │────────▶│  LaraWebhook         │────────▶│  Your Application   │
+│                 │  POST   │  - Validates         │  Valid  │  - Process event    │
+│  (Webhook)      │         │    signature         │         │  - Update database  │
+│                 │         │  - Logs event        │         │  - Send emails      │
+└─────────────────┘         │  - Returns response  │         │                     │
+                            └──────────────────────┘         └─────────────────────┘
+                                      │
+                                      │ Invalid signature
+                                      ▼
+                            ┌──────────────────────┐
+                            │  Returns 403         │
+                            │  Forbidden           │
+                            └──────────────────────┘
+```
+
+#### 4. Example Log Entry
+
+Successful webhook processing creates a log entry:
+
+```json
+{
+  "id": 1,
+  "service": "stripe",
+  "event": "payment_intent.succeeded",
+  "status": "success",
+  "payload": {
+    "id": "evt_1234567890",
+    "type": "payment_intent.succeeded",
+    "data": {
+      "object": {
+        "id": "pi_1234567890",
+        "amount": 5000,
+        "currency": "usd",
+        "customer": "cus_1234567890",
+        "status": "succeeded"
+      }
+    }
+  },
+  "attempt": 0,
+  "error_message": null,
+  "created_at": "2024-01-15 10:30:00"
+}
+```
+
+#### 5. Configure Webhook in Stripe Dashboard
+
+1. Go to [Stripe Dashboard](https://dashboard.stripe.com/webhooks)
+2. Click **Add endpoint**
+3. Enter your webhook URL: `https://your-domain.com/stripe-webhook`
+4. Select events to listen for (or select "receive all events")
+5. Copy the **Signing secret** (starts with `whsec_`) and add it to your `.env` file
+
+#### 6. Testing & Debugging
+
+**View webhook logs:**
+```bash
+php artisan tinker
+>>> \Twillm\LaraWebhook\Models\WebhookLog::where('service', 'stripe')->latest()->first();
+```
+
+**Test with Stripe CLI:**
+```bash
+# Install Stripe CLI
+brew install stripe/stripe-cli/stripe
+
+# Forward webhooks to your local environment
+stripe listen --forward-to http://localhost:8000/stripe-webhook
+
+# Trigger a test webhook
+stripe trigger payment_intent.succeeded
+```
+
+---
+
+### ⚫ GitHub Integration
+
+#### 1. Configuration
+
+Add your GitHub webhook secret to `.env`:
+
+```env
+GITHUB_WEBHOOK_SECRET=your_github_webhook_secret_here
+```
+
+Then configure the service in `config/larawebhook.php`:
+
+```php
+'services' => [
+    'github' => [
+        'secret' => env('GITHUB_WEBHOOK_SECRET'),
+        'tolerance' => 300,
+    ],
+],
+```
+
+#### 2. Create Route and Controller
+
+**Define the webhook route** in `routes/web.php`:
+
+```php
+use App\Http\Controllers\GitHubWebhookController;
+
+Route::post('/github-webhook', [GitHubWebhookController::class, 'handle'])
+    ->middleware('validate-webhook:github');
+```
+
+**Create the controller** at `app/Http/Controllers/GitHubWebhookController.php`:
+
+```php
+<?php
+
+namespace App\Http\Controllers;
+
+use Illuminate\Http\Request;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Log;
+
+class GitHubWebhookController extends Controller
+{
+    public function handle(Request $request): JsonResponse
+    {
+        // Webhook is already validated by the middleware
+        $payload = json_decode($request->getContent(), true);
+        $event = $request->header('X-GitHub-Event');
+
+        // Route to specific event handlers
+        match ($event) {
+            'push' => $this->handlePush($payload),
+            'pull_request' => $this->handlePullRequest($payload),
+            'pull_request_review' => $this->handlePullRequestReview($payload),
+            'issues' => $this->handleIssues($payload),
+            'issue_comment' => $this->handleIssueComment($payload),
+            'release' => $this->handleRelease($payload),
+            'workflow_run' => $this->handleWorkflowRun($payload),
+            'deployment' => $this->handleDeployment($payload),
+            'star' => $this->handleStar($payload),
+            default => $this->handleUnknownEvent($event, $payload),
+        };
+
+        return response()->json(['status' => 'success']);
+    }
+
+    private function handlePush(array $payload): void
+    {
+        $repository = $payload['repository']['full_name'];
+        $branch = str_replace('refs/heads/', '', $payload['ref']);
+        $commits = count($payload['commits']);
+        $pusher = $payload['pusher']['name'];
+
+        Log::info('GitHub: Push event received', [
+            'repository' => $repository,
+            'branch' => $branch,
+            'commits' => $commits,
+            'pusher' => $pusher,
+        ]);
+
+        // Example: Trigger deployment for main branch
+        // if ($branch === 'main') {
+        //     Artisan::call('deploy:production');
+        // }
+    }
+
+    private function handlePullRequest(array $payload): void
+    {
+        $action = $payload['action'];
+        $pr = $payload['pull_request'];
+
+        Log::info('GitHub: Pull request ' . $action, [
+            'pr_number' => $pr['number'],
+            'title' => $pr['title'],
+            'author' => $pr['user']['login'],
+            'state' => $pr['state'],
+        ]);
+
+        match ($action) {
+            'opened' => $this->handlePullRequestOpened($pr),
+            'closed' => $this->handlePullRequestClosed($pr),
+            'reopened' => $this->handlePullRequestReopened($pr),
+            'synchronize' => $this->handlePullRequestSynchronize($pr),
+            default => null,
+        };
+    }
+
+    private function handlePullRequestOpened(array $pr): void
+    {
+        // Example: Send notification to Slack
+        // Notification::route('slack', config('services.slack.webhook'))
+        //     ->notify(new NewPullRequestNotification($pr));
+    }
+
+    private function handlePullRequestClosed(array $pr): void
+    {
+        if ($pr['merged']) {
+            Log::info('GitHub: Pull request merged', [
+                'pr_number' => $pr['number'],
+                'merged_by' => $pr['merged_by']['login'] ?? 'unknown',
+            ]);
+        } else {
+            Log::info('GitHub: Pull request closed without merge', [
+                'pr_number' => $pr['number'],
+            ]);
+        }
+    }
+
+    private function handlePullRequestReopened(array $pr): void
+    {
+        Log::info('GitHub: Pull request reopened', [
+            'pr_number' => $pr['number'],
+        ]);
+    }
+
+    private function handlePullRequestSynchronize(array $pr): void
+    {
+        Log::info('GitHub: Pull request synchronized (new commits)', [
+            'pr_number' => $pr['number'],
+        ]);
+
+        // Example: Trigger CI/CD pipeline
+        // Artisan::call('ci:run', ['pr' => $pr['number']]);
+    }
+
+    private function handlePullRequestReview(array $payload): void
+    {
+        $review = $payload['review'];
+        $pr = $payload['pull_request'];
+
+        Log::info('GitHub: Pull request review submitted', [
+            'pr_number' => $pr['number'],
+            'reviewer' => $review['user']['login'],
+            'state' => $review['state'],
+        ]);
+    }
+
+    private function handleIssues(array $payload): void
+    {
+        $action = $payload['action'];
+        $issue = $payload['issue'];
+
+        Log::info('GitHub: Issue ' . $action, [
+            'issue_number' => $issue['number'],
+            'title' => $issue['title'],
+            'author' => $issue['user']['login'],
+        ]);
+    }
+
+    private function handleIssueComment(array $payload): void
+    {
+        $action = $payload['action'];
+        $comment = $payload['comment'];
+        $issue = $payload['issue'];
+
+        Log::info('GitHub: Issue comment ' . $action, [
+            'issue_number' => $issue['number'],
+            'commenter' => $comment['user']['login'],
+        ]);
+    }
+
+    private function handleRelease(array $payload): void
+    {
+        $action = $payload['action'];
+        $release = $payload['release'];
+
+        Log::info('GitHub: Release ' . $action, [
+            'tag' => $release['tag_name'],
+            'name' => $release['name'],
+            'author' => $release['author']['login'],
+        ]);
+
+        if ($action === 'published') {
+            // Example: Deploy to production
+            // Artisan::call('deploy:production', ['version' => $release['tag_name']]);
+        }
+    }
+
+    private function handleWorkflowRun(array $payload): void
+    {
+        $workflow = $payload['workflow_run'];
+
+        Log::info('GitHub: Workflow run ' . $workflow['conclusion'], [
+            'workflow' => $workflow['name'],
+            'status' => $workflow['status'],
+            'conclusion' => $workflow['conclusion'],
+        ]);
+    }
+
+    private function handleDeployment(array $payload): void
+    {
+        $deployment = $payload['deployment'];
+
+        Log::info('GitHub: Deployment event', [
+            'environment' => $deployment['environment'],
+            'ref' => $deployment['ref'],
+        ]);
+    }
+
+    private function handleStar(array $payload): void
+    {
+        $action = $payload['action'];
+        $repository = $payload['repository']['full_name'];
+        $stargazer = $payload['sender']['login'];
+
+        Log::info('GitHub: Repository ' . ($action === 'created' ? 'starred' : 'unstarred'), [
+            'repository' => $repository,
+            'stargazer' => $stargazer,
+            'stars' => $payload['repository']['stargazers_count'],
+        ]);
+    }
+
+    private function handleUnknownEvent(string $event, array $payload): void
+    {
+        Log::warning('GitHub: Unknown event type received', [
+            'event_type' => $event,
+        ]);
+    }
+}
+```
+
+#### 3. Webhook Flow Diagram
+
+```
+┌─────────────────┐         ┌──────────────────────┐         ┌─────────────────────┐
+│                 │         │                      │         │                     │
+│  GitHub Server  │────────▶│  LaraWebhook         │────────▶│  Your Application   │
+│                 │  POST   │  - Validates         │  Valid  │  - Process event    │
+│  (Webhook)      │         │    X-Hub-Signature   │         │  - Trigger CI/CD    │
+│                 │         │  - Logs event        │         │  - Send messages    │
+└─────────────────┘         │  - Returns response  │         │                     │
+                            └──────────────────────┘         └─────────────────────┘
+                                      │
+                                      │ Invalid signature
+                                      ▼
+                            ┌──────────────────────┐
+                            │  Returns 403         │
+                            │  Forbidden           │
+                            └──────────────────────┘
+```
+
+#### 4. Example Log Entry
+
+Successful webhook processing creates a log entry:
+
+```json
+{
+  "id": 2,
+  "service": "github",
+  "event": "push",
+  "status": "success",
+  "payload": {
+    "ref": "refs/heads/main",
+    "repository": {
+      "full_name": "username/repository",
+      "html_url": "https://github.com/username/repository"
+    },
+    "pusher": {
+      "name": "username"
+    },
+    "commits": [
+      {
+        "id": "abc123def456",
+        "message": "feat: add new feature",
+        "author": {
+          "name": "John Doe",
+          "email": "john@example.com"
+        }
+      }
+    ]
+  },
+  "attempt": 0,
+  "error_message": null,
+  "created_at": "2024-01-15 14:25:00"
+}
+```
+
+#### 5. Configure Webhook in GitHub
+
+1. Go to your repository **Settings** → **Webhooks** → **Add webhook**
+2. **Payload URL**: `https://your-domain.com/github-webhook`
+3. **Content type**: `application/json`
+4. **Secret**: Enter a strong secret and add it to your `.env` file
+5. **Events**: Select individual events or "Send me everything"
+6. **Active**: Check this box
+7. Click **Add webhook**
+
+#### 6. Testing & Debugging
+
+**View webhook logs:**
+```bash
+php artisan tinker
+>>> \Twillm\LaraWebhook\Models\WebhookLog::where('service', 'github')->latest()->first();
+```
+
+**Test webhook delivery:**
+1. Go to your repository **Settings** → **Webhooks**
+2. Click on your webhook
+3. Scroll to **Recent Deliveries**
+4. Click **Redeliver** on any delivery to resend it
+
+---
+
+### 🔒 Best Practices
+
+#### Security
+
+**✅ Always use HTTPS in production**
+```php
+// Force HTTPS for webhook routes in production
+if (app()->environment('production')) {
+    URL::forceScheme('https');
+}
+```
+
+**✅ Validate webhook signatures**
+```php
+// The validate-webhook middleware does this automatically
+Route::post('/webhook', [Controller::class, 'handle'])
+    ->middleware('validate-webhook:stripe');
+```
+
+**✅ Keep secrets in environment variables**
+```env
+# .env file (NEVER commit this file)
+STRIPE_WEBHOOK_SECRET=whsec_your_secret_here
+GITHUB_WEBHOOK_SECRET=your_github_secret_here
+```
+
+**✅ Rotate secrets regularly**
+- Update secrets in your webhook provider dashboard
+- Update `.env` file
+- Deploy the change
+- Delete old webhook endpoint after verifying the new one works
+
+**✅ Limit webhook IP addresses (optional)**
+```php
+// Only accept webhooks from Stripe IPs
+Route::post('/stripe-webhook', [StripeWebhookController::class, 'handle'])
+    ->middleware(['validate-webhook:stripe', 'throttle:60,1']);
+```
+
+#### Error Handling
+
+**✅ Log all webhook events**
+```php
+// LaraWebhook automatically logs all webhooks to the database
+// View them in the dashboard: /larawebhook/dashboard
+```
+
+**✅ Handle failures gracefully**
+```php
+private function handlePaymentFailed(array $payload): void
+{
+    try {
+        // Process the event
+        $this->processPayment($payload);
+    } catch (\Exception $e) {
+        // Log the error
+        Log::error('Failed to process payment webhook', [
+            'error' => $e->getMessage(),
+            'payload' => $payload,
+        ]);
+
+        // Notify administrators
+        // Notification::route('slack', config('services.slack.webhook'))
+        //     ->notify(new WebhookProcessingFailed($e, $payload));
+    }
+}
+```
+
+**✅ Use try-catch for external calls**
+```php
+private function handlePush(array $payload): void
+{
+    try {
+        // Call external service
+        Http::timeout(5)->post('https://external-api.com/deploy', [
+            'repository' => $payload['repository']['name'],
+        ]);
+    } catch (\Exception $e) {
+        Log::error('Failed to trigger deployment', [
+            'error' => $e->getMessage(),
+        ]);
+        // Don't throw - webhook should still return 200 OK
+    }
+}
+```
+
+#### Performance
+
+**✅ Process webhooks asynchronously with queues**
+```php
+public function handle(Request $request): JsonResponse
+{
+    $payload = json_decode($request->getContent(), true);
+    $event = $payload['type'];
+
+    // Dispatch to queue for async processing
+    ProcessStripeWebhook::dispatch($event, $payload);
+
+    // Return 200 immediately
+    return response()->json(['status' => 'success']);
+}
+```
+
+**✅ Set reasonable timeouts**
+```php
+// Don't let webhook processing block the response
+set_time_limit(30); // 30 seconds max
+```
+
+#### Monitoring
+
+**✅ Monitor webhook failures**
+```bash
+# Check for recent failures
+php artisan tinker
+>>> \Twillm\LaraWebhook\Models\WebhookLog::where('status', 'failed')
+        ->where('created_at', '>', now()->subHour())
+        ->count();
+```
+
+**✅ Set up alerts for repeated failures**
+```php
+// Example: Send alert if more than 5 webhooks fail in an hour
+$failedCount = WebhookLog::where('status', 'failed')
+    ->where('created_at', '>', now()->subHour())
+    ->count();
+
+if ($failedCount > 5) {
+    Notification::route('slack', config('services.slack.webhook'))
+        ->notify(new HighWebhookFailureRate($failedCount));
+}
+```
+
+**✅ Use the dashboard for monitoring**
+- Access at `/larawebhook/dashboard`
+- Filter by service, status, date
+- Replay failed webhooks
+- View detailed payloads and error messages
+
+---
+
 ## 🔧 Configuration
 
 Modify `config/larawebhook.php` to:
@@ -276,6 +1010,22 @@ LARAWEBHOOK_DASHBOARD_PATH=/admin/webhooks
 ```env
 LARAWEBHOOK_DASHBOARD_MIDDLEWARE=web,auth
 ```
+
+
+### Dashboard Screenshots
+
+**Main Dashboard**
+![Dashboard Overview](docs/screenshots/dashboard-overview.png)
+
+**Filtered View**
+![Filtered Dashboard](docs/screenshots/dashboard-filtered.png)
+
+**Payload Details**
+![Payload Modal](docs/screenshots/dashboard-payload-modal.png)
+
+**Success vs Failed Logs**
+![Log Comparison](docs/screenshots/log-success.png)
+![Failed Log](docs/screenshots/log-failed.png)
 
 ---
 
