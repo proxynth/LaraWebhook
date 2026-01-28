@@ -28,4 +28,18 @@ return [
         'delays' => [1, 5, 10], // Delays in seconds between retries
         'async' => env('WEBHOOK_ASYNC_RETRIES', false), // Use queue for retries
     ],
+
+    /*
+   |--------------------------------------------------------------------------
+   | Dashboard Configuration
+   |--------------------------------------------------------------------------
+   |
+   | Configure the webhook dashboard interface.
+   |
+   */
+    'dashboard' => [
+        'enabled' => env('LARAWEBHOOK_DASHBOARD_ENABLED', true),
+        'path' => env('LARAWEBHOOK_DASHBOARD_PATH', '/larawebhook/dashboard'),
+        'middleware' => env('LARAWEBHOOK_DASHBOARD_MIDDLEWARE', 'web'),
+    ],
 ];

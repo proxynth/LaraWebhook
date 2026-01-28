@@ -96,7 +96,8 @@ class WebhookValidator
         string $payload,
         string $signature,
         string $service,
-        string $event
+        string $event,
+        int $attempt = 0
     ): WebhookLog {
         $logger = $this->logger ?? new WebhookLogger;
         $decodedPayload = json_decode($payload, true) ?? ['raw' => $payload];
@@ -104,9 +105,9 @@ class WebhookValidator
         try {
             $this->validate($payload, $signature, $service);
 
-            return $logger->logSuccess($service, $event, $decodedPayload);
+            return $logger->logSuccess($service, $event, $decodedPayload, $attempt);
         } catch (WebhookException|InvalidSignatureException $e) {
-            return $logger->logFailure($service, $event, $decodedPayload, $e->getMessage());
+            return $logger->logFailure($service, $event, $decodedPayload, $e->getMessage(), $attempt);
         }
     }
 
