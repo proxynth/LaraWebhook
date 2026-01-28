@@ -12,7 +12,7 @@
 
 ## ✨ Features
 
-- **Signature Validation**: Verify webhook authenticity (Stripe, GitHub, etc.)
+- **Signature Validation**: Verify webhook authenticity (Stripe, GitHub, Slack, Shopify)
 - **Retry Management**: Automatically retry failed webhooks with exponential backoff
 - **Detailed Logging**: Store events and errors for debugging
 - **Failure Notifications**: Get alerted via Email and Slack when webhooks fail repeatedly
@@ -1001,6 +1001,350 @@ php artisan tinker
 2. Click on your webhook
 3. Scroll to **Recent Deliveries**
 4. Click **Redeliver** on any delivery to resend it
+
+---
+
+### 💬 Slack Integration
+
+#### 1. Configuration
+
+Add your Slack signing secret to `.env`:
+
+```env
+SLACK_WEBHOOK_SECRET=your_slack_signing_secret_here
+```
+
+Get your signing secret from your Slack app settings:
+1. Go to [Slack API](https://api.slack.com/apps)
+2. Select your app
+3. Go to **Basic Information** → **App Credentials**
+4. Copy the **Signing Secret**
+
+#### 2. Create Route and Controller
+
+**Define the webhook route** in `routes/web.php`:
+
+```php
+use App\Http\Controllers\SlackWebhookController;
+
+Route::post('/slack-webhook', [SlackWebhookController::class, 'handle'])
+    ->middleware('validate-webhook:slack');
+```
+
+**Create the controller** at `app/Http/Controllers/SlackWebhookController.php`:
+
+```php
+<?php
+
+namespace App\Http\Controllers;
+
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+
+class SlackWebhookController extends Controller
+{
+    public function handle(Request $request): JsonResponse
+    {
+        $payload = json_decode($request->getContent(), true);
+
+        // Handle URL verification challenge
+        if (isset($payload['type']) && $payload['type'] === 'url_verification') {
+            return response()->json(['challenge' => $payload['challenge']]);
+        }
+
+        $eventType = $payload['event']['type'] ?? $payload['type'] ?? 'unknown';
+
+        match ($eventType) {
+            'app_mention' => $this->handleAppMention($payload),
+            'message' => $this->handleMessage($payload),
+            'block_actions' => $this->handleBlockActions($payload),
+            'view_submission' => $this->handleViewSubmission($payload),
+            default => $this->handleUnknownEvent($eventType, $payload),
+        };
+
+        return response()->json(['status' => 'success']);
+    }
+
+    private function handleAppMention(array $payload): void
+    {
+        $event = $payload['event'];
+
+        Log::info('Slack: App mentioned', [
+            'user' => $event['user'],
+            'channel' => $event['channel'],
+            'text' => $event['text'],
+        ]);
+
+        // Example: Reply to the mention
+        // $this->slackClient->chat->postMessage([
+        //     'channel' => $event['channel'],
+        //     'text' => "Hi <@{$event['user']}>! How can I help?",
+        // ]);
+    }
+
+    private function handleMessage(array $payload): void
+    {
+        $event = $payload['event'];
+
+        // Ignore bot messages to prevent loops
+        if (isset($event['bot_id'])) {
+            return;
+        }
+
+        Log::info('Slack: Message received', [
+            'channel' => $event['channel'],
+            'user' => $event['user'] ?? 'unknown',
+        ]);
+    }
+
+    private function handleBlockActions(array $payload): void
+    {
+        $action = $payload['actions'][0] ?? [];
+
+        Log::info('Slack: Block action triggered', [
+            'action_id' => $action['action_id'] ?? 'unknown',
+            'user' => $payload['user']['id'] ?? 'unknown',
+        ]);
+    }
+
+    private function handleViewSubmission(array $payload): void
+    {
+        Log::info('Slack: View submitted', [
+            'view_id' => $payload['view']['id'] ?? 'unknown',
+            'user' => $payload['user']['id'] ?? 'unknown',
+        ]);
+    }
+
+    private function handleUnknownEvent(string $eventType, array $payload): void
+    {
+        Log::warning('Slack: Unknown event type', ['event_type' => $eventType]);
+    }
+}
+```
+
+#### 3. Signature Validation Flow
+
+```
+┌─────────────────┐         ┌──────────────────────┐         ┌─────────────────────┐
+│                 │         │                      │         │                     │
+│  Slack Server   │────────▶│  LaraWebhook         │────────▶│  Your Application   │
+│                 │  POST   │  - Validates         │  Valid  │  - Process event    │
+│  (Event/Action) │         │    X-Slack-Signature │         │  - Reply to users   │
+│                 │         │  - Checks timestamp  │         │  - Update state     │
+└─────────────────┘         │  - Logs event        │         │                     │
+                            └──────────────────────┘         └─────────────────────┘
+```
+
+#### 4. Configure Webhook in Slack
+
+1. Go to [Slack API](https://api.slack.com/apps) and select your app
+2. Navigate to **Event Subscriptions** (for events) or **Interactivity & Shortcuts** (for interactions)
+3. Enable the feature and enter your URL: `https://your-domain.com/slack-webhook`
+4. For events, subscribe to the events you want (e.g., `app_mention`, `message.channels`)
+5. Save changes and reinstall the app if prompted
+
+---
+
+### 🛒 Shopify Integration
+
+#### 1. Configuration
+
+Add your Shopify webhook secret to `.env`:
+
+```env
+SHOPIFY_WEBHOOK_SECRET=your_shopify_webhook_secret_here
+```
+
+#### 2. Create Route and Controller
+
+**Define the webhook route** in `routes/web.php`:
+
+```php
+use App\Http\Controllers\ShopifyWebhookController;
+
+Route::post('/shopify-webhook', [ShopifyWebhookController::class, 'handle'])
+    ->middleware('validate-webhook:shopify');
+```
+
+**Create the controller** at `app/Http/Controllers/ShopifyWebhookController.php`:
+
+```php
+<?php
+
+namespace App\Http\Controllers;
+
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+
+class ShopifyWebhookController extends Controller
+{
+    public function handle(Request $request): JsonResponse
+    {
+        $payload = json_decode($request->getContent(), true);
+        $topic = $request->header('X-Shopify-Topic');
+        $shopDomain = $request->header('X-Shopify-Shop-Domain');
+
+        Log::info('Shopify webhook received', [
+            'topic' => $topic,
+            'shop' => $shopDomain,
+        ]);
+
+        match ($topic) {
+            'orders/create' => $this->handleOrderCreate($payload),
+            'orders/updated' => $this->handleOrderUpdated($payload),
+            'orders/cancelled' => $this->handleOrderCancelled($payload),
+            'orders/fulfilled' => $this->handleOrderFulfilled($payload),
+            'products/create' => $this->handleProductCreate($payload),
+            'products/update' => $this->handleProductUpdate($payload),
+            'products/delete' => $this->handleProductDelete($payload),
+            'customers/create' => $this->handleCustomerCreate($payload),
+            'refunds/create' => $this->handleRefundCreate($payload),
+            default => $this->handleUnknownTopic($topic, $payload),
+        };
+
+        return response()->json(['status' => 'success']);
+    }
+
+    private function handleOrderCreate(array $payload): void
+    {
+        Log::info('Shopify: Order created', [
+            'order_id' => $payload['id'],
+            'order_number' => $payload['order_number'],
+            'total_price' => $payload['total_price'],
+            'customer_email' => $payload['email'],
+        ]);
+
+        // Example: Sync order to your database
+        // Order::create([
+        //     'shopify_id' => $payload['id'],
+        //     'number' => $payload['order_number'],
+        //     'total' => $payload['total_price'],
+        //     'currency' => $payload['currency'],
+        //     'status' => $payload['financial_status'],
+        // ]);
+    }
+
+    private function handleOrderUpdated(array $payload): void
+    {
+        Log::info('Shopify: Order updated', [
+            'order_id' => $payload['id'],
+            'financial_status' => $payload['financial_status'],
+        ]);
+    }
+
+    private function handleOrderCancelled(array $payload): void
+    {
+        Log::info('Shopify: Order cancelled', [
+            'order_id' => $payload['id'],
+            'cancel_reason' => $payload['cancel_reason'] ?? 'unknown',
+        ]);
+    }
+
+    private function handleOrderFulfilled(array $payload): void
+    {
+        Log::info('Shopify: Order fulfilled', [
+            'order_id' => $payload['id'],
+        ]);
+    }
+
+    private function handleProductCreate(array $payload): void
+    {
+        Log::info('Shopify: Product created', [
+            'product_id' => $payload['id'],
+            'title' => $payload['title'],
+        ]);
+    }
+
+    private function handleProductUpdate(array $payload): void
+    {
+        Log::info('Shopify: Product updated', [
+            'product_id' => $payload['id'],
+        ]);
+    }
+
+    private function handleProductDelete(array $payload): void
+    {
+        Log::info('Shopify: Product deleted', [
+            'product_id' => $payload['id'],
+        ]);
+    }
+
+    private function handleCustomerCreate(array $payload): void
+    {
+        Log::info('Shopify: Customer created', [
+            'customer_id' => $payload['id'],
+            'email' => $payload['email'],
+        ]);
+    }
+
+    private function handleRefundCreate(array $payload): void
+    {
+        Log::info('Shopify: Refund created', [
+            'refund_id' => $payload['id'],
+            'order_id' => $payload['order_id'],
+        ]);
+    }
+
+    private function handleUnknownTopic(?string $topic, array $payload): void
+    {
+        Log::warning('Shopify: Unknown topic', ['topic' => $topic]);
+    }
+}
+```
+
+#### 3. Signature Validation Flow
+
+```
+┌─────────────────┐         ┌──────────────────────┐         ┌─────────────────────┐
+│                 │         │                      │         │                     │
+│  Shopify Server │────────▶│  LaraWebhook         │────────▶│  Your Application   │
+│                 │  POST   │  - Validates HMAC    │  Valid  │  - Sync orders      │
+│  (Webhook)      │         │    X-Shopify-Hmac    │         │  - Update inventory │
+│                 │         │  - Logs event        │         │  - Process refunds  │
+└─────────────────┘         │  - Returns 200       │         │                     │
+                            └──────────────────────┘         └─────────────────────┘
+```
+
+#### 4. Configure Webhook in Shopify
+
+**Via Shopify Admin:**
+1. Go to **Settings** → **Notifications** → **Webhooks**
+2. Click **Create webhook**
+3. Select the event (e.g., `Order creation`)
+4. Format: **JSON**
+5. URL: `https://your-domain.com/shopify-webhook`
+6. API version: Select the latest stable version
+7. Click **Save**
+8. Copy the webhook signing secret and add to your `.env`
+
+**Via Shopify API:**
+```bash
+curl -X POST "https://your-shop.myshopify.com/admin/api/2024-01/webhooks.json" \
+  -H "X-Shopify-Access-Token: YOUR_ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "webhook": {
+      "topic": "orders/create",
+      "address": "https://your-domain.com/shopify-webhook",
+      "format": "json"
+    }
+  }'
+```
+
+#### 5. Testing with Shopify CLI
+
+```bash
+# Install Shopify CLI
+npm install -g @shopify/cli @shopify/theme
+
+# Test webhook delivery
+shopify webhook trigger --topic orders/create \
+  --api-version 2024-01 \
+  --delivery-method http \
+  --address https://your-domain.com/shopify-webhook
+```
 
 ---
 

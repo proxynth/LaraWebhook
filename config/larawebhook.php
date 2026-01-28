@@ -1,6 +1,22 @@
 <?php
 
 return [
+    /*
+    |--------------------------------------------------------------------------
+    | Custom Validators
+    |--------------------------------------------------------------------------
+    |
+    | Register custom webhook validators for additional services.
+    | Each validator must implement WebhookValidatorInterface.
+    |
+    | Example:
+    | 'twilio' => \App\Webhooks\TwilioValidator::class,
+    |
+    */
+    'custom_validators' => [
+        // Add your custom validators here
+    ],
+
     'services' => [
         'stripe' => [
             'public' => env('STRIPE_PUBLIC_KEY', 'stripe_public_key_test'),
@@ -12,6 +28,16 @@ return [
         'github' => [
             'webhook_secret' => env('GITHUB_WEBHOOK_SECRET', 'github_webhook_secret_key_test'),
             'tolerance' => 300,
+        ],
+
+        'slack' => [
+            'webhook_secret' => env('SLACK_WEBHOOK_SECRET', 'slack_webhook_secret_test'),
+            'tolerance' => env('SLACK_WEBHOOK_TOLERANCE', 300),
+        ],
+
+        'shopify' => [
+            'webhook_secret' => env('SHOPIFY_WEBHOOK_SECRET', 'shopify_webhook_secret_test'),
+            'tolerance' => env('SHOPIFY_WEBHOOK_TOLERANCE', 300),
         ],
     ],
 

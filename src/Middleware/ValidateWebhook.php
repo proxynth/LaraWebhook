@@ -36,6 +36,9 @@ class ValidateWebhook
             return response("Missing {$signatureHeader} header.", Response::HTTP_BAD_REQUEST);
         }
 
+        // Handle services with separate timestamp headers (e.g., Slack)
+        $signature = $this->buildSignatureWithTimestamp($request, $webhookService, $signature);
+
         if (empty($payload)) {
             return response('Request body is empty.', Response::HTTP_BAD_REQUEST);
         }
@@ -59,6 +62,30 @@ class ValidateWebhook
         }
 
         return $next($request);
+    }
+
+    /**
+     * Build the signature string including timestamp for services that use separate headers.
+     *
+     * Some services (like Slack) send the timestamp in a separate header.
+     * We combine them into a single string for the validator.
+     */
+    private function buildSignatureWithTimestamp(Request $request, WebhookService $service, string $signature): string
+    {
+        $timestampHeader = $service->timestampHeader();
+
+        if ($timestampHeader === null) {
+            return $signature;
+        }
+
+        $timestamp = $request->header($timestampHeader);
+
+        if (empty($timestamp)) {
+            return $signature;
+        }
+
+        // Combine timestamp and signature: "timestamp:signature"
+        return "{$timestamp}:{$signature}";
     }
 
     /**
