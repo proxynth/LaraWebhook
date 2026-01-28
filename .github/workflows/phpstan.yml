@@ -18,5 +18,5 @@ jobs:
           extensions: mbstring, ctype, json, dom
       - name: Install dependencies
         run: composer install --prefer-dist --no-progress
-      - name: Run PHPUnit
+      - name: Run phpstan
         run: vendor/bin/phpstan analyze --no-progress
