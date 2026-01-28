@@ -29,15 +29,11 @@ class WebhookValidator
      */
     public function validate(string $payload, string $signature, string $service): bool
     {
-        $expectedSignature = match ($service) {
+        match ($service) {
             'stripe' => $this->validateStripeSignature($payload, $signature),
             'github' => $this->validateGithubSignature($payload, $signature),
             default => throw new WebhookException("Unsupported service: {$service}"),
         };
-
-        if (! hash_equals($expectedSignature, $signature)) {
-            throw new InvalidSignatureException("Invalid signature for {$service} webhook.");
-        }
 
         return true;
     }

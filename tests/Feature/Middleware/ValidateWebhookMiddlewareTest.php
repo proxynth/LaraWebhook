@@ -212,3 +212,125 @@ describe('ValidateWebhook middleware configuration', function () {
             ->assertSee('Webhook secret not configured for stripe');
     });
 });
+
+describe('ValidateWebhook middleware with invalid JSON payload', function () {
+    it('extracts unknown event type when payload is not valid JSON for GitHub', function () {
+        $payload = 'this is not valid json {{{';
+        $signature = hash_hmac('sha256', $payload, 'test_github_secret');
+        $signatureHeader = "sha256={$signature}";
+
+        $response = $this->call(
+            'POST',
+            'test-github-webhook',
+            [],
+            [],
+            [],
+            ['HTTP_X_HUB_SIGNATURE_256' => $signatureHeader, 'CONTENT_TYPE' => 'application/json'],
+            $payload
+        );
+
+        // The webhook should succeed (valid signature) but event should be 'unknown'
+        $response->assertOk();
+
+        $log = WebhookLog::latest()->first();
+        expect($log->service)->toBe('github')
+            ->and($log->event)->toBe('unknown')
+            ->and($log->status)->toBe('success');
+    });
+
+    it('extracts unknown event type when payload is plain text for Stripe', function () {
+        $payload = 'plain text payload';
+        $timestamp = time();
+        $signedPayload = "{$timestamp}.{$payload}";
+        $signature = hash_hmac('sha256', $signedPayload, 'test_stripe_secret');
+        $signatureHeader = "t={$timestamp},v1={$signature}";
+
+        $response = $this->call(
+            'POST',
+            'test-stripe-webhook',
+            [],
+            [],
+            [],
+            ['HTTP_STRIPE_SIGNATURE' => $signatureHeader, 'CONTENT_TYPE' => 'application/json'],
+            $payload
+        );
+
+        $response->assertOk();
+
+        $log = WebhookLog::latest()->first();
+        expect($log->service)->toBe('stripe')
+            ->and($log->event)->toBe('unknown')
+            ->and($log->status)->toBe('success');
+    });
+
+    it('extracts unknown event when JSON object has no type key for Stripe', function () {
+        $payload = '{"data": "something", "other_key": "value"}';
+        $timestamp = time();
+        $signedPayload = "{$timestamp}.{$payload}";
+        $signature = hash_hmac('sha256', $signedPayload, 'test_stripe_secret');
+        $signatureHeader = "t={$timestamp},v1={$signature}";
+
+        $response = $this->call(
+            'POST',
+            'test-stripe-webhook',
+            [],
+            [],
+            [],
+            ['HTTP_STRIPE_SIGNATURE' => $signatureHeader, 'CONTENT_TYPE' => 'application/json'],
+            $payload
+        );
+
+        $response->assertOk();
+
+        $log = WebhookLog::latest()->first();
+        expect($log->service)->toBe('stripe')
+            ->and($log->event)->toBe('unknown')
+            ->and($log->status)->toBe('success');
+    });
+
+    it('extracts unknown.unknown event when GitHub JSON has no action or event keys', function () {
+        $payload = '{"data": "something", "other_key": "value"}';
+        $signature = hash_hmac('sha256', $payload, 'test_github_secret');
+        $signatureHeader = "sha256={$signature}";
+
+        $response = $this->call(
+            'POST',
+            'test-github-webhook',
+            [],
+            [],
+            [],
+            ['HTTP_X_HUB_SIGNATURE_256' => $signatureHeader, 'CONTENT_TYPE' => 'application/json'],
+            $payload
+        );
+
+        $response->assertOk();
+
+        $log = WebhookLog::latest()->first();
+        expect($log->service)->toBe('github')
+            ->and($log->event)->toBe('unknown.unknown')
+            ->and($log->status)->toBe('success');
+    });
+
+    it('extracts partial event when GitHub JSON has only action key', function () {
+        $payload = '{"action": "opened"}';
+        $signature = hash_hmac('sha256', $payload, 'test_github_secret');
+        $signatureHeader = "sha256={$signature}";
+
+        $response = $this->call(
+            'POST',
+            'test-github-webhook',
+            [],
+            [],
+            [],
+            ['HTTP_X_HUB_SIGNATURE_256' => $signatureHeader, 'CONTENT_TYPE' => 'application/json'],
+            $payload
+        );
+
+        $response->assertOk();
+
+        $log = WebhookLog::latest()->first();
+        expect($log->service)->toBe('github')
+            ->and($log->event)->toBe('opened.unknown')
+            ->and($log->status)->toBe('success');
+    });
+});

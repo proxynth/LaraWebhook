@@ -32,16 +32,48 @@ return [
     ],
 
     /*
-   |--------------------------------------------------------------------------
-   | Dashboard Configuration
-   |--------------------------------------------------------------------------
-   |
-   | Configure the webhook dashboard interface.
-   |
-   */
+    |--------------------------------------------------------------------------
+    | Dashboard Configuration
+    |--------------------------------------------------------------------------
+    |
+    | Configure the webhook dashboard interface.
+    |
+    */
     'dashboard' => [
         'enabled' => env('LARAWEBHOOK_DASHBOARD_ENABLED', true),
         'path' => env('LARAWEBHOOK_DASHBOARD_PATH', '/larawebhook/dashboard'),
         'middleware' => env('LARAWEBHOOK_DASHBOARD_MIDDLEWARE', 'web'),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Notifications Configuration
+    |--------------------------------------------------------------------------
+    |
+    | Configure notifications for repeated webhook failures.
+    | Notifications are sent when a webhook fails multiple times consecutively.
+    |
+    */
+    'notifications' => [
+        // Enable/disable failure notifications
+        'enabled' => env('WEBHOOK_NOTIFICATIONS_ENABLED', false),
+
+        // Notification channels (mail, slack)
+        'channels' => array_filter(explode(',', env('WEBHOOK_NOTIFICATION_CHANNELS', 'mail'))),
+
+        // Slack webhook URL (create an Incoming Webhook in your Slack app)
+        'slack_webhook' => env('WEBHOOK_SLACK_WEBHOOK_URL'),
+
+        // Email recipients for failure notifications
+        'email_recipients' => array_filter(explode(',', env('WEBHOOK_EMAIL_RECIPIENTS', ''))),
+
+        // Number of consecutive failures before sending notification
+        'failure_threshold' => (int) env('WEBHOOK_FAILURE_THRESHOLD', 3),
+
+        // Time window in minutes to count failures
+        'failure_window_minutes' => (int) env('WEBHOOK_FAILURE_WINDOW', 30),
+
+        // Cooldown in minutes between notifications for the same service/event
+        'cooldown_minutes' => (int) env('WEBHOOK_NOTIFICATION_COOLDOWN', 30),
     ],
 ];

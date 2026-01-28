@@ -15,6 +15,7 @@
 - **Signature Validation**: Verify webhook authenticity (Stripe, GitHub, etc.)
 - **Retry Management**: Automatically retry failed webhooks with exponential backoff
 - **Detailed Logging**: Store events and errors for debugging
+- **Failure Notifications**: Get alerted via Email and Slack when webhooks fail repeatedly
 - **Interactive Dashboard**: Modern UI with Alpine.js and Tailwind CSS for log management
 - **REST API**: Programmatic access to webhook logs with filtering and pagination
 - **Replay Webhooks**: Re-process failed webhooks from dashboard or API
@@ -832,18 +833,17 @@ php artisan tinker
         ->count();
 ```
 
-**✅ Set up alerts for repeated failures**
-```php
-// Example: Send alert if more than 5 webhooks fail in an hour
-$failedCount = WebhookLog::where('status', 'failed')
-    ->where('created_at', '>', now()->subHour())
-    ->count();
-
-if ($failedCount > 5) {
-    Notification::route('slack', config('services.slack.webhook'))
-        ->notify(new HighWebhookFailureRate($failedCount));
-}
+**✅ Enable automatic failure notifications**
+```env
+# LaraWebhook has built-in notifications for repeated failures
+WEBHOOK_NOTIFICATIONS_ENABLED=true
+WEBHOOK_NOTIFICATION_CHANNELS=mail,slack
+WEBHOOK_EMAIL_RECIPIENTS=admin@example.com
+WEBHOOK_SLACK_WEBHOOK_URL=https://hooks.slack.com/services/...
+WEBHOOK_FAILURE_THRESHOLD=3
 ```
+
+See the [Failure Notifications](#-failure-notifications) section for complete setup.
 
 **✅ Use the dashboard for monitoring**
 - Access at `/larawebhook/dashboard`
@@ -951,7 +951,9 @@ For detailed usage instructions, testing strategies, and best practices, see:
 Modify `config/larawebhook.php` to:
 * Add services (Stripe, GitHub, etc.)
 * Configure validation tolerance
-* Enable/disable logging
+* Enable retry management
+* Set up failure notifications
+* Customize the dashboard
 
 Example:
 ```php
@@ -964,6 +966,23 @@ Example:
         'webhook_secret' => env('GITHUB_WEBHOOK_SECRET'),
         'tolerance' => 300,
     ],
+],
+
+'retries' => [
+    'enabled' => true,
+    'max_attempts' => 3,
+    'delays' => [1, 5, 10], // seconds
+],
+
+'notifications' => [
+    'enabled' => env('WEBHOOK_NOTIFICATIONS_ENABLED', false),
+    'channels' => ['mail', 'slack'],
+    'failure_threshold' => 3,
+],
+
+'dashboard' => [
+    'enabled' => true,
+    'path' => '/larawebhook/dashboard',
 ],
 ```
 
@@ -1121,6 +1140,205 @@ LARAWEBHOOK_DASHBOARD_MIDDLEWARE=web,auth
 **Success vs Failed Logs**
 ![Log Comparison](docs/screenshots/log-success.png)
 ![Failed Log](docs/screenshots/log-failed.png)
+
+---
+
+## 🔔 Failure Notifications
+
+LaraWebhook can automatically notify you when webhooks fail repeatedly. Get alerted via **Email** and **Slack** when a service experiences multiple consecutive failures.
+
+### Why Notifications?
+
+- **Detect outages early**: Know immediately when a webhook provider has issues
+- **Reduce downtime**: React quickly to integration problems
+- **Team collaboration**: Send alerts to Slack channels for instant visibility
+
+### Configuration
+
+Enable notifications in `config/larawebhook.php`:
+
+```php
+'notifications' => [
+    // Enable/disable failure notifications
+    'enabled' => env('WEBHOOK_NOTIFICATIONS_ENABLED', true),
+
+    // Notification channels (mail, slack)
+    'channels' => array_filter(explode(',', env('WEBHOOK_NOTIFICATION_CHANNELS', 'mail'))),
+
+    // Slack webhook URL (create an Incoming Webhook in your Slack app)
+    'slack_webhook' => env('WEBHOOK_SLACK_WEBHOOK_URL'),
+
+    // Email recipients for failure notifications
+    'email_recipients' => array_filter(explode(',', env('WEBHOOK_EMAIL_RECIPIENTS', ''))),
+
+    // Number of consecutive failures before sending notification
+    'failure_threshold' => (int) env('WEBHOOK_FAILURE_THRESHOLD', 3),
+
+    // Time window in minutes to count failures
+    'failure_window_minutes' => (int) env('WEBHOOK_FAILURE_WINDOW', 30),
+
+    // Cooldown in minutes between notifications for the same service/event
+    'cooldown_minutes' => (int) env('WEBHOOK_NOTIFICATION_COOLDOWN', 30),
+],
+```
+
+### Environment Variables
+
+Add these to your `.env` file:
+
+```env
+# Enable notifications
+WEBHOOK_NOTIFICATIONS_ENABLED=true
+
+# Channels: mail, slack (comma-separated)
+WEBHOOK_NOTIFICATION_CHANNELS=mail,slack
+
+# Email recipients (comma-separated)
+WEBHOOK_EMAIL_RECIPIENTS=admin@example.com,devops@example.com
+
+# Slack incoming webhook URL
+WEBHOOK_SLACK_WEBHOOK_URL=https://hooks.slack.com/services/YOUR/WEBHOOK/URL
+
+# Number of failures before alerting (default: 3)
+WEBHOOK_FAILURE_THRESHOLD=3
+
+# Time window for counting failures in minutes (default: 30)
+WEBHOOK_FAILURE_WINDOW=30
+
+# Cooldown between notifications in minutes (default: 30)
+WEBHOOK_NOTIFICATION_COOLDOWN=30
+```
+
+### How It Works
+
+```
+┌─────────────────┐     ┌──────────────────────┐     ┌─────────────────────┐
+│                 │     │                      │     │                     │
+│  Webhook Fails  │────▶│  FailureDetector     │────▶│  Send Notification  │
+│  (3rd time)     │     │  - Count failures    │     │  - Email            │
+│                 │     │  - Check threshold   │     │  - Slack            │
+│                 │     │  - Check cooldown    │     │                     │
+└─────────────────┘     └──────────────────────┘     └─────────────────────┘
+                                  │
+                                  │ Below threshold
+                                  │ or in cooldown
+                                  ▼
+                        ┌──────────────────────┐
+                        │  No notification     │
+                        │  (prevents spam)     │
+                        └──────────────────────┘
+```
+
+1. **Failure Detection**: Counts consecutive failures for each service/event combination
+2. **Threshold Check**: Only triggers notification after N failures (configurable)
+3. **Time Window**: Only counts failures within the last X minutes
+4. **Cooldown**: Prevents notification spam by waiting between alerts
+
+### Slack Setup
+
+1. Go to [Slack API](https://api.slack.com/apps)
+2. Click **Create New App** → **From scratch**
+3. Give your app a name and select your workspace
+4. Go to **Incoming Webhooks** and toggle it **On**
+5. Click **Add New Webhook to Workspace**
+6. Select the channel for notifications (e.g., `#alerts` or `#monitoring`)
+7. Copy the webhook URL and add it to your `.env` file
+
+**Webhook URL format:** `https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXX`
+
+### Email Notifications
+
+Email notifications use Laravel's built-in mail system. Make sure your mail configuration is set up in `.env`:
+
+```env
+MAIL_MAILER=smtp
+MAIL_HOST=smtp.mailtrap.io
+MAIL_PORT=2525
+MAIL_USERNAME=your_username
+MAIL_PASSWORD=your_password
+MAIL_FROM_ADDRESS=noreply@example.com
+MAIL_FROM_NAME="LaraWebhook"
+```
+
+### Notification Content
+
+**Email Notification:**
+- Subject: `Webhook Failure Alert: {service}`
+- Service and event name
+- Number of consecutive failures
+- Last attempt timestamp
+- Error message (if available)
+- Link to dashboard
+
+**Slack Notification:**
+- Red alert color (danger level)
+- Service and event details
+- Failure count
+- Error message
+- Direct link to dashboard
+
+### Events
+
+LaraWebhook dispatches an event when a notification is sent, allowing you to add custom logic:
+
+```php
+use Proxynth\Larawebhook\Events\WebhookNotificationSent;
+
+// In your EventServiceProvider
+protected $listen = [
+    WebhookNotificationSent::class => [
+        YourCustomListener::class,
+    ],
+];
+
+// Your listener
+class YourCustomListener
+{
+    public function handle(WebhookNotificationSent $event): void
+    {
+        // $event->log - The WebhookLog model
+        // $event->failureCount - Number of failures
+
+        // Example: Log to external monitoring service
+        Http::post('https://monitoring.example.com/webhook-failure', [
+            'service' => $event->log->service,
+            'event' => $event->log->event,
+            'failures' => $event->failureCount,
+        ]);
+    }
+}
+```
+
+### Preventing Notification Spam
+
+LaraWebhook includes built-in spam prevention:
+
+1. **Failure Threshold**: Only notifies after N consecutive failures (default: 3)
+2. **Time Window**: Only counts failures within the last X minutes (default: 30)
+3. **Cooldown Period**: Won't send another notification for the same service/event within X minutes (default: 30)
+
+Example scenario:
+- Stripe `payment.failed` fails 3 times in 10 minutes → **Notification sent**
+- 5 more failures in the next 20 minutes → **No notification** (cooldown active)
+- After 30 minutes, 3 more failures → **Notification sent again**
+
+### Disabling Notifications
+
+To completely disable notifications:
+
+```env
+WEBHOOK_NOTIFICATIONS_ENABLED=false
+```
+
+Or to disable only for certain environments, use Laravel's configuration:
+
+```php
+// config/larawebhook.php
+'notifications' => [
+    'enabled' => env('WEBHOOK_NOTIFICATIONS_ENABLED', app()->environment('production')),
+    // ... other settings
+],
+```
 
 ---
 

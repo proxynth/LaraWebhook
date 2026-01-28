@@ -8,6 +8,10 @@ use Proxynth\Larawebhook\Models\WebhookLog;
 
 class WebhookLogger
 {
+    public function __construct(
+        private readonly ?NotificationSender $notificationSender = null
+    ) {}
+
     /**
      * Log a webhook event.
      *
@@ -26,7 +30,7 @@ class WebhookLogger
         ?string $errorMessage = null,
         int $attempt = 0
     ): WebhookLog {
-        return WebhookLog::create([
+        $log = WebhookLog::create([
             'service' => $service,
             'event' => $event,
             'status' => $status,
@@ -34,6 +38,13 @@ class WebhookLogger
             'error_message' => $errorMessage,
             'attempt' => $attempt,
         ]);
+
+        // Check for repeated failures and send notification if needed
+        if ($status === 'failed') {
+            $this->checkAndNotify($service, $event);
+        }
+
+        return $log;
     }
 
     /**
@@ -55,5 +66,13 @@ class WebhookLogger
         int $attempt = 0
     ): WebhookLog {
         return $this->log($service, $event, 'failed', $payload, $errorMessage, $attempt);
+    }
+
+    /**
+     * Check for repeated failures and send notification if needed.
+     */
+    private function checkAndNotify(string $service, string $event): void
+    {
+        $this->notificationSender?->sendIfNeeded($service, $event);
     }
 }
