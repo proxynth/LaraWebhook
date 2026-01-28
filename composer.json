@@ -37,6 +37,7 @@
     "analyse": "vendor/bin/phpstan analyse",
     "test": "vendor/bin/pest",
     "test-coverage": "vendor/bin/pest --coverage",
+    "test-coverage-html": "vendor/bin/pest --coverage-html build/coverage",
     "format": "vendor/bin/pint"
   },
   "minimum-stability": "stable",

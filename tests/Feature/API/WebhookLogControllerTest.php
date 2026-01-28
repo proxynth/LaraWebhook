@@ -200,3 +200,28 @@ it('returns empty data when no logs exist', function () {
             'meta' => ['total' => 0],
         ]);
 });
+
+it('catches and returns error when exception occurs during replay', function () {
+    $log = WebhookLog::factory()->create([
+        'service' => 'stripe',
+        'event' => 'payment_intent.succeeded',
+        'payload' => ['type' => 'payment_intent.succeeded'],
+        'status' => 'failed',
+    ]);
+
+    // Register an event listener that throws an exception when creating a new WebhookLog
+    // This simulates a database error or other unexpected failure during replay
+    WebhookLog::creating(function () {
+        throw new \RuntimeException('Database connection lost');
+    });
+
+    $response = $this->postJson("/api/larawebhook/logs/{$log->id}/replay");
+
+    $response->assertStatus(500)
+        ->assertJson([
+            'success' => false,
+        ]);
+
+    expect($response->json('message'))->toContain('Error replaying webhook:');
+    expect($response->json('message'))->toContain('Database connection lost');
+});
