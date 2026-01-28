@@ -5,6 +5,13 @@ All notable changes to `larawebhook` will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.0](https://github.com/proxynth/LaraWebhook/compare/v1.6.0...v1.7.0) (2026-01-28)
+
+
+### Features
+
+* implement failure notification system for webhooks ([#23](https://github.com/proxynth/LaraWebhook/issues/23)) ([8321b3b](https://github.com/proxynth/LaraWebhook/commit/8321b3bb5ea583b8576cc1bbd2e9a1b95398b691))
+
 ## [1.6.0](https://github.com/proxynth/LaraWebhook/compare/v1.5.1...v1.6.0) (2026-01-28)
 
 
