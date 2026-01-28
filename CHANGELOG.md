@@ -5,6 +5,13 @@ All notable changes to `larawebhook` will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.0](https://github.com/proxynth/LaraWebhook/compare/v1.5.1...v1.6.0) (2026-01-28)
+
+
+### Features
+
+* enhance README and add example controllers for Stripe and GitHub webhooks ([#21](https://github.com/proxynth/LaraWebhook/issues/21)) ([fada5df](https://github.com/proxynth/LaraWebhook/commit/fada5df69d9b0a6197c374e38582d9c749521a7e))
+
 ## [1.5.1](https://github.com/proxynth/LaraWebhook/compare/v1.5.0...v1.5.1) (2026-01-27)
 
 
