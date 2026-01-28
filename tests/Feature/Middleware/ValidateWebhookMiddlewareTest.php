@@ -10,6 +10,8 @@ beforeEach(function () {
     config([
         'larawebhook.services.stripe.webhook_secret' => 'test_stripe_secret',
         'larawebhook.services.github.webhook_secret' => 'test_github_secret',
+        'larawebhook.services.slack.webhook_secret' => 'test_slack_secret',
+        'larawebhook.services.shopify.webhook_secret' => 'test_shopify_secret',
     ]);
 
     // Register test routes with middleware
@@ -20,6 +22,14 @@ beforeEach(function () {
     Route::post('test-github-webhook', function () {
         return response()->json(['status' => 'success']);
     })->middleware('validate-webhook:github');
+
+    Route::post('test-slack-webhook', function () {
+        return response()->json(['status' => 'success']);
+    })->middleware('validate-webhook:slack');
+
+    Route::post('test-shopify-webhook', function () {
+        return response()->json(['status' => 'success']);
+    })->middleware('validate-webhook:shopify');
 });
 
 describe('ValidateWebhook middleware with Stripe', function () {
@@ -375,5 +385,273 @@ describe('ValidateWebhook middleware with unsupported service', function () {
         );
 
         expect(WebhookLog::count())->toBe($initialCount);
+    });
+});
+
+describe('ValidateWebhook middleware with Slack', function () {
+    it('allows valid Slack webhooks', function () {
+        $payload = '{"type": "event_callback", "event": {"type": "app_mention"}}';
+        $timestamp = time();
+        $sigBaseString = "v0:{$timestamp}:{$payload}";
+        $signature = 'v0='.hash_hmac('sha256', $sigBaseString, 'test_slack_secret');
+
+        $response = $this->call(
+            'POST',
+            'test-slack-webhook',
+            [],
+            [],
+            [],
+            [
+                'HTTP_X_SLACK_SIGNATURE' => $signature,
+                'HTTP_X_SLACK_REQUEST_TIMESTAMP' => (string) $timestamp,
+                'CONTENT_TYPE' => 'application/json',
+            ],
+            $payload
+        );
+
+        $response->assertOk()
+            ->assertJson(['status' => 'success']);
+
+        $log = WebhookLog::latest()->first();
+        expect($log->service)->toBe('slack')
+            ->and($log->event)->toBe('app_mention')
+            ->and($log->status)->toBe('success');
+    });
+
+    it('rejects Slack webhooks with invalid signature', function () {
+        $payload = '{"type": "event_callback", "event": {"type": "app_mention"}}';
+        $timestamp = time();
+
+        $response = $this->call(
+            'POST',
+            'test-slack-webhook',
+            [],
+            [],
+            [],
+            [
+                'HTTP_X_SLACK_SIGNATURE' => 'v0=invalid_signature',
+                'HTTP_X_SLACK_REQUEST_TIMESTAMP' => (string) $timestamp,
+                'CONTENT_TYPE' => 'application/json',
+            ],
+            $payload
+        );
+
+        $response->assertStatus(403);
+
+        $log = WebhookLog::latest()->first();
+        expect($log->status)->toBe('failed');
+    });
+
+    it('rejects Slack webhooks with expired timestamp', function () {
+        $payload = '{"type": "event_callback", "event": {"type": "app_mention"}}';
+        $timestamp = time() - 400; // Expired
+        $sigBaseString = "v0:{$timestamp}:{$payload}";
+        $signature = 'v0='.hash_hmac('sha256', $sigBaseString, 'test_slack_secret');
+
+        $response = $this->call(
+            'POST',
+            'test-slack-webhook',
+            [],
+            [],
+            [],
+            [
+                'HTTP_X_SLACK_SIGNATURE' => $signature,
+                'HTTP_X_SLACK_REQUEST_TIMESTAMP' => (string) $timestamp,
+                'CONTENT_TYPE' => 'application/json',
+            ],
+            $payload
+        );
+
+        $response->assertStatus(400);
+        expect($response->getContent())->toContain('expired');
+    });
+
+    it('rejects Slack webhooks with missing signature header', function () {
+        $payload = '{"type": "event_callback"}';
+
+        $response = $this->call(
+            'POST',
+            'test-slack-webhook',
+            [],
+            [],
+            [],
+            ['CONTENT_TYPE' => 'application/json'],
+            $payload
+        );
+
+        $response->assertStatus(400);
+        expect($response->getContent())->toContain('Missing X-Slack-Signature');
+    });
+
+    it('rejects Slack webhooks with missing timestamp header', function () {
+        // This test covers line 84 of ValidateWebhook.php
+        // When Slack signature is present but timestamp header is missing,
+        // the signature is passed without timestamp prefix, causing format error
+        $payload = '{"type": "event_callback", "event": {"type": "app_mention"}}';
+        $signature = 'v0='.hash_hmac('sha256', "v0:12345:{$payload}", 'test_slack_secret');
+
+        $response = $this->call(
+            'POST',
+            'test-slack-webhook',
+            [],
+            [],
+            [],
+            [
+                'HTTP_X_SLACK_SIGNATURE' => $signature,
+                // Missing HTTP_X_SLACK_REQUEST_TIMESTAMP
+                'CONTENT_TYPE' => 'application/json',
+            ],
+            $payload
+        );
+
+        // Without timestamp, validator receives just "v0=hash" instead of "timestamp:v0=hash"
+        // This causes invalid format error
+        $response->assertStatus(400);
+        expect($response->getContent())->toContain('format');
+    });
+
+    it('extracts slash_command event type', function () {
+        $payload = '{"command": "/remind", "text": "me to test"}';
+        $timestamp = time();
+        $sigBaseString = "v0:{$timestamp}:{$payload}";
+        $signature = 'v0='.hash_hmac('sha256', $sigBaseString, 'test_slack_secret');
+
+        $response = $this->call(
+            'POST',
+            'test-slack-webhook',
+            [],
+            [],
+            [],
+            [
+                'HTTP_X_SLACK_SIGNATURE' => $signature,
+                'HTTP_X_SLACK_REQUEST_TIMESTAMP' => (string) $timestamp,
+                'CONTENT_TYPE' => 'application/json',
+            ],
+            $payload
+        );
+
+        $response->assertOk();
+
+        $log = WebhookLog::latest()->first();
+        expect($log->event)->toBe('slash_command');
+    });
+});
+
+describe('ValidateWebhook middleware with Shopify', function () {
+    it('allows valid Shopify webhooks', function () {
+        $payload = '{"id": 123456789, "email": "customer@example.com", "total_price": "99.99"}';
+        $signature = base64_encode(hash_hmac('sha256', $payload, 'test_shopify_secret', true));
+
+        $response = $this->call(
+            'POST',
+            'test-shopify-webhook',
+            [],
+            [],
+            [],
+            [
+                'HTTP_X_SHOPIFY_HMAC_SHA256' => $signature,
+                'HTTP_X_SHOPIFY_TOPIC' => 'orders/create',
+                'CONTENT_TYPE' => 'application/json',
+            ],
+            $payload
+        );
+
+        $response->assertOk()
+            ->assertJson(['status' => 'success']);
+
+        $log = WebhookLog::latest()->first();
+        expect($log->service)->toBe('shopify')
+            ->and($log->status)->toBe('success');
+    });
+
+    it('rejects Shopify webhooks with invalid signature', function () {
+        $payload = '{"id": 123456789}';
+        $signature = base64_encode(hash_hmac('sha256', $payload, 'wrong_secret', true));
+
+        $response = $this->call(
+            'POST',
+            'test-shopify-webhook',
+            [],
+            [],
+            [],
+            [
+                'HTTP_X_SHOPIFY_HMAC_SHA256' => $signature,
+                'CONTENT_TYPE' => 'application/json',
+            ],
+            $payload
+        );
+
+        $response->assertStatus(403);
+
+        $log = WebhookLog::latest()->first();
+        expect($log->status)->toBe('failed');
+    });
+
+    it('rejects Shopify webhooks with missing signature header', function () {
+        $payload = '{"id": 123456789}';
+
+        $response = $this->call(
+            'POST',
+            'test-shopify-webhook',
+            [],
+            [],
+            [],
+            ['CONTENT_TYPE' => 'application/json'],
+            $payload
+        );
+
+        $response->assertStatus(400);
+        expect($response->getContent())->toContain('Missing X-Shopify-Hmac-Sha256');
+    });
+
+    it('validates order payload correctly', function () {
+        $payload = json_encode([
+            'id' => 820982911946154508,
+            'email' => 'jon@example.com',
+            'total_price' => '99.00',
+            'currency' => 'USD',
+            'financial_status' => 'paid',
+        ]);
+        $signature = base64_encode(hash_hmac('sha256', $payload, 'test_shopify_secret', true));
+
+        $response = $this->call(
+            'POST',
+            'test-shopify-webhook',
+            [],
+            [],
+            [],
+            [
+                'HTTP_X_SHOPIFY_HMAC_SHA256' => $signature,
+                'CONTENT_TYPE' => 'application/json',
+            ],
+            $payload
+        );
+
+        $response->assertOk();
+
+        $log = WebhookLog::latest()->first();
+        expect($log->status)->toBe('success');
+    });
+
+    it('rejects tampered Shopify payload', function () {
+        $originalPayload = '{"id":123,"amount":"100.00"}';
+        $signature = base64_encode(hash_hmac('sha256', $originalPayload, 'test_shopify_secret', true));
+
+        $tamperedPayload = '{"id":123,"amount":"1000.00"}';
+
+        $response = $this->call(
+            'POST',
+            'test-shopify-webhook',
+            [],
+            [],
+            [],
+            [
+                'HTTP_X_SHOPIFY_HMAC_SHA256' => $signature,
+                'CONTENT_TYPE' => 'application/json',
+            ],
+            $tamperedPayload
+        );
+
+        $response->assertStatus(403);
     });
 });

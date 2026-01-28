@@ -8,6 +8,8 @@ beforeEach(function () {
         'larawebhook.services' => [
             'stripe' => ['webhook_secret' => 'test_stripe_secret'],
             'github' => ['webhook_secret' => 'test_github_secret'],
+            'slack' => ['webhook_secret' => 'test_slack_secret'],
+            'shopify' => ['webhook_secret' => 'test_shopify_secret'],
         ],
     ]);
 });
@@ -23,7 +25,7 @@ it('passes configured services to the view', function () {
     $response = $this->get('/larawebhook/dashboard');
 
     $response->assertOk()
-        ->assertViewHas('services', ['stripe', 'github']);
+        ->assertViewHas('services', ['stripe', 'github', 'slack', 'shopify']);
 });
 
 it('displays service names in the filter dropdown', function () {
@@ -31,7 +33,9 @@ it('displays service names in the filter dropdown', function () {
 
     $response->assertOk()
         ->assertSee('Stripe')
-        ->assertSee('Github');
+        ->assertSee('Github')
+        ->assertSee('Slack')
+        ->assertSee('Shopify');
 });
 
 it('handles empty services configuration', function () {

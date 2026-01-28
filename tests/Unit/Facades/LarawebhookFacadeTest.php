@@ -316,7 +316,7 @@ describe('Larawebhook Facade methods - Configuration', function () {
     });
 
     it('supportedServices() returns all service names', function () {
-        expect(Larawebhook::supportedServices())->toBe(['stripe', 'github']);
+        expect(Larawebhook::supportedServices())->toBe(['stripe', 'github', 'slack', 'shopify']);
     });
 
     it('services() returns all enum cases', function () {

@@ -283,13 +283,13 @@ describe('Larawebhook configuration helpers', function () {
     });
 
     it('returns supported services list', function () {
-        expect($this->larawebhook->supportedServices())->toBe(['stripe', 'github']);
+        expect($this->larawebhook->supportedServices())->toBe(['stripe', 'github', 'slack', 'shopify']);
     });
 });
 
 describe('Larawebhook facade usage', function () {
     it('can be used via facade', function () {
-        expect(\Proxynth\Larawebhook\Facades\Larawebhook::supportedServices())->toBe(['stripe', 'github']);
+        expect(\Proxynth\Larawebhook\Facades\Larawebhook::supportedServices())->toBe(['stripe', 'github', 'slack', 'shopify']);
     });
 
     it('facade provides same functionality', function () {
@@ -364,9 +364,11 @@ describe('Larawebhook with WebhookService enum', function () {
         $services = $this->larawebhook->services();
 
         expect($services)->toBeArray()
-            ->and($services)->toHaveCount(2)
-            ->and($services[0])->toBe(WebhookService::Stripe)
-            ->and($services[1])->toBe(WebhookService::Github);
+            ->and($services)->toHaveCount(4)
+            ->and($services)->toContain(WebhookService::Stripe)
+            ->and($services)->toContain(WebhookService::Github)
+            ->and($services)->toContain(WebhookService::Slack)
+            ->and($services)->toContain(WebhookService::Shopify);
     });
 
     it('converts string to service enum', function () {

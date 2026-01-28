@@ -1,16 +1,18 @@
 <?php
 
 /**
- * Custom Service Webhook Example (Shopify)
+ * Custom Service Webhook Example (PayPal)
  *
  * This example shows how to add support for a custom webhook service
  * using LaraWebhook's extensible Strategy Pattern architecture.
  *
- * The same pattern applies to any service:
+ * LaraWebhook natively supports: Stripe, GitHub, Slack, Shopify
+ *
+ * The same pattern applies to any additional service:
+ * - PayPal (this example)
  * - Mailchimp
  * - SendGrid
  * - Twilio
- * - PayPal
  * - Square
  * - etc.
  *
@@ -26,38 +28,44 @@ use Proxynth\Larawebhook\Contracts\PayloadParserInterface;
 /**
  * Step 1: Create a Payload Parser
  *
- * Implement PayloadParserInterface to handle Shopify's payload format.
+ * Implement PayloadParserInterface to handle PayPal's payload format.
+ *
+ * @see https://developer.paypal.com/api/rest/webhooks/
  */
-class ShopifyPayloadParser implements PayloadParserInterface
+class PayPalPayloadParser implements PayloadParserInterface
 {
     /**
-     * Extract the event type from Shopify payload.
+     * Extract the event type from PayPal payload.
      *
-     * Shopify uses a "topic" header, but sometimes includes it in payload too.
+     * PayPal uses "event_type" field (e.g., PAYMENT.CAPTURE.COMPLETED)
      */
     public function extractEventType(array $data): string
     {
-        // Shopify primarily uses headers for topic, but we can use domain as fallback
-        return $data['topic'] ?? 'unknown';
+        return $data['event_type'] ?? 'unknown';
     }
 
     /**
-     * Extract metadata from Shopify payload.
+     * Extract metadata from PayPal payload.
      */
     public function extractMetadata(array $data): array
     {
+        $resource = $data['resource'] ?? [];
+
         return [
-            'shop_id' => $data['shop_id'] ?? null,
-            'shop_domain' => $data['shop_domain'] ?? null,
-            'order_id' => $data['id'] ?? null,
-            'customer_id' => $data['customer']['id'] ?? null,
-            'total_price' => $data['total_price'] ?? null,
+            'event_id' => $data['id'] ?? null,
+            'event_type' => $data['event_type'] ?? null,
+            'resource_type' => $data['resource_type'] ?? null,
+            'resource_id' => $resource['id'] ?? null,
+            'amount' => $resource['amount']['value'] ?? null,
+            'currency' => $resource['amount']['currency_code'] ?? null,
+            'status' => $resource['status'] ?? null,
+            'create_time' => $data['create_time'] ?? null,
         ];
     }
 
     public function serviceName(): string
     {
-        return 'shopify';
+        return 'paypal';
     }
 }
 
@@ -73,25 +81,47 @@ use Proxynth\Larawebhook\Exceptions\InvalidSignatureException;
 /**
  * Step 2: Create a Signature Validator
  *
- * Implement SignatureValidatorInterface for Shopify's HMAC-SHA256 validation.
+ * PayPal uses certificate-based validation or transmission signature.
+ * This example shows simplified signature validation.
+ *
+ * @see https://developer.paypal.com/docs/api-basics/notifications/webhooks/notification-messages/
  */
-class ShopifySignatureValidator implements SignatureValidatorInterface
+class PayPalSignatureValidator implements SignatureValidatorInterface
 {
     /**
-     * Validate Shopify webhook signature.
+     * Validate PayPal webhook signature.
      *
-     * Shopify uses base64-encoded HMAC-SHA256.
+     * PayPal sends several headers for validation:
+     * - PAYPAL-TRANSMISSION-ID
+     * - PAYPAL-TRANSMISSION-TIME
+     * - PAYPAL-TRANSMISSION-SIG
+     * - PAYPAL-CERT-URL
+     *
+     * For simplicity, this example validates using webhook ID + transmission data.
+     * In production, you should use PayPal's certificate-based validation.
      *
      * @throws InvalidSignatureException
      */
     public function validate(string $payload, string $signature, string $secret, int $tolerance = 300): bool
     {
-        $calculatedSignature = base64_encode(
-            hash_hmac('sha256', $payload, $secret, true)
-        );
+        // Signature format: "transmission_id|transmission_time|webhook_id|crc32"
+        $parts = explode('|', $signature);
 
-        if (! hash_equals($calculatedSignature, $signature)) {
-            throw new InvalidSignatureException('Invalid Shopify webhook signature.');
+        if (count($parts) < 4) {
+            throw new InvalidSignatureException('Invalid PayPal signature format.');
+        }
+
+        [$transmissionId, $transmissionTime, $webhookId, $expectedCrc] = $parts;
+
+        // Verify the webhook ID matches our secret (webhook ID)
+        if ($webhookId !== $secret) {
+            throw new InvalidSignatureException('Invalid PayPal webhook ID.');
+        }
+
+        // Verify CRC32 checksum of the payload
+        $actualCrc = sprintf('%u', crc32($payload));
+        if ($actualCrc !== $expectedCrc) {
+            throw new InvalidSignatureException('Invalid PayPal webhook signature (CRC mismatch).');
         }
 
         return true;
@@ -99,7 +129,7 @@ class ShopifySignatureValidator implements SignatureValidatorInterface
 
     public function serviceName(): string
     {
-        return 'shopify';
+        return 'paypal';
     }
 }
 
@@ -114,14 +144,18 @@ class ShopifySignatureValidator implements SignatureValidatorInterface
  * {
  *     case Stripe = 'stripe';
  *     case Github = 'github';
- *     case Shopify = 'shopify';  // Add new case
+ *     case Slack = 'slack';
+ *     case Shopify = 'shopify';
+ *     case PayPal = 'paypal';  // Add new case
  *
  *     public function parser(): PayloadParserInterface
  *     {
  *         return match ($this) {
  *             self::Stripe => new StripePayloadParser,
  *             self::Github => new GithubPayloadParser,
- *             self::Shopify => new ShopifyPayloadParser,  // Add mapping
+ *             self::Slack => new SlackPayloadParser,
+ *             self::Shopify => new ShopifyPayloadParser,
+ *             self::PayPal => new PayPalPayloadParser,  // Add mapping
  *         };
  *     }
  *
@@ -130,7 +164,9 @@ class ShopifySignatureValidator implements SignatureValidatorInterface
  *         return match ($this) {
  *             self::Stripe => new StripeSignatureValidator,
  *             self::Github => new GithubSignatureValidator,
- *             self::Shopify => new ShopifySignatureValidator,  // Add mapping
+ *             self::Slack => new SlackSignatureValidator,
+ *             self::Shopify => new ShopifySignatureValidator,
+ *             self::PayPal => new PayPalSignatureValidator,  // Add mapping
  *         };
  *     }
  *
@@ -139,7 +175,9 @@ class ShopifySignatureValidator implements SignatureValidatorInterface
  *         return match ($this) {
  *             self::Stripe => 'Stripe-Signature',
  *             self::Github => 'X-Hub-Signature-256',
- *             self::Shopify => 'X-Shopify-Hmac-Sha256',  // Add header
+ *             self::Slack => 'X-Slack-Signature',
+ *             self::Shopify => 'X-Shopify-Hmac-Sha256',
+ *             self::PayPal => 'PAYPAL-TRANSMISSION-SIG',  // Add header
  *         };
  *     }
  * }
@@ -161,8 +199,16 @@ class ShopifySignatureValidator implements SignatureValidatorInterface
         'webhook_secret' => env('GITHUB_WEBHOOK_SECRET'),
         'tolerance' => 300,
     ],
+    'slack' => [
+        'webhook_secret' => env('SLACK_WEBHOOK_SECRET'),
+        'tolerance' => 300,
+    ],
     'shopify' => [
         'webhook_secret' => env('SHOPIFY_WEBHOOK_SECRET'),
+        'tolerance' => 300,
+    ],
+    'paypal' => [
+        'webhook_secret' => env('PAYPAL_WEBHOOK_ID'),  // PayPal uses webhook ID
         'tolerance' => 300,
     ],
 ],
@@ -171,7 +217,7 @@ class ShopifySignatureValidator implements SignatureValidatorInterface
 /*
  * In .env:
  *
- * SHOPIFY_WEBHOOK_SECRET=your_shopify_webhook_secret
+ * PAYPAL_WEBHOOK_ID=your_paypal_webhook_id
  *
  * ═══════════════════════════════════════════════════════════════════════════
  */
@@ -187,100 +233,116 @@ use Illuminate\Support\Facades\Log;
  *
  * Use the standard validate-webhook middleware - it now works with your service!
  */
-class ShopifyWebhookController extends Controller
+class PayPalWebhookController extends Controller
 {
     /**
-     * Handle Shopify webhooks.
+     * Handle PayPal webhooks.
      *
-     * Route: POST /shopify-webhook
-     * Middleware: validate-webhook:shopify
+     * Route: POST /paypal-webhook
+     * Middleware: validate-webhook:paypal
      */
     public function handle(Request $request): JsonResponse
     {
         $payload = json_decode($request->getContent(), true);
-        $topic = $request->header('X-Shopify-Topic');
+        $eventType = $payload['event_type'] ?? 'unknown';
 
-        Log::info('Shopify webhook received', [
-            'topic' => $topic,
-            'shop' => $request->header('X-Shopify-Shop-Domain'),
+        Log::info('PayPal webhook received', [
+            'event_type' => $eventType,
+            'event_id' => $payload['id'] ?? null,
         ]);
 
-        // Route to specific handlers based on topic
-        match ($topic) {
-            'orders/create' => $this->handleOrderCreate($payload),
-            'orders/updated' => $this->handleOrderUpdated($payload),
-            'orders/cancelled' => $this->handleOrderCancelled($payload),
-            'products/create' => $this->handleProductCreate($payload),
-            'products/update' => $this->handleProductUpdate($payload),
-            'products/delete' => $this->handleProductDelete($payload),
-            'customers/create' => $this->handleCustomerCreate($payload),
-            'customers/update' => $this->handleCustomerUpdate($payload),
-            default => $this->handleUnknownTopic($topic, $payload),
+        // Route to specific handlers based on event type
+        match ($eventType) {
+            'PAYMENT.CAPTURE.COMPLETED' => $this->handlePaymentCaptured($payload),
+            'PAYMENT.CAPTURE.DENIED' => $this->handlePaymentDenied($payload),
+            'PAYMENT.CAPTURE.REFUNDED' => $this->handlePaymentRefunded($payload),
+            'CHECKOUT.ORDER.APPROVED' => $this->handleOrderApproved($payload),
+            'CHECKOUT.ORDER.COMPLETED' => $this->handleOrderCompleted($payload),
+            'BILLING.SUBSCRIPTION.CREATED' => $this->handleSubscriptionCreated($payload),
+            'BILLING.SUBSCRIPTION.ACTIVATED' => $this->handleSubscriptionActivated($payload),
+            'BILLING.SUBSCRIPTION.CANCELLED' => $this->handleSubscriptionCancelled($payload),
+            'INVOICING.INVOICE.PAID' => $this->handleInvoicePaid($payload),
+            default => $this->handleUnknownEvent($eventType, $payload),
         };
 
         return response()->json(['status' => 'success']);
     }
 
-    private function handleOrderCreate(array $payload): void
+    private function handlePaymentCaptured(array $payload): void
     {
-        Log::info('Shopify order created', [
-            'order_id' => $payload['id'] ?? null,
-            'total_price' => $payload['total_price'] ?? null,
+        $resource = $payload['resource'] ?? [];
+
+        Log::info('PayPal payment captured', [
+            'capture_id' => $resource['id'] ?? null,
+            'amount' => $resource['amount']['value'] ?? null,
+            'currency' => $resource['amount']['currency_code'] ?? null,
         ]);
 
-        // Example: Sync order to your database
-        // Order::create([
-        //     'shopify_order_id' => $payload['id'],
-        //     'customer_email' => $payload['email'],
-        //     'total' => $payload['total_price'],
-        //     'status' => $payload['financial_status'],
-        // ]);
+        // Example: Update order status
+        // Order::where('paypal_order_id', $resource['supplementary_data']['related_ids']['order_id'] ?? null)
+        //     ->update(['status' => 'paid']);
     }
 
-    private function handleOrderUpdated(array $payload): void
+    private function handlePaymentDenied(array $payload): void
     {
-        Log::info('Shopify order updated', ['order_id' => $payload['id'] ?? null]);
-    }
-
-    private function handleOrderCancelled(array $payload): void
-    {
-        Log::info('Shopify order cancelled', ['order_id' => $payload['id'] ?? null]);
-    }
-
-    private function handleProductCreate(array $payload): void
-    {
-        Log::info('Shopify product created', [
-            'product_id' => $payload['id'] ?? null,
-            'title' => $payload['title'] ?? null,
+        Log::warning('PayPal payment denied', [
+            'resource_id' => $payload['resource']['id'] ?? null,
         ]);
     }
 
-    private function handleProductUpdate(array $payload): void
+    private function handlePaymentRefunded(array $payload): void
     {
-        Log::info('Shopify product updated', ['product_id' => $payload['id'] ?? null]);
-    }
-
-    private function handleProductDelete(array $payload): void
-    {
-        Log::info('Shopify product deleted', ['product_id' => $payload['id'] ?? null]);
-    }
-
-    private function handleCustomerCreate(array $payload): void
-    {
-        Log::info('Shopify customer created', [
-            'customer_id' => $payload['id'] ?? null,
-            'email' => $payload['email'] ?? null,
+        Log::info('PayPal payment refunded', [
+            'resource_id' => $payload['resource']['id'] ?? null,
         ]);
     }
 
-    private function handleCustomerUpdate(array $payload): void
+    private function handleOrderApproved(array $payload): void
     {
-        Log::info('Shopify customer updated', ['customer_id' => $payload['id'] ?? null]);
+        Log::info('PayPal order approved', [
+            'order_id' => $payload['resource']['id'] ?? null,
+        ]);
     }
 
-    private function handleUnknownTopic(?string $topic, array $payload): void
+    private function handleOrderCompleted(array $payload): void
     {
-        Log::warning('Unknown Shopify webhook topic', ['topic' => $topic]);
+        Log::info('PayPal order completed', [
+            'order_id' => $payload['resource']['id'] ?? null,
+        ]);
+    }
+
+    private function handleSubscriptionCreated(array $payload): void
+    {
+        Log::info('PayPal subscription created', [
+            'subscription_id' => $payload['resource']['id'] ?? null,
+            'plan_id' => $payload['resource']['plan_id'] ?? null,
+        ]);
+    }
+
+    private function handleSubscriptionActivated(array $payload): void
+    {
+        Log::info('PayPal subscription activated', [
+            'subscription_id' => $payload['resource']['id'] ?? null,
+        ]);
+    }
+
+    private function handleSubscriptionCancelled(array $payload): void
+    {
+        Log::info('PayPal subscription cancelled', [
+            'subscription_id' => $payload['resource']['id'] ?? null,
+        ]);
+    }
+
+    private function handleInvoicePaid(array $payload): void
+    {
+        Log::info('PayPal invoice paid', [
+            'invoice_id' => $payload['resource']['id'] ?? null,
+        ]);
+    }
+
+    private function handleUnknownEvent(string $eventType, array $payload): void
+    {
+        Log::warning('Unknown PayPal webhook event', ['event_type' => $eventType]);
     }
 }
 
@@ -293,47 +355,50 @@ class ShopifyWebhookController extends Controller
  */
 
 /*
-use App\Http\Controllers\ShopifyWebhookController;
+use App\Http\Controllers\PayPalWebhookController;
 
-Route::post('/shopify-webhook', [ShopifyWebhookController::class, 'handle'])
-    ->middleware('validate-webhook:shopify');
+Route::post('/paypal-webhook', [PayPalWebhookController::class, 'handle'])
+    ->middleware('validate-webhook:paypal');
 */
 
 /*
  * ═══════════════════════════════════════════════════════════════════════════
  *
- * Step 7: Configure in Shopify Admin
+ * Step 7: Configure in PayPal Developer Dashboard
  *
- * 1. Go to Shopify Admin → Settings → Notifications → Webhooks
- * 2. Click "Create webhook"
- * 3. Select the event (e.g., "Order creation")
- * 4. Format: JSON
- * 5. URL: https://your-domain.com/shopify-webhook
- * 6. Webhook API version: Select the latest
- * 7. Copy the webhook signing secret and add to .env
+ * 1. Go to PayPal Developer Dashboard → Webhooks
+ * 2. Click "Add Webhook"
+ * 3. Enter URL: https://your-domain.com/paypal-webhook
+ * 4. Select events to subscribe to:
+ *    - Payment Capture Completed
+ *    - Payment Capture Denied
+ *    - Checkout Order Approved
+ *    - etc.
+ * 5. Copy the Webhook ID and add to .env as PAYPAL_WEBHOOK_ID
  *
  * ═══════════════════════════════════════════════════════════════════════════
  *
  * Testing Your Custom Webhook
  *
- * 1. Use Shopify CLI to forward webhooks locally:
- *    shopify webhook trigger --topic orders/create --api-version 2024-01 \
- *      --delivery-method http --address https://your-domain.com/shopify-webhook
+ * Use PayPal's webhook simulator in the Developer Dashboard:
+ * 1. Go to Webhooks → Simulate Event
+ * 2. Select your webhook URL
+ * 3. Choose an event type
+ * 4. Click "Send Test"
  *
- * 2. Or use curl to test:
+ * Or use curl to test locally:
  */
 
 /*
-# Generate signature
-SECRET="your_shopify_secret"
-PAYLOAD='{"id":123456789,"email":"customer@example.com","total_price":"99.99"}'
-SIGNATURE=$(echo -n "$PAYLOAD" | openssl dgst -sha256 -hmac "$SECRET" -binary | base64)
+# Example test with simplified signature
+WEBHOOK_ID="your_paypal_webhook_id"
+PAYLOAD='{"id":"WH-123","event_type":"PAYMENT.CAPTURE.COMPLETED","resource":{"id":"CAP-123"}}'
+CRC=$(echo -n "$PAYLOAD" | php -r "echo sprintf('%u', crc32(file_get_contents('php://stdin')));")
+SIGNATURE="TX-123|2024-01-15T10:30:00Z|$WEBHOOK_ID|$CRC"
 
-curl -X POST http://localhost:8000/shopify-webhook \
+curl -X POST http://localhost:8000/paypal-webhook \
   -H "Content-Type: application/json" \
-  -H "X-Shopify-Topic: orders/create" \
-  -H "X-Shopify-Shop-Domain: your-shop.myshopify.com" \
-  -H "X-Shopify-Hmac-Sha256: $SIGNATURE" \
+  -H "PAYPAL-TRANSMISSION-SIG: $SIGNATURE" \
   -d "$PAYLOAD"
 */
 
@@ -361,11 +426,17 @@ curl -X POST http://localhost:8000/shopify-webhook \
  *
  * 5. Create controller and route with validate-webhook:{service} middleware
  *
- * This pattern works for any webhook service:
+ * Supported services out of the box:
+ * ✅ Stripe
+ * ✅ GitHub
+ * ✅ Slack
+ * ✅ Shopify
+ *
+ * This pattern works for any additional webhook service:
+ * - PayPal (this example)
  * - Mailchimp → HMAC-SHA256 validation
  * - SendGrid → HTTP Basic Auth or ECDSA signature
  * - Twilio → SHA1 signature validation
- * - PayPal → Certificate-based or HMAC validation
  * - Square → HMAC-SHA256 validation
  *
  * ═══════════════════════════════════════════════════════════════════════════

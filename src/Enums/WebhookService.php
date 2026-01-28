@@ -7,8 +7,12 @@ namespace Proxynth\Larawebhook\Enums;
 use Proxynth\Larawebhook\Contracts\PayloadParserInterface;
 use Proxynth\Larawebhook\Contracts\SignatureValidatorInterface;
 use Proxynth\Larawebhook\Parsers\GithubPayloadParser;
+use Proxynth\Larawebhook\Parsers\ShopifyPayloadParser;
+use Proxynth\Larawebhook\Parsers\SlackPayloadParser;
 use Proxynth\Larawebhook\Parsers\StripePayloadParser;
 use Proxynth\Larawebhook\Validators\GithubSignatureValidator;
+use Proxynth\Larawebhook\Validators\ShopifySignatureValidator;
+use Proxynth\Larawebhook\Validators\SlackSignatureValidator;
 use Proxynth\Larawebhook\Validators\StripeSignatureValidator;
 
 /**
@@ -29,6 +33,8 @@ enum WebhookService: string
 {
     case Stripe = 'stripe';
     case Github = 'github';
+    case Slack = 'slack';
+    case Shopify = 'shopify';
 
     /**
      * Get the payload parser for this service.
@@ -41,6 +47,8 @@ enum WebhookService: string
         return match ($this) {
             self::Stripe => new StripePayloadParser,
             self::Github => new GithubPayloadParser,
+            self::Slack => new SlackPayloadParser,
+            self::Shopify => new ShopifyPayloadParser,
         };
     }
 
@@ -55,6 +63,8 @@ enum WebhookService: string
         return match ($this) {
             self::Stripe => new StripeSignatureValidator,
             self::Github => new GithubSignatureValidator,
+            self::Slack => new SlackSignatureValidator,
+            self::Shopify => new ShopifySignatureValidator,
         };
     }
 
@@ -66,6 +76,20 @@ enum WebhookService: string
         return match ($this) {
             self::Stripe => 'Stripe-Signature',
             self::Github => 'X-Hub-Signature-256',
+            self::Slack => 'X-Slack-Signature',
+            self::Shopify => 'X-Shopify-Hmac-Sha256',
+        };
+    }
+
+    /**
+     * Get the timestamp header name for services that use separate timestamp headers.
+     * Returns null if the service doesn't use a separate timestamp header.
+     */
+    public function timestampHeader(): ?string
+    {
+        return match ($this) {
+            self::Slack => 'X-Slack-Request-Timestamp',
+            default => null,
         };
     }
 
