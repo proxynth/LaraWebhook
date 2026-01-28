@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 📖 Documentation
+    url: https://github.com/proxynth/larawebhook#readme
+    about: Check the documentation for usage examples and configuration options.
+  - name: 🔒 Security Vulnerability
+    url: https://github.com/proxynth/larawebhook/security/policy
+    about: Please report security vulnerabilities privately via email.
+  - name: 💬 Questions & Discussions
+    url: https://github.com/proxynth/larawebhook/discussions
+    about: Ask questions and discuss ideas with the community.

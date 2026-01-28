@@ -10,7 +10,8 @@
     "webhooks",
     "stripe",
     "github",
-    "slack"
+    "slack",
+    "shopify"
   ],
   "homepage": "https://github.com/proxynth/larawebhook",
   "autoload": {
