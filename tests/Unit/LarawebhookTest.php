@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Illuminate\Support\Facades\Notification;
+use Proxynth\Larawebhook\Enums\WebhookService;
 use Proxynth\Larawebhook\Exceptions\InvalidSignatureException;
 use Proxynth\Larawebhook\Exceptions\WebhookException;
 use Proxynth\Larawebhook\Larawebhook;
@@ -298,5 +299,115 @@ describe('Larawebhook facade usage', function () {
         $result = \Proxynth\Larawebhook\Facades\Larawebhook::validate($payload, $signature, 'github');
 
         expect($result)->toBeTrue();
+    });
+});
+
+describe('Larawebhook with WebhookService enum', function () {
+    it('validates using enum instead of string', function () {
+        $payload = '{"action": "opened"}';
+        $signature = 'sha256='.hash_hmac('sha256', $payload, 'github_test_secret');
+
+        $result = $this->larawebhook->validate($payload, $signature, WebhookService::Github);
+
+        expect($result)->toBeTrue();
+    });
+
+    it('validates stripe using enum', function () {
+        $payload = '{"type": "payment_intent.succeeded"}';
+        $timestamp = time();
+        $signedPayload = "{$timestamp}.{$payload}";
+        $signature = hash_hmac('sha256', $signedPayload, 'stripe_test_secret');
+        $signatureHeader = "t={$timestamp},v1={$signature}";
+
+        $result = $this->larawebhook->validate($payload, $signatureHeader, WebhookService::Stripe);
+
+        expect($result)->toBeTrue();
+    });
+
+    it('validateAndLog works with enum', function () {
+        $payload = '{"action": "opened"}';
+        $signature = 'sha256='.hash_hmac('sha256', $payload, 'github_test_secret');
+
+        $log = $this->larawebhook->validateAndLog($payload, $signature, WebhookService::Github, 'push');
+
+        expect($log)->toBeInstanceOf(WebhookLog::class)
+            ->and($log->service)->toBe('github')
+            ->and($log->status)->toBe('success');
+    });
+
+    it('validateWithRetries works with enum', function () {
+        $payload = '{"action": "opened"}';
+        $signature = 'sha256='.hash_hmac('sha256', $payload, 'github_test_secret');
+
+        $log = $this->larawebhook->validateWithRetries($payload, $signature, WebhookService::Github, 'test.event');
+
+        expect($log->status)->toBe('success');
+    });
+
+    it('logsForService works with enum', function () {
+        WebhookLog::query()->delete();
+        WebhookLog::create(['service' => 'stripe', 'event' => 'test', 'status' => 'success', 'payload' => []]);
+        WebhookLog::create(['service' => 'github', 'event' => 'test', 'status' => 'success', 'payload' => []]);
+
+        $logs = $this->larawebhook->logsForService(WebhookService::Stripe);
+
+        expect($logs)->toHaveCount(1)
+            ->and($logs->first()->service)->toBe('stripe');
+    });
+
+    it('getSecret works with enum', function () {
+        expect($this->larawebhook->getSecret(WebhookService::Stripe))->toBe('stripe_test_secret')
+            ->and($this->larawebhook->getSecret(WebhookService::Github))->toBe('github_test_secret');
+    });
+
+    it('returns all service enum cases', function () {
+        $services = $this->larawebhook->services();
+
+        expect($services)->toBeArray()
+            ->and($services)->toHaveCount(2)
+            ->and($services[0])->toBe(WebhookService::Stripe)
+            ->and($services[1])->toBe(WebhookService::Github);
+    });
+
+    it('converts string to service enum', function () {
+        $service = $this->larawebhook->service('stripe');
+
+        expect($service)->toBe(WebhookService::Stripe);
+    });
+
+    it('returns null for invalid service string', function () {
+        $service = $this->larawebhook->service('invalid');
+
+        expect($service)->toBeNull();
+    });
+});
+
+describe('Larawebhook facade with WebhookService enum', function () {
+    it('facade validate works with enum', function () {
+        $payload = '{"action": "opened"}';
+        $signature = 'sha256='.hash_hmac('sha256', $payload, 'github_test_secret');
+
+        $result = \Proxynth\Larawebhook\Facades\Larawebhook::validate($payload, $signature, WebhookService::Github);
+
+        expect($result)->toBeTrue();
+    });
+
+    it('facade services method returns enum cases', function () {
+        $services = \Proxynth\Larawebhook\Facades\Larawebhook::services();
+
+        expect($services)->toContain(WebhookService::Stripe)
+            ->and($services)->toContain(WebhookService::Github);
+    });
+
+    it('facade service method converts string to enum', function () {
+        $service = \Proxynth\Larawebhook\Facades\Larawebhook::service('github');
+
+        expect($service)->toBe(WebhookService::Github);
+    });
+
+    it('facade getSecret works with enum', function () {
+        $secret = \Proxynth\Larawebhook\Facades\Larawebhook::getSecret(WebhookService::Stripe);
+
+        expect($secret)->toBe('stripe_test_secret');
     });
 });

@@ -7,6 +7,7 @@ namespace Proxynth\Larawebhook\Middleware;
 use Closure;
 use Exception;
 use Illuminate\Http\Request;
+use Proxynth\Larawebhook\Enums\WebhookService;
 use Proxynth\Larawebhook\Services\WebhookValidator;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -21,8 +22,14 @@ class ValidateWebhook
      */
     public function handle(Request $request, Closure $next, string $service): Response
     {
+        $webhookService = WebhookService::tryFromString($service);
+
+        if ($webhookService === null) {
+            return response("Service {$service} is not supported.", Response::HTTP_BAD_REQUEST);
+        }
+
         $payload = $request->getContent();
-        $signatureHeader = $this->getSignatureHeader($service);
+        $signatureHeader = $webhookService->signatureHeader();
         $signature = $request->header($signatureHeader);
 
         if (empty($signature)) {
@@ -33,9 +40,9 @@ class ValidateWebhook
             return response('Request body is empty.', Response::HTTP_BAD_REQUEST);
         }
 
-        $event = $this->extractEventType($payload, $service);
+        $event = $this->extractEventType($payload, $webhookService);
 
-        $secret = $this->getSecret($service);
+        $secret = $webhookService->secret();
         if (empty($secret)) {
             return response("Webhook secret not configured for {$service}.", Response::HTTP_INTERNAL_SERVER_ERROR);
         }
@@ -55,33 +62,9 @@ class ValidateWebhook
     }
 
     /**
-     * Get the signature header name for the service.
+     * Extract event type from the webhook payload using the service's parser.
      */
-    private function getSignatureHeader(string $service): string
-    {
-        return match ($service) {
-            'stripe' => 'Stripe-Signature',
-            'github' => 'X-Hub-Signature-256',
-            default => throw new \InvalidArgumentException("Service {$service} is not supported."),
-        };
-    }
-
-    /**
-     * Get the webhook secret from config for the service.
-     */
-    private function getSecret(string $service): ?string
-    {
-        return match ($service) {
-            'stripe' => config('larawebhook.services.stripe.webhook_secret'),
-            'github' => config('larawebhook.services.github.webhook_secret'),
-            default => null,
-        };
-    }
-
-    /**
-     * Extract event type from the webhook payload.
-     */
-    private function extractEventType(string $payload, string $service): string
+    private function extractEventType(string $payload, WebhookService $service): string
     {
         $data = json_decode($payload, true);
 
@@ -89,10 +72,6 @@ class ValidateWebhook
             return 'unknown';
         }
 
-        return match ($service) {
-            'stripe' => $data['type'] ?? 'unknown',
-            'github' => ($data['action'] ?? 'unknown').'.'.($data['event'] ?? 'unknown'),
-            default => 'unknown',
-        };
+        return $service->parser()->extractEventType($data);
     }
 }

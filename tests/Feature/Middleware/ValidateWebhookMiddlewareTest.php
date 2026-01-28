@@ -307,7 +307,7 @@ describe('ValidateWebhook middleware with invalid JSON payload', function () {
 
         $log = WebhookLog::latest()->first();
         expect($log->service)->toBe('github')
-            ->and($log->event)->toBe('unknown.unknown')
+            ->and($log->event)->toBe('unknown') // No event field, so just 'unknown' action
             ->and($log->status)->toBe('success');
     });
 
@@ -330,7 +330,50 @@ describe('ValidateWebhook middleware with invalid JSON payload', function () {
 
         $log = WebhookLog::latest()->first();
         expect($log->service)->toBe('github')
-            ->and($log->event)->toBe('opened.unknown')
+            ->and($log->event)->toBe('opened') // No event field, so just 'opened' action
             ->and($log->status)->toBe('success');
+    });
+});
+
+describe('ValidateWebhook middleware with unsupported service', function () {
+    beforeEach(function () {
+        // Register a route with an unsupported service
+        Route::post('test-unsupported-webhook', function () {
+            return response()->json(['status' => 'success']);
+        })->middleware('validate-webhook:paypal');
+    });
+
+    it('rejects unsupported service with 400 error', function () {
+        $payload = '{"event": "payment.completed"}';
+
+        $response = $this->call(
+            'POST',
+            'test-unsupported-webhook',
+            [],
+            [],
+            [],
+            ['HTTP_X_PAYPAL_SIGNATURE' => 'some-signature', 'CONTENT_TYPE' => 'application/json'],
+            $payload
+        );
+
+        $response->assertStatus(400);
+        expect($response->getContent())->toContain('Service paypal is not supported');
+    });
+
+    it('does not log anything for unsupported service', function () {
+        $initialCount = WebhookLog::count();
+        $payload = '{"event": "payment.completed"}';
+
+        $this->call(
+            'POST',
+            'test-unsupported-webhook',
+            [],
+            [],
+            [],
+            ['HTTP_X_PAYPAL_SIGNATURE' => 'some-signature', 'CONTENT_TYPE' => 'application/json'],
+            $payload
+        );
+
+        expect(WebhookLog::count())->toBe($initialCount);
     });
 });

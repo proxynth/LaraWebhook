@@ -8,7 +8,7 @@ use Illuminate\Http\Client\Factory as HttpClient;
 use Illuminate\Notifications\ChannelManager;
 use Illuminate\Routing\Router;
 use Illuminate\Support\Facades\Notification;
-use Proxynth\Larawebhook\Commands\SkeletonCommand;
+use Proxynth\Larawebhook\Commands\CleanupCommand;
 use Proxynth\Larawebhook\Middleware\ValidateWebhook;
 use Proxynth\Larawebhook\Notifications\Channels\SlackWebhookChannel;
 use Proxynth\Larawebhook\Services\FailureDetector;
@@ -66,7 +66,7 @@ class LarawebhookServiceProvider extends PackageServiceProvider
             ->hasConfigFile()
             ->hasMigrations([
                 'create_webhook_logs_table',
-            ])->hasCommands(SkeletonCommand::class);
+            ])->hasCommands(CleanupCommand::class);
     }
 
     /**

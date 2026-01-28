@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Proxynth\Larawebhook;
 
 use Illuminate\Database\Eloquent\Collection;
+use Proxynth\Larawebhook\Enums\WebhookService;
 use Proxynth\Larawebhook\Exceptions\InvalidSignatureException;
 use Proxynth\Larawebhook\Exceptions\WebhookException;
 use Proxynth\Larawebhook\Models\WebhookLog;
@@ -31,12 +32,15 @@ class Larawebhook
     /**
      * Validate a webhook signature.
      *
+     *
      * @throws InvalidSignatureException
      * @throws WebhookException
      */
-    public function validate(string $payload, string $signature, string $service): bool
+    public function validate(string $payload, string $signature, string|WebhookService $service): bool
     {
-        return $this->getValidator($service)->validate($payload, $signature, $service);
+        $serviceName = $this->resolveServiceName($service);
+
+        return $this->getValidator($serviceName)->validate($payload, $signature, $service);
     }
 
     /**
@@ -45,10 +49,12 @@ class Larawebhook
     public function validateAndLog(
         string $payload,
         string $signature,
-        string $service,
+        string|WebhookService $service,
         string $event
     ): WebhookLog {
-        return $this->getValidator($service)->validateAndLog($payload, $signature, $service, $event);
+        $serviceName = $this->resolveServiceName($service);
+
+        return $this->getValidator($serviceName)->validateAndLog($payload, $signature, $service, $event);
     }
 
     /**
@@ -60,10 +66,12 @@ class Larawebhook
     public function validateWithRetries(
         string $payload,
         string $signature,
-        string $service,
+        string|WebhookService $service,
         string $event
     ): WebhookLog {
-        return $this->getValidator($service)->validateWithRetries($payload, $signature, $service, $event);
+        $serviceName = $this->resolveServiceName($service);
+
+        return $this->getValidator($serviceName)->validateWithRetries($payload, $signature, $service, $event);
     }
 
     /**
@@ -102,9 +110,11 @@ class Larawebhook
      *
      * @return Collection<int, WebhookLog>
      */
-    public function logsForService(string $service): Collection
+    public function logsForService(string|WebhookService $service): Collection
     {
-        return WebhookLog::service($service)->latest()->get();
+        $serviceName = $this->resolveServiceName($service);
+
+        return WebhookLog::service($serviceName)->latest()->get();
     }
 
     /**
@@ -180,9 +190,15 @@ class Larawebhook
     /**
      * Get the secret for a service from config.
      */
-    public function getSecret(string $service): ?string
+    public function getSecret(string|WebhookService $service): ?string
     {
-        return config("larawebhook.services.{$service}.webhook_secret");
+        if ($service instanceof WebhookService) {
+            return $service->secret();
+        }
+
+        $webhookService = WebhookService::tryFromString($service);
+
+        return $webhookService?->secret();
     }
 
     /**
@@ -190,7 +206,7 @@ class Larawebhook
      */
     public function isServiceSupported(string $service): bool
     {
-        return in_array($service, ['stripe', 'github'], true);
+        return WebhookService::isSupported($service);
     }
 
     /**
@@ -200,7 +216,33 @@ class Larawebhook
      */
     public function supportedServices(): array
     {
-        return ['stripe', 'github'];
+        return WebhookService::values();
+    }
+
+    /**
+     * Get all webhook service enum cases.
+     *
+     * @return array<WebhookService>
+     */
+    public function services(): array
+    {
+        return WebhookService::cases();
+    }
+
+    /**
+     * Get a service enum from string.
+     */
+    public function service(string $service): ?WebhookService
+    {
+        return WebhookService::tryFromString($service);
+    }
+
+    /**
+     * Resolve service name from string or enum.
+     */
+    private function resolveServiceName(string|WebhookService $service): string
+    {
+        return $service instanceof WebhookService ? $service->value : $service;
     }
 
     /**
@@ -214,7 +256,7 @@ class Larawebhook
             throw new WebhookException("No secret configured for service: {$service}");
         }
 
-        if ($this->validator === null || $this->validator !== $this->validator) {
+        if ($this->validator === null) {
             $this->validator = new WebhookValidator($secret, 300, $this->getLogger());
         }
 

@@ -19,8 +19,10 @@
 - **Interactive Dashboard**: Modern UI with Alpine.js and Tailwind CSS for log management
 - **REST API**: Programmatic access to webhook logs with filtering and pagination
 - **Replay Webhooks**: Re-process failed webhooks from dashboard or API
+- **Fluent Facade API**: Simple and expressive API via `Larawebhook` facade
+- **Type-Safe Services**: `WebhookService` enum for IDE autocompletion and type safety
 - **Easy Integration**: Minimal configuration, compatible with Laravel 9+
-- **Extensible**: Add your own validators or services
+- **Extensible Architecture**: Strategy Pattern for parsers and validators - add new services in minutes
 
 ---
 
@@ -116,6 +118,295 @@ public function handleWebhook(Request $request)
         return response($e->getMessage(), 403);
     }
 }
+```
+
+---
+
+## 🎯 Facade & Enum API
+
+LaraWebhook provides a powerful Facade and an Enum for type-safe service handling.
+
+### Using the Facade
+
+The `Larawebhook` facade provides a fluent API for all webhook operations:
+
+```php
+use Proxynth\Larawebhook\Facades\Larawebhook;
+
+// Validate a webhook
+Larawebhook::validate($payload, $signature, 'stripe');
+
+// Validate and log
+$log = Larawebhook::validateAndLog($payload, $signature, 'github', 'push');
+
+// Log webhooks manually
+Larawebhook::logSuccess('stripe', 'payment.succeeded', $payload);
+Larawebhook::logFailure('stripe', 'payment.failed', $payload, 'Card declined');
+
+// Query logs
+$allLogs = Larawebhook::logs();
+$stripeLogs = Larawebhook::logsForService('stripe');
+$failedLogs = Larawebhook::failedLogs();
+$successLogs = Larawebhook::successfulLogs();
+
+// Notifications
+Larawebhook::sendNotificationIfNeeded('stripe', 'payment.failed');
+Larawebhook::notificationsEnabled(); // true/false
+Larawebhook::getNotificationChannels(); // ['mail', 'slack']
+
+// Configuration helpers
+Larawebhook::getSecret('stripe'); // Returns webhook secret
+Larawebhook::isServiceSupported('stripe'); // true
+Larawebhook::supportedServices(); // ['stripe', 'github']
+```
+
+### WebhookService Enum
+
+The `WebhookService` enum centralizes all service-related configuration:
+
+```php
+use Proxynth\Larawebhook\Enums\WebhookService;
+
+// Available services
+WebhookService::Stripe; // 'stripe'
+WebhookService::Github; // 'github'
+
+// Get signature header for a service
+WebhookService::Stripe->signatureHeader(); // 'Stripe-Signature'
+WebhookService::Github->signatureHeader(); // 'X-Hub-Signature-256'
+
+// Get secret from config
+WebhookService::Stripe->secret(); // Returns configured secret
+
+// Get the payload parser (for extracting event types and metadata)
+WebhookService::Stripe->parser(); // StripePayloadParser
+WebhookService::Github->parser(); // GithubPayloadParser
+
+// Get the signature validator (for verifying webhook authenticity)
+WebhookService::Stripe->signatureValidator(); // StripeSignatureValidator
+WebhookService::Github->signatureValidator(); // GithubSignatureValidator
+
+// Check if a service is supported
+WebhookService::isSupported('stripe'); // true
+WebhookService::isSupported('unknown'); // false
+
+// Convert from string
+$service = WebhookService::tryFromString('stripe'); // WebhookService::Stripe
+$service = WebhookService::fromString('stripe'); // WebhookService::Stripe (throws on invalid)
+
+// Get all values (useful for validation rules)
+WebhookService::values(); // ['stripe', 'github']
+WebhookService::validationRule(); // ['stripe', 'github']
+```
+
+### Using Enum with Facade
+
+All facade methods accept both strings and the enum:
+
+```php
+use Proxynth\Larawebhook\Facades\Larawebhook;
+use Proxynth\Larawebhook\Enums\WebhookService;
+
+// Both are equivalent
+Larawebhook::validate($payload, $signature, 'stripe');
+Larawebhook::validate($payload, $signature, WebhookService::Stripe);
+
+// Type-safe service handling
+$service = WebhookService::Stripe;
+$log = Larawebhook::validateAndLog($payload, $signature, $service, 'payment.succeeded');
+```
+
+### Benefits of Using the Enum
+
+- **Type Safety**: IDE autocompletion and static analysis support
+- **Centralized Configuration**: All service-related config in one place
+- **DRY Principle**: No more duplicated service strings across the codebase
+- **Easy Extension**: Add a new service by adding a case to the enum
+
+---
+
+## 🏗️ Extensible Architecture
+
+LaraWebhook uses the **Strategy Pattern** for maximum extensibility. Each webhook service has its own:
+
+- **PayloadParser**: Extracts event types and metadata from the webhook payload
+- **SignatureValidator**: Validates the webhook signature according to the provider's format
+
+### Architecture Overview
+
+```
+src/
+├── Contracts/
+│   ├── PayloadParserInterface.php        # Strategy interface for parsing
+│   └── SignatureValidatorInterface.php   # Strategy interface for validation
+├── Parsers/
+│   ├── StripePayloadParser.php           # Stripe payload parsing
+│   └── GithubPayloadParser.php           # GitHub payload parsing
+├── Validators/
+│   ├── StripeSignatureValidator.php      # Stripe signature validation
+│   └── GithubSignatureValidator.php      # GitHub signature validation
+└── Enums/
+    └── WebhookService.php                # Central delegation point
+```
+
+### Adding a New Service (Example: PayPal)
+
+Adding a new webhook service requires just 4 steps:
+
+**Step 1: Create the Payload Parser**
+
+```php
+// src/Parsers/PaypalPayloadParser.php
+namespace Proxynth\Larawebhook\Parsers;
+
+use Proxynth\Larawebhook\Contracts\PayloadParserInterface;
+
+class PaypalPayloadParser implements PayloadParserInterface
+{
+    public function extractEventType(array $data): string
+    {
+        return $data['event_type'] ?? 'unknown';
+    }
+
+    public function extractMetadata(array $data): array
+    {
+        return [
+            'event_id' => $data['id'] ?? null,
+            'resource_type' => $data['resource_type'] ?? null,
+            'summary' => $data['summary'] ?? null,
+        ];
+    }
+
+    public function serviceName(): string
+    {
+        return 'paypal';
+    }
+}
+```
+
+**Step 2: Create the Signature Validator**
+
+```php
+// src/Validators/PaypalSignatureValidator.php
+namespace Proxynth\Larawebhook\Validators;
+
+use Proxynth\Larawebhook\Contracts\SignatureValidatorInterface;
+use Proxynth\Larawebhook\Exceptions\InvalidSignatureException;
+
+class PaypalSignatureValidator implements SignatureValidatorInterface
+{
+    public function validate(string $payload, string $signature, string $secret, int $tolerance = 300): bool
+    {
+        // PayPal uses base64-encoded HMAC-SHA256
+        $expected = base64_encode(hash_hmac('sha256', $payload, $secret, true));
+
+        if (! hash_equals($expected, $signature)) {
+            throw new InvalidSignatureException('Invalid PayPal webhook signature.');
+        }
+
+        return true;
+    }
+
+    public function serviceName(): string
+    {
+        return 'paypal';
+    }
+}
+```
+
+**Step 3: Register in the Enum**
+
+```php
+// src/Enums/WebhookService.php
+enum WebhookService: string
+{
+    case Stripe = 'stripe';
+    case Github = 'github';
+    case Paypal = 'paypal';  // Add the new case
+
+    public function parser(): PayloadParserInterface
+    {
+        return match ($this) {
+            self::Stripe => new StripePayloadParser,
+            self::Github => new GithubPayloadParser,
+            self::Paypal => new PaypalPayloadParser,  // Add mapping
+        };
+    }
+
+    public function signatureValidator(): SignatureValidatorInterface
+    {
+        return match ($this) {
+            self::Stripe => new StripeSignatureValidator,
+            self::Github => new GithubSignatureValidator,
+            self::Paypal => new PaypalSignatureValidator,  // Add mapping
+        };
+    }
+
+    public function signatureHeader(): string
+    {
+        return match ($this) {
+            self::Stripe => 'Stripe-Signature',
+            self::Github => 'X-Hub-Signature-256',
+            self::Paypal => 'PAYPAL-TRANSMISSION-SIG',  // Add header
+        };
+    }
+}
+```
+
+**Step 4: Add Configuration**
+
+```php
+// config/larawebhook.php
+'services' => [
+    'paypal' => [
+        'webhook_secret' => env('PAYPAL_WEBHOOK_SECRET'),
+        'tolerance' => 300,
+    ],
+],
+```
+
+That's it! Your new service is now fully integrated:
+
+```php
+// Use with middleware
+Route::post('/paypal-webhook', [PaypalController::class, 'handle'])
+    ->middleware('validate-webhook:paypal');
+
+// Or with the facade
+Larawebhook::validate($payload, $signature, WebhookService::Paypal);
+```
+
+### Using Parsers Directly
+
+You can access parsers directly for custom payload processing:
+
+```php
+use Proxynth\Larawebhook\Enums\WebhookService;
+
+$payload = json_decode($request->getContent(), true);
+
+// Extract event type
+$eventType = WebhookService::Stripe->parser()->extractEventType($payload);
+// Returns: 'payment_intent.succeeded'
+
+// Extract metadata
+$metadata = WebhookService::Github->parser()->extractMetadata($payload);
+// Returns: ['delivery_id' => '...', 'action' => 'opened', 'sender' => 'octocat', ...]
+```
+
+### Using Validators Directly
+
+For advanced use cases, you can use validators directly:
+
+```php
+use Proxynth\Larawebhook\Enums\WebhookService;
+
+$isValid = WebhookService::Stripe->signatureValidator()->validate(
+    payload: $rawPayload,
+    signature: $signatureHeader,
+    secret: config('larawebhook.services.stripe.webhook_secret'),
+    tolerance: 300
+);
 ```
 
 ---
@@ -927,15 +1218,44 @@ private function handlePush(array $payload): void
 
 **Pattern 3: Custom Service (Shopify)**
 ```php
-// Custom validator for any service
-class ShopifyWebhookValidator extends WebhookValidator
+// 1. Create a signature validator implementing SignatureValidatorInterface
+class ShopifySignatureValidator implements SignatureValidatorInterface
 {
-    public function validate(string $payload, string $signature, string $service): bool
+    public function validate(string $payload, string $signature, string $secret, int $tolerance = 300): bool
     {
-        $calculated = base64_encode(hash_hmac('sha256', $payload, $this->secret, true));
-        return hash_equals($calculated, $signature);
+        $calculated = base64_encode(hash_hmac('sha256', $payload, $secret, true));
+        if (! hash_equals($calculated, $signature)) {
+            throw new InvalidSignatureException('Invalid Shopify signature.');
+        }
+        return true;
+    }
+
+    public function serviceName(): string
+    {
+        return 'shopify';
     }
 }
+
+// 2. Create a payload parser implementing PayloadParserInterface
+class ShopifyPayloadParser implements PayloadParserInterface
+{
+    public function extractEventType(array $data): string
+    {
+        return $data['topic'] ?? 'unknown';
+    }
+
+    public function extractMetadata(array $data): array
+    {
+        return ['shop_domain' => $data['shop_domain'] ?? null];
+    }
+
+    public function serviceName(): string
+    {
+        return 'shopify';
+    }
+}
+
+// 3. Register in WebhookService enum (see Extensible Architecture section)
 ```
 
 ### 🔗 Full Documentation
