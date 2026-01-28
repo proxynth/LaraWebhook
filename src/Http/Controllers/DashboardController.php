@@ -18,7 +18,10 @@ class DashboardController extends Controller
         $services = config('larawebhook.services', []);
         $serviceNames = array_keys($services);
 
-        return view('larawebhook::dashboard', [
+        /** @var view-string $viewName */
+        $viewName = 'larawebhook::dashboard';
+
+        return view($viewName, [
             'services' => $serviceNames,
         ]);
     }
