@@ -2,7 +2,7 @@
   "name": "proxynth/larawebhook",
   "description": "LaraWebhook is an open-source Laravel package for securely and reliably managing incoming webhooks. It validates signatures, handles retries, and logs errors transparently. Ideal for Stripe, GitHub, Slack, and more!",
   "type": "library",
-  "license": "GPL-3.0",
+  "license": "MIT",
   "keywords": [
     "proxynth",
     "laravel",
