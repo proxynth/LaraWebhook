@@ -2,7 +2,7 @@
 
 [![Latest Version](https://img.shields.io/packagist/v/proxynth/larawebhook.svg)](https://packagist.org/packages/proxynth/larawebhook)
 [![Tests](https://github.com/proxynth/larawebhook/actions/workflows/tests.yml/badge.svg)](https://github.com/proxynth/larawebhook/actions)
-[![codecov](https://codecov.io/github/proxynth/LaraWebhook/graph/badge.svg?token=4WGFTA8HDR)](https://codecov.io/github/proxynth/LaraWebhook)
+[![Codecov](https://codecov.io/github/proxynth/LaraWebhook/graph/badge.svg?token=4WGFTA8HDR)](https://codecov.io/github/proxynth/LaraWebhook)
 [![PHPStan](https://github.com/proxynth/larawebhook/actions/workflows/phpstan.yml/badge.svg)](https://github.com/proxynth/larawebhook/actions)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
@@ -13,8 +13,11 @@
 ## ✨ Features
 
 - **Signature Validation**: Verify webhook authenticity (Stripe, GitHub, etc.)
-- **Retry Management**: Automatically retry failed webhooks
+- **Retry Management**: Automatically retry failed webhooks with exponential backoff
 - **Detailed Logging**: Store events and errors for debugging
+- **Interactive Dashboard**: Modern UI with Alpine.js and Tailwind CSS for log management
+- **REST API**: Programmatic access to webhook logs with filtering and pagination
+- **Replay Webhooks**: Re-process failed webhooks from dashboard or API
 - **Easy Integration**: Minimal configuration, compatible with Laravel 9+
 - **Extensible**: Add your own validators or services
 
@@ -35,7 +38,7 @@
 3. Configure your signature keys in `config/larawebhook.php`:
    ```php
    'stripe' => [
-        'secret' => env('STRIPE_WEBHOOK_SECRET'),
+        'webhook_secret' => env('STRIPE_WEBHOOK_SECRET'),
         'tolerance' => 300, // Tolerance in seconds
    ],
    ```
@@ -135,7 +138,7 @@ Then configure the service in `config/larawebhook.php`:
 ```php
 'services' => [
     'stripe' => [
-        'secret' => env('STRIPE_WEBHOOK_SECRET'),
+        'webhook_secret' => env('STRIPE_WEBHOOK_SECRET'),
         'tolerance' => 300, // 5 minutes tolerance for timestamp validation
     ],
 ],
@@ -367,7 +370,7 @@ Successful webhook processing creates a log entry:
 **View webhook logs:**
 ```bash
 php artisan tinker
->>> \Twillm\LaraWebhook\Models\WebhookLog::where('service', 'stripe')->latest()->first();
+>>> \Proxynth\LaraWebhook\Models\WebhookLog::where('service', 'stripe')->latest()->first();
 ```
 
 **Test with Stripe CLI:**
@@ -399,7 +402,7 @@ Then configure the service in `config/larawebhook.php`:
 ```php
 'services' => [
     'github' => [
-        'secret' => env('GITHUB_WEBHOOK_SECRET'),
+        'webhook_secret' => env('GITHUB_WEBHOOK_SECRET'),
         'tolerance' => 300,
     ],
 ],
@@ -698,7 +701,7 @@ Successful webhook processing creates a log entry:
 **View webhook logs:**
 ```bash
 php artisan tinker
->>> \Twillm\LaraWebhook\Models\WebhookLog::where('service', 'github')->latest()->first();
+>>> \Proxynth\LaraWebhook\Models\WebhookLog::where('service', 'github')->latest()->first();
 ```
 
 **Test webhook delivery:**
@@ -824,7 +827,7 @@ set_time_limit(30); // 30 seconds max
 ```bash
 # Check for recent failures
 php artisan tinker
->>> \Twillm\LaraWebhook\Models\WebhookLog::where('status', 'failed')
+>>> \Proxynth\LaraWebhook\Models\WebhookLog::where('status', 'failed')
         ->where('created_at', '>', now()->subHour())
         ->count();
 ```
@@ -850,6 +853,99 @@ if ($failedCount > 5) {
 
 ---
 
+## 💻 Code Examples
+
+Ready-to-use code examples for common webhook integrations. Copy, paste, and customize!
+
+### 📁 Examples Directory
+
+The [`examples/`](examples/) directory contains fully functional controller examples:
+
+1. **[StripeWebhookController.php](examples/StripeWebhookController.php)**
+    - Complete Stripe integration with payment intents, charges, subscriptions, and invoices
+    - Error handling and automatic logging
+    - Production-ready code with best practices
+
+2. **[GitHubWebhookController.php](examples/GitHubWebhookController.php)**
+    - Full GitHub webhook handling (push, PR, issues, releases, workflows)
+    - Auto-deployment on release
+    - Automatic retry on failure
+
+3. **[CustomServiceExample.php](examples/CustomServiceExample.php)**
+    - Step-by-step guide for adding custom services (Shopify example)
+    - Custom validator creation
+    - Middleware and controller setup
+
+### 🚀 Quick Start with Examples
+
+**Option 1: Copy the Full Controller**
+```bash
+# Copy the example you need
+cp vendor/proxynth/larawebhook/examples/StripeWebhookController.php \
+   app/Http/Controllers/StripeWebhookController.php
+```
+
+**Option 2: Use as Reference**
+
+Open the examples and copy specific methods you need:
+```php
+// From examples/StripeWebhookController.php
+private function handlePaymentIntentSucceeded(array $payload): void
+{
+    $paymentIntent = $payload['data']['object'];
+
+    // Your custom logic here
+    $order = Order::where('stripe_payment_intent_id', $paymentIntent['id'])->first();
+    $order->update(['status' => 'paid']);
+}
+```
+
+### 📖 Example Usage Patterns
+
+**Pattern 1: Simple Stripe Integration**
+```php
+// routes/web.php
+Route::post('/stripe-webhook', [StripeWebhookController::class, 'handle'])
+    ->middleware('validate-webhook:stripe');
+
+// .env
+STRIPE_WEBHOOK_SECRET=whsec_your_secret_here
+```
+
+**Pattern 2: GitHub Auto-Deploy**
+```php
+// From GitHubWebhookController.php
+private function handlePush(array $payload): void
+{
+    $branch = str_replace('refs/heads/', '', $payload['ref']);
+
+    if ($branch === 'main') {
+        Artisan::call('deploy:production');
+    }
+}
+```
+
+**Pattern 3: Custom Service (Shopify)**
+```php
+// Custom validator for any service
+class ShopifyWebhookValidator extends WebhookValidator
+{
+    public function validate(string $payload, string $signature, string $service): bool
+    {
+        $calculated = base64_encode(hash_hmac('sha256', $payload, $this->secret, true));
+        return hash_equals($calculated, $signature);
+    }
+}
+```
+
+### 🔗 Full Documentation
+
+For detailed usage instructions, testing strategies, and best practices, see:
+- **[Examples README](examples/README.md)** - Complete guide with patterns and tips
+- **[Integration Examples](#-service-integration-examples)** - Stripe and GitHub integration guides below
+
+---
+
 ## 🔧 Configuration
 
 Modify `config/larawebhook.php` to:
@@ -861,11 +957,11 @@ Example:
 ```php
 'services' => [
     'stripe' => [
-        'secret' => env('STRIPE_WEBHOOK_SECRET'),
+        'webhook_secret' => env('STRIPE_WEBHOOK_SECRET'),
         'tolerance' => 300,
     ],
     'github' => [
-        'secret' => env('GITHUB_WEBHOOK_SECRET'),
+        'webhook_secret' => env('GITHUB_WEBHOOK_SECRET'),
         'tolerance' => 300,
     ],
 ],
@@ -1010,7 +1106,6 @@ LARAWEBHOOK_DASHBOARD_PATH=/admin/webhooks
 ```env
 LARAWEBHOOK_DASHBOARD_MIDDLEWARE=web,auth
 ```
-
 
 ### Dashboard Screenshots
 
