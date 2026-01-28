@@ -9,7 +9,7 @@ beforeEach(function () {
     // Set up test secrets in config
     config([
         'larawebhook.services.stripe.webhook_secret' => 'test_stripe_secret',
-        'larawebhook.services.github.secret' => 'test_github_secret',
+        'larawebhook.services.github.webhook_secret' => 'test_github_secret',
     ]);
 
     // Register test routes with middleware

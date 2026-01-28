@@ -156,6 +156,129 @@ php artisan tinker
 
 ---
 
+## 📊 Dashboard & API
+
+LaraWebhook provides a modern dashboard built with **Alpine.js** and **Tailwind CSS** to visualize and manage webhook logs.
+
+### Access the Dashboard
+
+The dashboard is automatically available at:
+```
+http://your-app.test/larawebhook/dashboard
+```
+
+**Features:**
+- 📋 Paginated webhook logs table
+- 🔍 Filter by service, status, and date
+- 👁️ View detailed payload and error messages
+- 🔄 Replay failed webhooks
+- 📱 Fully responsive design
+
+### API Endpoints
+
+The package also provides REST API endpoints for programmatic access:
+
+#### Get Webhook Logs
+```http
+GET /api/larawebhook/logs
+```
+
+**Query Parameters:**
+- `service` - Filter by service (stripe, github, etc.)
+- `status` - Filter by status (success, failed)
+- `date` - Filter by date (YYYY-MM-DD)
+- `per_page` - Results per page (default: 10)
+- `page` - Page number
+
+**Example:**
+```bash
+curl "https://your-app.test/api/larawebhook/logs?service=stripe&status=failed&per_page=25"
+```
+
+**Response:**
+```json
+{
+  "data": [
+    {
+      "id": 1,
+      "service": "stripe",
+      "event": "payment_intent.succeeded",
+      "status": "success",
+      "payload": {...},
+      "attempt": 0,
+      "created_at": "01/01/2024 10:30:00"
+    }
+  ],
+  "meta": {
+    "current_page": 1,
+    "last_page": 5,
+    "per_page": 10,
+    "total": 50
+  },
+  "links": {
+    "first": "...",
+    "last": "...",
+    "prev": null,
+    "next": "..."
+  }
+}
+```
+
+#### Replay a Webhook
+```http
+POST /api/larawebhook/logs/{id}/replay
+```
+
+**Example:**
+```bash
+curl -X POST "https://your-app.test/api/larawebhook/logs/123/replay" \
+  -H "Content-Type: application/json"
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Webhook replayed successfully!",
+  "log": {
+    "id": 124,
+    "service": "stripe",
+    "event": "payment_intent.succeeded",
+    "status": "success",
+    "attempt": 1
+  }
+}
+```
+
+### Dashboard Configuration
+
+Customize the dashboard in `config/larawebhook.php`:
+
+```php
+'dashboard' => [
+    'enabled' => env('LARAWEBHOOK_DASHBOARD_ENABLED', true),
+    'path' => env('LARAWEBHOOK_DASHBOARD_PATH', '/larawebhook/dashboard'),
+    'middleware' => env('LARAWEBHOOK_DASHBOARD_MIDDLEWARE', 'web'),
+],
+```
+
+**Disable the dashboard:**
+```env
+LARAWEBHOOK_DASHBOARD_ENABLED=false
+```
+
+**Change the dashboard path:**
+```env
+LARAWEBHOOK_DASHBOARD_PATH=/admin/webhooks
+```
+
+**Add authentication middleware:**
+```env
+LARAWEBHOOK_DASHBOARD_MIDDLEWARE=web,auth
+```
+
+---
+
 ## 🧪 Tests
 
 Run tests with:

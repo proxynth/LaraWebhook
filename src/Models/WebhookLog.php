@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Proxynth\Larawebhook\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Proxynth\Larawebhook\Database\Factories\WebhookLogFactory;
 
 /**
  * @property string $service
@@ -16,6 +18,8 @@ use Illuminate\Database\Eloquent\Model;
  */
 class WebhookLog extends Model
 {
+    use HasFactory;
+
     protected $fillable = [
         'service',
         'event',
@@ -84,5 +88,13 @@ class WebhookLog extends Model
     public function scopeRetried($query)
     {
         return $query->where('attempt', '>', 0);
+    }
+
+    /**
+     * Create a new factory instance for the model.
+     */
+    protected static function newFactory(): WebhookLogFactory
+    {
+        return WebhookLogFactory::new();
     }
 }

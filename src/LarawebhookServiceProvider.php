@@ -23,6 +23,15 @@ class LarawebhookServiceProvider extends PackageServiceProvider
             __DIR__.'/../database/migrations' => database_path('migrations'),
         ]);
 
+        $this->loadRoutesFrom(__DIR__.'/../routes/api.php');
+        $this->loadRoutesFrom(__DIR__.'/../routes/web.php');
+
+        $this->loadViewsFrom(__DIR__.'/../resources/views', 'larawebhook');
+
+        $this->publishes([
+            __DIR__.'/../resources/views' => resource_path('views/vendor/larawebhook'),
+        ], 'larawebhook-views');
+
         // Register middleware alias
         $router = $this->app->make(Router::class);
         $router->aliasMiddleware('validate-webhook', ValidateWebhook::class);

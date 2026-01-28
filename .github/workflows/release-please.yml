@@ -25,7 +25,8 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.3'
-          coverage: none
+          extensions: mbstring, ctype, json, dom
+          coverage: pcov
 
       - name: Install dependencies
         if: ${{ steps.release.outputs.release_created }}

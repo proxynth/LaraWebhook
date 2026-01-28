@@ -73,7 +73,7 @@ class ValidateWebhook
     {
         return match ($service) {
             'stripe' => config('larawebhook.services.stripe.webhook_secret'),
-            'github' => config('larawebhook.services.github.secret'),
+            'github' => config('larawebhook.services.github.webhook_secret'),
             default => null,
         };
     }
