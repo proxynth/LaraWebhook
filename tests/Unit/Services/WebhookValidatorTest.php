@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Proxynth\Larawebhook\Enums\WebhookService;
 use Proxynth\Larawebhook\Exceptions\InvalidSignatureException;
 use Proxynth\Larawebhook\Exceptions\WebhookException;
 use Proxynth\Larawebhook\Services\WebhookValidator;
@@ -138,4 +139,46 @@ describe('Tolerance configuration', function () {
 
         $customValidator->validate($payload, $signatureHeader, 'stripe');
     })->throws(WebhookException::class, 'Webhook is expired');
+});
+
+describe('WebhookService enum support', function () {
+    it('validates Stripe using enum', function () {
+        $payload = '{"event": "payment_intent.succeeded"}';
+        $timestamp = time();
+        $signedPayload = "{$timestamp}.{$payload}";
+        $computedSignature = hash_hmac('sha256', $signedPayload, $this->secret);
+        $signatureHeader = "t={$timestamp},v1={$computedSignature}";
+
+        expect($this->webhookValidator->validate($payload, $signatureHeader, WebhookService::Stripe))
+            ->toBeTrue();
+    });
+
+    it('validates GitHub using enum', function () {
+        $payload = '{"action": "opened"}';
+        $computedSignature = hash_hmac('sha256', $payload, $this->secret);
+        $signatureHeader = "sha256={$computedSignature}";
+
+        expect($this->webhookValidator->validate($payload, $signatureHeader, WebhookService::Github))
+            ->toBeTrue();
+    });
+
+    it('throws exception for invalid signature using enum', function () {
+        $payload = '{"action": "opened"}';
+        $signatureHeader = 'sha256=invalid';
+
+        $this->webhookValidator->validate($payload, $signatureHeader, WebhookService::Github);
+    })->throws(InvalidSignatureException::class);
+
+    it('accepts both string and enum interchangeably', function () {
+        $payload = '{"action": "opened"}';
+        $computedSignature = hash_hmac('sha256', $payload, $this->secret);
+        $signatureHeader = "sha256={$computedSignature}";
+
+        // Both should work identically
+        $resultWithString = $this->webhookValidator->validate($payload, $signatureHeader, 'github');
+        $resultWithEnum = $this->webhookValidator->validate($payload, $signatureHeader, WebhookService::Github);
+
+        expect($resultWithString)->toBeTrue()
+            ->and($resultWithEnum)->toBeTrue();
+    });
 });

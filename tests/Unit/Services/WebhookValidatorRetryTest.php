@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Proxynth\Larawebhook\Exceptions\InvalidSignatureException;
+use Proxynth\Larawebhook\Exceptions\WebhookException;
 use Proxynth\Larawebhook\Models\WebhookLog;
 use Proxynth\Larawebhook\Services\WebhookValidator;
 
@@ -273,5 +274,38 @@ describe('validateWithRetries edge cases', function () {
         foreach ($logs as $log) {
             expect($log->error_message)->toContain('Webhook is expired');
         }
+    });
+
+    it('throws fallback exception when max_attempts is zero', function () {
+        config(['larawebhook.retries.max_attempts' => 0]);
+
+        $payload = '{"event": "test"}';
+        $signatureHeader = 'sha256=invalid';
+
+        expect(fn () => $this->validator->validateWithRetries(
+            $payload,
+            $signatureHeader,
+            'github',
+            'test.event'
+        ))->toThrow(WebhookException::class, 'Validation failed with no recorded exception.');
+
+        // No logs should be created since no attempts were made
+        expect(WebhookLog::count())->toBe(0);
+    });
+
+    it('throws fallback exception when max_attempts is negative', function () {
+        config(['larawebhook.retries.max_attempts' => -1]);
+
+        $payload = '{"event": "test"}';
+        $signatureHeader = 'sha256=invalid';
+
+        expect(fn () => $this->validator->validateWithRetries(
+            $payload,
+            $signatureHeader,
+            'github',
+            'test.event'
+        ))->toThrow(WebhookException::class, 'Validation failed with no recorded exception.');
+
+        expect(WebhookLog::count())->toBe(0);
     });
 });

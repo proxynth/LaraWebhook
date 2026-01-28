@@ -14,10 +14,14 @@ class DashboardController extends Controller
      */
     public function index(): View
     {
-        $services = config('larawebhook.services');
+        /** @var array<string, array<string, mixed>> $services */
+        $services = config('larawebhook.services', []);
         $serviceNames = array_keys($services);
 
-        return view('larawebhook::dashboard', [ // @phpstan-ignore argument.type
+        /** @var view-string $viewName */
+        $viewName = 'larawebhook::dashboard';
+
+        return view($viewName, [
             'services' => $serviceNames,
         ]);
     }

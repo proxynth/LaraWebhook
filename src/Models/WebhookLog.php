@@ -6,6 +6,7 @@ namespace Proxynth\Larawebhook\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Carbon;
 use Proxynth\Larawebhook\Database\Factories\WebhookLogFactory;
 
 /**
@@ -15,6 +16,8 @@ use Proxynth\Larawebhook\Database\Factories\WebhookLogFactory;
  * @property array $payload
  * @property string|null $error_message
  * @property int $attempt
+ * @property Carbon $created_at
+ * @property Carbon $updated_at
  */
 class WebhookLog extends Model
 {

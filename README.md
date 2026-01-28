@@ -15,11 +15,14 @@
 - **Signature Validation**: Verify webhook authenticity (Stripe, GitHub, etc.)
 - **Retry Management**: Automatically retry failed webhooks with exponential backoff
 - **Detailed Logging**: Store events and errors for debugging
+- **Failure Notifications**: Get alerted via Email and Slack when webhooks fail repeatedly
 - **Interactive Dashboard**: Modern UI with Alpine.js and Tailwind CSS for log management
 - **REST API**: Programmatic access to webhook logs with filtering and pagination
 - **Replay Webhooks**: Re-process failed webhooks from dashboard or API
+- **Fluent Facade API**: Simple and expressive API via `Larawebhook` facade
+- **Type-Safe Services**: `WebhookService` enum for IDE autocompletion and type safety
 - **Easy Integration**: Minimal configuration, compatible with Laravel 9+
-- **Extensible**: Add your own validators or services
+- **Extensible Architecture**: Strategy Pattern for parsers and validators - add new services in minutes
 
 ---
 
@@ -115,6 +118,295 @@ public function handleWebhook(Request $request)
         return response($e->getMessage(), 403);
     }
 }
+```
+
+---
+
+## 🎯 Facade & Enum API
+
+LaraWebhook provides a powerful Facade and an Enum for type-safe service handling.
+
+### Using the Facade
+
+The `Larawebhook` facade provides a fluent API for all webhook operations:
+
+```php
+use Proxynth\Larawebhook\Facades\Larawebhook;
+
+// Validate a webhook
+Larawebhook::validate($payload, $signature, 'stripe');
+
+// Validate and log
+$log = Larawebhook::validateAndLog($payload, $signature, 'github', 'push');
+
+// Log webhooks manually
+Larawebhook::logSuccess('stripe', 'payment.succeeded', $payload);
+Larawebhook::logFailure('stripe', 'payment.failed', $payload, 'Card declined');
+
+// Query logs
+$allLogs = Larawebhook::logs();
+$stripeLogs = Larawebhook::logsForService('stripe');
+$failedLogs = Larawebhook::failedLogs();
+$successLogs = Larawebhook::successfulLogs();
+
+// Notifications
+Larawebhook::sendNotificationIfNeeded('stripe', 'payment.failed');
+Larawebhook::notificationsEnabled(); // true/false
+Larawebhook::getNotificationChannels(); // ['mail', 'slack']
+
+// Configuration helpers
+Larawebhook::getSecret('stripe'); // Returns webhook secret
+Larawebhook::isServiceSupported('stripe'); // true
+Larawebhook::supportedServices(); // ['stripe', 'github']
+```
+
+### WebhookService Enum
+
+The `WebhookService` enum centralizes all service-related configuration:
+
+```php
+use Proxynth\Larawebhook\Enums\WebhookService;
+
+// Available services
+WebhookService::Stripe; // 'stripe'
+WebhookService::Github; // 'github'
+
+// Get signature header for a service
+WebhookService::Stripe->signatureHeader(); // 'Stripe-Signature'
+WebhookService::Github->signatureHeader(); // 'X-Hub-Signature-256'
+
+// Get secret from config
+WebhookService::Stripe->secret(); // Returns configured secret
+
+// Get the payload parser (for extracting event types and metadata)
+WebhookService::Stripe->parser(); // StripePayloadParser
+WebhookService::Github->parser(); // GithubPayloadParser
+
+// Get the signature validator (for verifying webhook authenticity)
+WebhookService::Stripe->signatureValidator(); // StripeSignatureValidator
+WebhookService::Github->signatureValidator(); // GithubSignatureValidator
+
+// Check if a service is supported
+WebhookService::isSupported('stripe'); // true
+WebhookService::isSupported('unknown'); // false
+
+// Convert from string
+$service = WebhookService::tryFromString('stripe'); // WebhookService::Stripe
+$service = WebhookService::fromString('stripe'); // WebhookService::Stripe (throws on invalid)
+
+// Get all values (useful for validation rules)
+WebhookService::values(); // ['stripe', 'github']
+WebhookService::validationRule(); // ['stripe', 'github']
+```
+
+### Using Enum with Facade
+
+All facade methods accept both strings and the enum:
+
+```php
+use Proxynth\Larawebhook\Facades\Larawebhook;
+use Proxynth\Larawebhook\Enums\WebhookService;
+
+// Both are equivalent
+Larawebhook::validate($payload, $signature, 'stripe');
+Larawebhook::validate($payload, $signature, WebhookService::Stripe);
+
+// Type-safe service handling
+$service = WebhookService::Stripe;
+$log = Larawebhook::validateAndLog($payload, $signature, $service, 'payment.succeeded');
+```
+
+### Benefits of Using the Enum
+
+- **Type Safety**: IDE autocompletion and static analysis support
+- **Centralized Configuration**: All service-related config in one place
+- **DRY Principle**: No more duplicated service strings across the codebase
+- **Easy Extension**: Add a new service by adding a case to the enum
+
+---
+
+## 🏗️ Extensible Architecture
+
+LaraWebhook uses the **Strategy Pattern** for maximum extensibility. Each webhook service has its own:
+
+- **PayloadParser**: Extracts event types and metadata from the webhook payload
+- **SignatureValidator**: Validates the webhook signature according to the provider's format
+
+### Architecture Overview
+
+```
+src/
+├── Contracts/
+│   ├── PayloadParserInterface.php        # Strategy interface for parsing
+│   └── SignatureValidatorInterface.php   # Strategy interface for validation
+├── Parsers/
+│   ├── StripePayloadParser.php           # Stripe payload parsing
+│   └── GithubPayloadParser.php           # GitHub payload parsing
+├── Validators/
+│   ├── StripeSignatureValidator.php      # Stripe signature validation
+│   └── GithubSignatureValidator.php      # GitHub signature validation
+└── Enums/
+    └── WebhookService.php                # Central delegation point
+```
+
+### Adding a New Service (Example: PayPal)
+
+Adding a new webhook service requires just 4 steps:
+
+**Step 1: Create the Payload Parser**
+
+```php
+// src/Parsers/PaypalPayloadParser.php
+namespace Proxynth\Larawebhook\Parsers;
+
+use Proxynth\Larawebhook\Contracts\PayloadParserInterface;
+
+class PaypalPayloadParser implements PayloadParserInterface
+{
+    public function extractEventType(array $data): string
+    {
+        return $data['event_type'] ?? 'unknown';
+    }
+
+    public function extractMetadata(array $data): array
+    {
+        return [
+            'event_id' => $data['id'] ?? null,
+            'resource_type' => $data['resource_type'] ?? null,
+            'summary' => $data['summary'] ?? null,
+        ];
+    }
+
+    public function serviceName(): string
+    {
+        return 'paypal';
+    }
+}
+```
+
+**Step 2: Create the Signature Validator**
+
+```php
+// src/Validators/PaypalSignatureValidator.php
+namespace Proxynth\Larawebhook\Validators;
+
+use Proxynth\Larawebhook\Contracts\SignatureValidatorInterface;
+use Proxynth\Larawebhook\Exceptions\InvalidSignatureException;
+
+class PaypalSignatureValidator implements SignatureValidatorInterface
+{
+    public function validate(string $payload, string $signature, string $secret, int $tolerance = 300): bool
+    {
+        // PayPal uses base64-encoded HMAC-SHA256
+        $expected = base64_encode(hash_hmac('sha256', $payload, $secret, true));
+
+        if (! hash_equals($expected, $signature)) {
+            throw new InvalidSignatureException('Invalid PayPal webhook signature.');
+        }
+
+        return true;
+    }
+
+    public function serviceName(): string
+    {
+        return 'paypal';
+    }
+}
+```
+
+**Step 3: Register in the Enum**
+
+```php
+// src/Enums/WebhookService.php
+enum WebhookService: string
+{
+    case Stripe = 'stripe';
+    case Github = 'github';
+    case Paypal = 'paypal';  // Add the new case
+
+    public function parser(): PayloadParserInterface
+    {
+        return match ($this) {
+            self::Stripe => new StripePayloadParser,
+            self::Github => new GithubPayloadParser,
+            self::Paypal => new PaypalPayloadParser,  // Add mapping
+        };
+    }
+
+    public function signatureValidator(): SignatureValidatorInterface
+    {
+        return match ($this) {
+            self::Stripe => new StripeSignatureValidator,
+            self::Github => new GithubSignatureValidator,
+            self::Paypal => new PaypalSignatureValidator,  // Add mapping
+        };
+    }
+
+    public function signatureHeader(): string
+    {
+        return match ($this) {
+            self::Stripe => 'Stripe-Signature',
+            self::Github => 'X-Hub-Signature-256',
+            self::Paypal => 'PAYPAL-TRANSMISSION-SIG',  // Add header
+        };
+    }
+}
+```
+
+**Step 4: Add Configuration**
+
+```php
+// config/larawebhook.php
+'services' => [
+    'paypal' => [
+        'webhook_secret' => env('PAYPAL_WEBHOOK_SECRET'),
+        'tolerance' => 300,
+    ],
+],
+```
+
+That's it! Your new service is now fully integrated:
+
+```php
+// Use with middleware
+Route::post('/paypal-webhook', [PaypalController::class, 'handle'])
+    ->middleware('validate-webhook:paypal');
+
+// Or with the facade
+Larawebhook::validate($payload, $signature, WebhookService::Paypal);
+```
+
+### Using Parsers Directly
+
+You can access parsers directly for custom payload processing:
+
+```php
+use Proxynth\Larawebhook\Enums\WebhookService;
+
+$payload = json_decode($request->getContent(), true);
+
+// Extract event type
+$eventType = WebhookService::Stripe->parser()->extractEventType($payload);
+// Returns: 'payment_intent.succeeded'
+
+// Extract metadata
+$metadata = WebhookService::Github->parser()->extractMetadata($payload);
+// Returns: ['delivery_id' => '...', 'action' => 'opened', 'sender' => 'octocat', ...]
+```
+
+### Using Validators Directly
+
+For advanced use cases, you can use validators directly:
+
+```php
+use Proxynth\Larawebhook\Enums\WebhookService;
+
+$isValid = WebhookService::Stripe->signatureValidator()->validate(
+    payload: $rawPayload,
+    signature: $signatureHeader,
+    secret: config('larawebhook.services.stripe.webhook_secret'),
+    tolerance: 300
+);
 ```
 
 ---
@@ -832,18 +1124,17 @@ php artisan tinker
         ->count();
 ```
 
-**✅ Set up alerts for repeated failures**
-```php
-// Example: Send alert if more than 5 webhooks fail in an hour
-$failedCount = WebhookLog::where('status', 'failed')
-    ->where('created_at', '>', now()->subHour())
-    ->count();
-
-if ($failedCount > 5) {
-    Notification::route('slack', config('services.slack.webhook'))
-        ->notify(new HighWebhookFailureRate($failedCount));
-}
+**✅ Enable automatic failure notifications**
+```env
+# LaraWebhook has built-in notifications for repeated failures
+WEBHOOK_NOTIFICATIONS_ENABLED=true
+WEBHOOK_NOTIFICATION_CHANNELS=mail,slack
+WEBHOOK_EMAIL_RECIPIENTS=admin@example.com
+WEBHOOK_SLACK_WEBHOOK_URL=https://hooks.slack.com/services/...
+WEBHOOK_FAILURE_THRESHOLD=3
 ```
+
+See the [Failure Notifications](#-failure-notifications) section for complete setup.
 
 **✅ Use the dashboard for monitoring**
 - Access at `/larawebhook/dashboard`
@@ -927,15 +1218,44 @@ private function handlePush(array $payload): void
 
 **Pattern 3: Custom Service (Shopify)**
 ```php
-// Custom validator for any service
-class ShopifyWebhookValidator extends WebhookValidator
+// 1. Create a signature validator implementing SignatureValidatorInterface
+class ShopifySignatureValidator implements SignatureValidatorInterface
 {
-    public function validate(string $payload, string $signature, string $service): bool
+    public function validate(string $payload, string $signature, string $secret, int $tolerance = 300): bool
     {
-        $calculated = base64_encode(hash_hmac('sha256', $payload, $this->secret, true));
-        return hash_equals($calculated, $signature);
+        $calculated = base64_encode(hash_hmac('sha256', $payload, $secret, true));
+        if (! hash_equals($calculated, $signature)) {
+            throw new InvalidSignatureException('Invalid Shopify signature.');
+        }
+        return true;
+    }
+
+    public function serviceName(): string
+    {
+        return 'shopify';
     }
 }
+
+// 2. Create a payload parser implementing PayloadParserInterface
+class ShopifyPayloadParser implements PayloadParserInterface
+{
+    public function extractEventType(array $data): string
+    {
+        return $data['topic'] ?? 'unknown';
+    }
+
+    public function extractMetadata(array $data): array
+    {
+        return ['shop_domain' => $data['shop_domain'] ?? null];
+    }
+
+    public function serviceName(): string
+    {
+        return 'shopify';
+    }
+}
+
+// 3. Register in WebhookService enum (see Extensible Architecture section)
 ```
 
 ### 🔗 Full Documentation
@@ -951,7 +1271,9 @@ For detailed usage instructions, testing strategies, and best practices, see:
 Modify `config/larawebhook.php` to:
 * Add services (Stripe, GitHub, etc.)
 * Configure validation tolerance
-* Enable/disable logging
+* Enable retry management
+* Set up failure notifications
+* Customize the dashboard
 
 Example:
 ```php
@@ -964,6 +1286,23 @@ Example:
         'webhook_secret' => env('GITHUB_WEBHOOK_SECRET'),
         'tolerance' => 300,
     ],
+],
+
+'retries' => [
+    'enabled' => true,
+    'max_attempts' => 3,
+    'delays' => [1, 5, 10], // seconds
+],
+
+'notifications' => [
+    'enabled' => env('WEBHOOK_NOTIFICATIONS_ENABLED', false),
+    'channels' => ['mail', 'slack'],
+    'failure_threshold' => 3,
+],
+
+'dashboard' => [
+    'enabled' => true,
+    'path' => '/larawebhook/dashboard',
 ],
 ```
 
@@ -1121,6 +1460,205 @@ LARAWEBHOOK_DASHBOARD_MIDDLEWARE=web,auth
 **Success vs Failed Logs**
 ![Log Comparison](docs/screenshots/log-success.png)
 ![Failed Log](docs/screenshots/log-failed.png)
+
+---
+
+## 🔔 Failure Notifications
+
+LaraWebhook can automatically notify you when webhooks fail repeatedly. Get alerted via **Email** and **Slack** when a service experiences multiple consecutive failures.
+
+### Why Notifications?
+
+- **Detect outages early**: Know immediately when a webhook provider has issues
+- **Reduce downtime**: React quickly to integration problems
+- **Team collaboration**: Send alerts to Slack channels for instant visibility
+
+### Configuration
+
+Enable notifications in `config/larawebhook.php`:
+
+```php
+'notifications' => [
+    // Enable/disable failure notifications
+    'enabled' => env('WEBHOOK_NOTIFICATIONS_ENABLED', true),
+
+    // Notification channels (mail, slack)
+    'channels' => array_filter(explode(',', env('WEBHOOK_NOTIFICATION_CHANNELS', 'mail'))),
+
+    // Slack webhook URL (create an Incoming Webhook in your Slack app)
+    'slack_webhook' => env('WEBHOOK_SLACK_WEBHOOK_URL'),
+
+    // Email recipients for failure notifications
+    'email_recipients' => array_filter(explode(',', env('WEBHOOK_EMAIL_RECIPIENTS', ''))),
+
+    // Number of consecutive failures before sending notification
+    'failure_threshold' => (int) env('WEBHOOK_FAILURE_THRESHOLD', 3),
+
+    // Time window in minutes to count failures
+    'failure_window_minutes' => (int) env('WEBHOOK_FAILURE_WINDOW', 30),
+
+    // Cooldown in minutes between notifications for the same service/event
+    'cooldown_minutes' => (int) env('WEBHOOK_NOTIFICATION_COOLDOWN', 30),
+],
+```
+
+### Environment Variables
+
+Add these to your `.env` file:
+
+```env
+# Enable notifications
+WEBHOOK_NOTIFICATIONS_ENABLED=true
+
+# Channels: mail, slack (comma-separated)
+WEBHOOK_NOTIFICATION_CHANNELS=mail,slack
+
+# Email recipients (comma-separated)
+WEBHOOK_EMAIL_RECIPIENTS=admin@example.com,devops@example.com
+
+# Slack incoming webhook URL
+WEBHOOK_SLACK_WEBHOOK_URL=https://hooks.slack.com/services/YOUR/WEBHOOK/URL
+
+# Number of failures before alerting (default: 3)
+WEBHOOK_FAILURE_THRESHOLD=3
+
+# Time window for counting failures in minutes (default: 30)
+WEBHOOK_FAILURE_WINDOW=30
+
+# Cooldown between notifications in minutes (default: 30)
+WEBHOOK_NOTIFICATION_COOLDOWN=30
+```
+
+### How It Works
+
+```
+┌─────────────────┐     ┌──────────────────────┐     ┌─────────────────────┐
+│                 │     │                      │     │                     │
+│  Webhook Fails  │────▶│  FailureDetector     │────▶│  Send Notification  │
+│  (3rd time)     │     │  - Count failures    │     │  - Email            │
+│                 │     │  - Check threshold   │     │  - Slack            │
+│                 │     │  - Check cooldown    │     │                     │
+└─────────────────┘     └──────────────────────┘     └─────────────────────┘
+                                  │
+                                  │ Below threshold
+                                  │ or in cooldown
+                                  ▼
+                        ┌──────────────────────┐
+                        │  No notification     │
+                        │  (prevents spam)     │
+                        └──────────────────────┘
+```
+
+1. **Failure Detection**: Counts consecutive failures for each service/event combination
+2. **Threshold Check**: Only triggers notification after N failures (configurable)
+3. **Time Window**: Only counts failures within the last X minutes
+4. **Cooldown**: Prevents notification spam by waiting between alerts
+
+### Slack Setup
+
+1. Go to [Slack API](https://api.slack.com/apps)
+2. Click **Create New App** → **From scratch**
+3. Give your app a name and select your workspace
+4. Go to **Incoming Webhooks** and toggle it **On**
+5. Click **Add New Webhook to Workspace**
+6. Select the channel for notifications (e.g., `#alerts` or `#monitoring`)
+7. Copy the webhook URL and add it to your `.env` file
+
+**Webhook URL format:** `https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXX`
+
+### Email Notifications
+
+Email notifications use Laravel's built-in mail system. Make sure your mail configuration is set up in `.env`:
+
+```env
+MAIL_MAILER=smtp
+MAIL_HOST=smtp.mailtrap.io
+MAIL_PORT=2525
+MAIL_USERNAME=your_username
+MAIL_PASSWORD=your_password
+MAIL_FROM_ADDRESS=noreply@example.com
+MAIL_FROM_NAME="LaraWebhook"
+```
+
+### Notification Content
+
+**Email Notification:**
+- Subject: `Webhook Failure Alert: {service}`
+- Service and event name
+- Number of consecutive failures
+- Last attempt timestamp
+- Error message (if available)
+- Link to dashboard
+
+**Slack Notification:**
+- Red alert color (danger level)
+- Service and event details
+- Failure count
+- Error message
+- Direct link to dashboard
+
+### Events
+
+LaraWebhook dispatches an event when a notification is sent, allowing you to add custom logic:
+
+```php
+use Proxynth\Larawebhook\Events\WebhookNotificationSent;
+
+// In your EventServiceProvider
+protected $listen = [
+    WebhookNotificationSent::class => [
+        YourCustomListener::class,
+    ],
+];
+
+// Your listener
+class YourCustomListener
+{
+    public function handle(WebhookNotificationSent $event): void
+    {
+        // $event->log - The WebhookLog model
+        // $event->failureCount - Number of failures
+
+        // Example: Log to external monitoring service
+        Http::post('https://monitoring.example.com/webhook-failure', [
+            'service' => $event->log->service,
+            'event' => $event->log->event,
+            'failures' => $event->failureCount,
+        ]);
+    }
+}
+```
+
+### Preventing Notification Spam
+
+LaraWebhook includes built-in spam prevention:
+
+1. **Failure Threshold**: Only notifies after N consecutive failures (default: 3)
+2. **Time Window**: Only counts failures within the last X minutes (default: 30)
+3. **Cooldown Period**: Won't send another notification for the same service/event within X minutes (default: 30)
+
+Example scenario:
+- Stripe `payment.failed` fails 3 times in 10 minutes → **Notification sent**
+- 5 more failures in the next 20 minutes → **No notification** (cooldown active)
+- After 30 minutes, 3 more failures → **Notification sent again**
+
+### Disabling Notifications
+
+To completely disable notifications:
+
+```env
+WEBHOOK_NOTIFICATIONS_ENABLED=false
+```
+
+Or to disable only for certain environments, use Laravel's configuration:
+
+```php
+// config/larawebhook.php
+'notifications' => [
+    'enabled' => env('WEBHOOK_NOTIFICATIONS_ENABLED', app()->environment('production')),
+    // ... other settings
+],
+```
 
 ---
 
