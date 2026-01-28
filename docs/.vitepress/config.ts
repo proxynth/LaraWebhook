@@ -3,7 +3,7 @@ import { defineConfig } from 'vitepress'
 export default defineConfig({
   title: 'LaraWebhook',
   description: 'Secure webhook handling for Laravel',
-  base: '/larawebhook/',
+  base: '/LaraWebhook/',
 
   head: [
     ['link', { rel: 'icon', type: 'image/svg+xml', href: '/logo.svg' }],
