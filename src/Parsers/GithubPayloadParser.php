@@ -51,6 +51,19 @@ class GithubPayloadParser implements PayloadParserInterface
     }
 
     /**
+     * Extract the external ID from GitHub webhook.
+     *
+     * GitHub provides a unique delivery ID via X-GitHub-Delivery header.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    public function extractExternalId(array $data, ?string $headerValue = null): ?string
+    {
+        // GitHub sends the delivery ID via header, not in payload
+        return $headerValue ?? $data['delivery'] ?? null;
+    }
+
+    /**
      * Get the service name this parser handles.
      */
     public function serviceName(): string

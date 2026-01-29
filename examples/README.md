@@ -461,17 +461,25 @@ public function handle(Request $request)
 }
 ```
 
-### Tip 2: Idempotency
+### Tip 2: Idempotency (Automatic)
+
+LaraWebhook's middleware **automatically handles idempotency**. Duplicate webhooks are rejected before reaching your handler:
+
+```json
+// Automatic response for duplicates
+{"status": "already_processed", "external_id": "evt_xxx"}
+```
+
+If you need to query previous webhooks manually:
 
 ```php
-// Prevent duplicate processing
-$eventId = $payload['id'];
+use Proxynth\Larawebhook\Models\WebhookLog;
 
-if (WebhookLog::where('external_id', $eventId)->exists()) {
-    return response()->json(['status' => 'already_processed']);
-}
+// Find a specific webhook
+$log = WebhookLog::findByExternalId('stripe', 'evt_1234567890');
 
-// Process and store with external_id
+// Check if exists
+$exists = WebhookLog::existsForExternalId('stripe', $eventId);
 ```
 
 ### Tip 3: Staging vs Production

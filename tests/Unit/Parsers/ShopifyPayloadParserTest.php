@@ -153,3 +153,39 @@ describe('ShopifyPayloadParser extractMetadata', function () {
             ->and($metadata['total_price'])->toBeNull();
     });
 });
+
+describe('ShopifyPayloadParser extractExternalId', function () {
+    beforeEach(function () {
+        $this->parser = new ShopifyPayloadParser;
+    });
+
+    it('extracts external id from header value', function () {
+        $data = [];
+        $headerValue = 'b54557e4-e9e0-4d5c-8e6b-9d2e7a8b1c3d';
+
+        expect($this->parser->extractExternalId($data, $headerValue))->toBe('b54557e4-e9e0-4d5c-8e6b-9d2e7a8b1c3d');
+    });
+
+    it('falls back to _webhook_id in payload when header is null', function () {
+        $data = ['_webhook_id' => 'webhook-id-from-payload'];
+
+        expect($this->parser->extractExternalId($data, null))->toBe('webhook-id-from-payload');
+    });
+
+    it('prefers header value over payload _webhook_id', function () {
+        $data = ['_webhook_id' => 'webhook-id-from-payload'];
+        $headerValue = 'webhook-id-from-header';
+
+        expect($this->parser->extractExternalId($data, $headerValue))->toBe('webhook-id-from-header');
+    });
+
+    it('returns null when both header and payload webhook_id are missing', function () {
+        $data = ['id' => 123456789];
+
+        expect($this->parser->extractExternalId($data, null))->toBeNull();
+    });
+
+    it('returns null for empty payload and null header', function () {
+        expect($this->parser->extractExternalId([], null))->toBeNull();
+    });
+});

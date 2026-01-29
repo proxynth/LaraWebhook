@@ -21,6 +21,7 @@ class WebhookLogger
      * @param  array  $payload  Webhook payload
      * @param  string|null  $errorMessage  Error message if failed
      * @param  int  $attempt  Retry attempt number (0 = first try, 1 = first retry, etc.)
+     * @param  string|null  $externalId  External ID for idempotency (provider's event/delivery ID)
      */
     public function log(
         string $service,
@@ -28,10 +29,12 @@ class WebhookLogger
         string $status,
         array $payload,
         ?string $errorMessage = null,
-        int $attempt = 0
+        int $attempt = 0,
+        ?string $externalId = null
     ): WebhookLog {
         $log = WebhookLog::create([
             'service' => $service,
+            'external_id' => $externalId,
             'event' => $event,
             'status' => $status,
             'payload' => $payload,
@@ -50,9 +53,14 @@ class WebhookLogger
     /**
      * Log a successful webhook.
      */
-    public function logSuccess(string $service, string $event, array $payload, int $attempt = 0): WebhookLog
-    {
-        return $this->log($service, $event, 'success', $payload, null, $attempt);
+    public function logSuccess(
+        string $service,
+        string $event,
+        array $payload,
+        int $attempt = 0,
+        ?string $externalId = null
+    ): WebhookLog {
+        return $this->log($service, $event, 'success', $payload, null, $attempt, $externalId);
     }
 
     /**
@@ -63,9 +71,10 @@ class WebhookLogger
         string $event,
         array $payload,
         string $errorMessage,
-        int $attempt = 0
+        int $attempt = 0,
+        ?string $externalId = null
     ): WebhookLog {
-        return $this->log($service, $event, 'failed', $payload, $errorMessage, $attempt);
+        return $this->log($service, $event, 'failed', $payload, $errorMessage, $attempt, $externalId);
     }
 
     /**

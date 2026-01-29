@@ -135,3 +135,31 @@ describe('StripePayloadParser extractMetadata', function () {
         expect($metadata['livemode'])->toBeFalse();
     });
 });
+
+describe('StripePayloadParser extractExternalId', function () {
+    beforeEach(function () {
+        $this->parser = new StripePayloadParser;
+    });
+
+    it('extracts external id from payload id field', function () {
+        $data = ['id' => 'evt_1234567890abcdef'];
+
+        expect($this->parser->extractExternalId($data))->toBe('evt_1234567890abcdef');
+    });
+
+    it('returns null when id is missing', function () {
+        $data = ['type' => 'payment_intent.succeeded'];
+
+        expect($this->parser->extractExternalId($data))->toBeNull();
+    });
+
+    it('returns null for empty payload', function () {
+        expect($this->parser->extractExternalId([]))->toBeNull();
+    });
+
+    it('ignores header value since Stripe uses payload', function () {
+        $data = ['id' => 'evt_from_payload'];
+
+        expect($this->parser->extractExternalId($data, 'ignored_header_value'))->toBe('evt_from_payload');
+    });
+});

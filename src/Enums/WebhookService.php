@@ -94,6 +94,19 @@ enum WebhookService: string
     }
 
     /**
+     * Get the external ID header name for services that send it via headers.
+     * Returns null if the service provides the ID in the payload instead.
+     */
+    public function externalIdHeader(): ?string
+    {
+        return match ($this) {
+            self::Github => 'X-GitHub-Delivery',
+            self::Shopify => 'X-Shopify-Webhook-Id',
+            default => null,
+        };
+    }
+
+    /**
      * Get the config key for the webhook secret.
      */
     public function secretConfigKey(): string
