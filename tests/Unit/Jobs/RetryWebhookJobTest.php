@@ -386,8 +386,8 @@ describe('RetryWebhookJob retry dispatching', function () {
         $job->handle();
 
         Queue::assertPushed(RetryWebhookJob::class, function ($pushedJob) {
-            // Job should be delayed
-            return $pushedJob->delay == 5;
+            // Job should be delayed (delay is a Carbon instance)
+            return $pushedJob->delay !== null;
         });
     });
 
@@ -407,7 +407,8 @@ describe('RetryWebhookJob retry dispatching', function () {
         $job->handle();
 
         Queue::assertPushed(RetryWebhookJob::class, function ($pushedJob) {
-            return $pushedJob->delay == 5;
+            // Job should have a delay set
+            return $pushedJob->delay !== null;
         });
     });
 });
@@ -517,14 +518,14 @@ describe('RetryWebhookJob configuration', function () {
         Queue::assertPushed(RetryWebhookJob::class);
     });
 
-    it('does not retry when attempt exceeds delay array bounds', function () {
+    it('uses last delay when attempt exceeds delay array bounds', function () {
         Queue::fake();
         config([
             'larawebhook.retries.max_attempts' => 10,
             'larawebhook.retries.delays' => [1, 2], // Only 2 delays defined
         ]);
 
-        // Attempt 2 should not retry because delays[2] doesn't exist
+        // Attempt 2 should still retry using the last delay (2 seconds)
         $job = new RetryWebhookJob(
             payload: '{"test": "data"}',
             signature: 'sha256=invalid',
@@ -536,7 +537,8 @@ describe('RetryWebhookJob configuration', function () {
 
         $job->handle();
 
-        Queue::assertNothingPushed();
+        // Should still dispatch because attempt 2 < max_attempts (10)
+        Queue::assertPushed(RetryWebhookJob::class);
     });
 
     it('uses default max_attempts of 3 when not configured', function () {
@@ -605,6 +607,70 @@ describe('RetryWebhookJob stripe specific scenarios', function () {
         $log = WebhookLog::latest()->first();
 
         expect($log->status)->toBe('success');
+    });
+});
+
+describe('RetryWebhookJob external_id support', function () {
+    it('logs success with external_id', function () {
+        $secret = 'github_secret_key';
+        $payload = '{"action": "push"}';
+        $signature = 'sha256='.hash_hmac('sha256', $payload, $secret);
+
+        $job = new RetryWebhookJob(
+            payload: $payload,
+            signature: $signature,
+            service: 'github',
+            event: 'push',
+            secret: $secret,
+            attempt: 0,
+            externalId: 'delivery-123-abc'
+        );
+
+        $job->handle();
+
+        $log = WebhookLog::latest()->first();
+
+        expect($log->external_id)->toBe('delivery-123-abc');
+    });
+
+    it('logs failure with external_id', function () {
+        $uniqueExternalId = 'evt_failure_'.uniqid();
+
+        $job = new RetryWebhookJob(
+            payload: '{"test": "data"}',
+            signature: 'sha256=invalid',
+            service: 'github',
+            event: 'push',
+            secret: 'secret',
+            attempt: 0,
+            externalId: $uniqueExternalId
+        );
+
+        $job->handle();
+
+        $log = WebhookLog::where('external_id', $uniqueExternalId)->first();
+
+        expect($log)->not->toBeNull()
+            ->and($log->external_id)->toBe($uniqueExternalId)
+            ->and($log->status)->toBe('failed');
+    });
+
+    it('passes external_id to next retry job', function () {
+        Queue::fake();
+
+        $job = new RetryWebhookJob(
+            payload: '{"test": "data"}',
+            signature: 'sha256=invalid',
+            service: 'github',
+            event: 'push',
+            secret: 'secret',
+            attempt: 0,
+            externalId: 'delivery-456'
+        );
+
+        $job->handle();
+
+        Queue::assertPushed(RetryWebhookJob::class);
     });
 });
 

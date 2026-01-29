@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Illuminate\Support\Facades\Log;
 use Proxynth\Larawebhook\Models\WebhookLog;
 use Proxynth\Larawebhook\Services\WebhookLogger;
 
@@ -265,5 +266,55 @@ describe('WebhookLog external_id model methods', function () {
 
         expect($stripeLogs)->toHaveCount(1)
             ->and($githubLogs)->toHaveCount(1);
+    });
+});
+
+describe('WebhookLogger Laravel logging', function () {
+    beforeEach(function () {
+        $this->logger = new WebhookLogger;
+    });
+
+    it('logs info message on success', function () {
+        Log::shouldReceive('info')
+            ->once()
+            ->with('Webhook processed successfully', \Mockery::on(function ($context) {
+                return $context['service'] === 'stripe'
+                    && $context['event'] === 'payment.success';
+            }));
+
+        $this->logger->logSuccess('stripe', 'payment.success', ['id' => '1']);
+    });
+
+    it('logs error message on failure', function () {
+        Log::shouldReceive('error')
+            ->once()
+            ->with(\Mockery::on(function ($message) {
+                return str_contains($message, 'Webhook validation failed');
+            }), \Mockery::on(function ($context) {
+                return $context['service'] === 'stripe'
+                    && $context['event'] === 'payment.failed';
+            }));
+
+        $this->logger->logFailure('stripe', 'payment.failed', ['id' => '1'], 'Invalid signature');
+    });
+
+    it('includes external_id in log context', function () {
+        Log::shouldReceive('info')
+            ->once()
+            ->with('Webhook processed successfully', \Mockery::on(function ($context) {
+                return $context['external_id'] === 'evt_123';
+            }));
+
+        $this->logger->logSuccess('stripe', 'payment.success', ['id' => '1'], 0, 'evt_123');
+    });
+
+    it('includes attempt number in log context', function () {
+        Log::shouldReceive('error')
+            ->once()
+            ->with(\Mockery::any(), \Mockery::on(function ($context) {
+                return $context['attempt'] === 2;
+            }));
+
+        $this->logger->logFailure('stripe', 'payment.failed', ['id' => '1'], 'Error', 2);
     });
 });

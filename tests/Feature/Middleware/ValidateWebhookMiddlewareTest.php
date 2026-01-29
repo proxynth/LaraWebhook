@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Route;
 use Proxynth\Larawebhook\Models\WebhookLog;
 
@@ -653,6 +654,150 @@ describe('ValidateWebhook middleware with Shopify', function () {
         );
 
         $response->assertStatus(403);
+    });
+});
+
+describe('ValidateWebhook middleware async retry', function () {
+    it('dispatches retry job when async retries enabled and validation fails', function () {
+        Queue::fake();
+
+        config([
+            'larawebhook.retries.enabled' => true,
+            'larawebhook.retries.async' => true,
+        ]);
+
+        $payload = '{"type": "payment_intent.succeeded"}';
+        $signatureHeader = 't='.time().',v1=invalid_signature';
+
+        $response = $this->call(
+            'POST',
+            'test-stripe-webhook',
+            [],
+            [],
+            [],
+            ['HTTP_STRIPE_SIGNATURE' => $signatureHeader, 'CONTENT_TYPE' => 'application/json'],
+            $payload
+        );
+
+        $response->assertStatus(202)
+            ->assertJson([
+                'status' => 'accepted_for_retry',
+            ]);
+
+        Queue::assertPushed(\Proxynth\Larawebhook\Jobs\RetryWebhookJob::class);
+    });
+
+    it('does not dispatch retry job when async retries disabled', function () {
+        Queue::fake();
+
+        config([
+            'larawebhook.retries.enabled' => true,
+            'larawebhook.retries.async' => false,
+        ]);
+
+        $payload = '{"type": "payment_intent.succeeded"}';
+        $timestamp = time();
+        $wrongSignature = hash_hmac('sha256', "{$timestamp}.wrong_payload", 'test_stripe_secret');
+        $signatureHeader = "t={$timestamp},v1={$wrongSignature}";
+
+        $response = $this->call(
+            'POST',
+            'test-stripe-webhook',
+            [],
+            [],
+            [],
+            ['HTTP_STRIPE_SIGNATURE' => $signatureHeader, 'CONTENT_TYPE' => 'application/json'],
+            $payload
+        );
+
+        $response->assertStatus(403);
+
+        Queue::assertNothingPushed();
+    });
+
+    it('does not dispatch retry job when retries disabled', function () {
+        Queue::fake();
+
+        config([
+            'larawebhook.retries.enabled' => false,
+            'larawebhook.retries.async' => true,
+        ]);
+
+        $payload = '{"type": "payment_intent.succeeded"}';
+        $timestamp = time();
+        $wrongSignature = hash_hmac('sha256', "{$timestamp}.wrong_payload", 'test_stripe_secret');
+        $signatureHeader = "t={$timestamp},v1={$wrongSignature}";
+
+        $response = $this->call(
+            'POST',
+            'test-stripe-webhook',
+            [],
+            [],
+            [],
+            ['HTTP_STRIPE_SIGNATURE' => $signatureHeader, 'CONTENT_TYPE' => 'application/json'],
+            $payload
+        );
+
+        $response->assertStatus(403);
+
+        Queue::assertNothingPushed();
+    });
+
+    it('includes external_id in accepted_for_retry response', function () {
+        Queue::fake();
+
+        config([
+            'larawebhook.retries.enabled' => true,
+            'larawebhook.retries.async' => true,
+        ]);
+
+        $payload = '{"id": "evt_test_retry", "type": "payment_intent.succeeded"}';
+        $signatureHeader = 't='.time().',v1=invalid_signature';
+
+        $response = $this->call(
+            'POST',
+            'test-stripe-webhook',
+            [],
+            [],
+            [],
+            ['HTTP_STRIPE_SIGNATURE' => $signatureHeader, 'CONTENT_TYPE' => 'application/json'],
+            $payload
+        );
+
+        $response->assertStatus(202)
+            ->assertJson([
+                'status' => 'accepted_for_retry',
+                'external_id' => 'evt_test_retry',
+            ]);
+    });
+
+    it('does not dispatch retry job when validation succeeds', function () {
+        Queue::fake();
+
+        config([
+            'larawebhook.retries.enabled' => true,
+            'larawebhook.retries.async' => true,
+        ]);
+
+        $payload = '{"type": "payment_intent.succeeded"}';
+        $timestamp = time();
+        $signedPayload = "{$timestamp}.{$payload}";
+        $signature = hash_hmac('sha256', $signedPayload, 'test_stripe_secret');
+        $signatureHeader = "t={$timestamp},v1={$signature}";
+
+        $response = $this->call(
+            'POST',
+            'test-stripe-webhook',
+            [],
+            [],
+            [],
+            ['HTTP_STRIPE_SIGNATURE' => $signatureHeader, 'CONTENT_TYPE' => 'application/json'],
+            $payload
+        );
+
+        $response->assertOk();
+
+        Queue::assertNothingPushed();
     });
 });
 
