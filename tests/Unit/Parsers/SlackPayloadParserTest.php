@@ -171,3 +171,65 @@ describe('SlackPayloadParser extractMetadata', function () {
         expect($metadata['event_type'])->toBe('block_actions');
     });
 });
+
+describe('SlackPayloadParser extractExternalId', function () {
+    beforeEach(function () {
+        $this->parser = new SlackPayloadParser;
+    });
+
+    it('extracts external id from event_id field', function () {
+        $data = [
+            'event_id' => 'Ev1234567890',
+            'type' => 'event_callback',
+        ];
+
+        expect($this->parser->extractExternalId($data))->toBe('Ev1234567890');
+    });
+
+    it('falls back to trigger_id for interactive components', function () {
+        $data = [
+            'type' => 'block_actions',
+            'trigger_id' => '123456789.987654321',
+        ];
+
+        expect($this->parser->extractExternalId($data))->toBe('123456789.987654321');
+    });
+
+    it('falls back to action timestamp when no event_id or trigger_id', function () {
+        $data = [
+            'type' => 'block_actions',
+            'actions' => [
+                ['action_id' => 'button_1', 'action_ts' => '1234567890.123456'],
+            ],
+        ];
+
+        expect($this->parser->extractExternalId($data))->toBe('1234567890.123456');
+    });
+
+    it('prefers event_id over trigger_id', function () {
+        $data = [
+            'event_id' => 'Ev1234',
+            'trigger_id' => '999.888',
+        ];
+
+        expect($this->parser->extractExternalId($data))->toBe('Ev1234');
+    });
+
+    it('returns null when no identifier is available', function () {
+        $data = [
+            'type' => 'unknown_type',
+        ];
+
+        expect($this->parser->extractExternalId($data))->toBeNull();
+    });
+
+    it('returns null for empty payload', function () {
+        expect($this->parser->extractExternalId([]))->toBeNull();
+    });
+
+    it('ignores header value since Slack uses payload', function () {
+        $data = ['event_id' => 'Ev_from_payload'];
+
+        expect($this->parser->extractExternalId($data, 'ignored_header'))->toBe('Ev_from_payload');
+    });
+});

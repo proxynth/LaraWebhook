@@ -51,6 +51,7 @@ Route::post('/stripe-webhook', function () {
 **What the middleware does automatically:**
 - ✅ Validates the webhook signature
 - ✅ Logs the event to the database
+- ✅ Rejects duplicate webhooks (idempotency)
 - ✅ Returns 403 for invalid signatures
 - ✅ Returns 400 for malformed payloads
 

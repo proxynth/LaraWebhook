@@ -11,12 +11,15 @@ return new class extends Migration
         Schema::create('webhook_logs', function (Blueprint $table) {
             $table->id();
             $table->string('service')->index(); // stripe, github, etc.
+            $table->string('external_id')->nullable(); // Provider's event/delivery ID for idempotency
             $table->string('event')->index(); // payment_intent.succeeded, push, etc.
             $table->string('status')->index(); // success, failed
             $table->json('payload'); // Raw webhook content
             $table->text('error_message')->nullable(); // Error details if failed
             $table->unsignedTinyInteger('attempt')->default(0); // Retry attempt number (0 = first try)
             $table->timestamps();
+
+            $table->unique(['service', 'external_id'], 'webhook_logs_service_external_id_unique');
         });
     }
 

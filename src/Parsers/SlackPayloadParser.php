@@ -68,6 +68,34 @@ class SlackPayloadParser implements PayloadParserInterface
     }
 
     /**
+     * Extract the external ID from Slack webhook.
+     *
+     * Slack provides an event_id in Event API callbacks.
+     * For interactive components, we use a combination of trigger_id or action_ts.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    public function extractExternalId(array $data, ?string $headerValue = null): ?string
+    {
+        // Event API callback
+        if (isset($data['event_id'])) {
+            return $data['event_id'];
+        }
+
+        // Interactive components - use trigger_id or action timestamp
+        if (isset($data['trigger_id'])) {
+            return $data['trigger_id'];
+        }
+
+        // Fallback to action timestamp for block_actions
+        if (isset($data['actions'][0]['action_ts'])) {
+            return $data['actions'][0]['action_ts'];
+        }
+
+        return null;
+    }
+
+    /**
      * Get the service name this parser handles.
      */
     public function serviceName(): string

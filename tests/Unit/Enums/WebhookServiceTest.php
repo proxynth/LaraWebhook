@@ -75,6 +75,24 @@ describe('WebhookService timestampHeader', function () {
     });
 });
 
+describe('WebhookService externalIdHeader', function () {
+    it('returns X-GitHub-Delivery for GitHub', function () {
+        expect(WebhookService::Github->externalIdHeader())->toBe('X-GitHub-Delivery');
+    });
+
+    it('returns X-Shopify-Webhook-Id for Shopify', function () {
+        expect(WebhookService::Shopify->externalIdHeader())->toBe('X-Shopify-Webhook-Id');
+    });
+
+    it('returns null for Stripe (uses payload)', function () {
+        expect(WebhookService::Stripe->externalIdHeader())->toBeNull();
+    });
+
+    it('returns null for Slack (uses payload)', function () {
+        expect(WebhookService::Slack->externalIdHeader())->toBeNull();
+    });
+});
+
 describe('WebhookService secretConfigKey', function () {
     it('returns correct config key for Stripe', function () {
         expect(WebhookService::Stripe->secretConfigKey())

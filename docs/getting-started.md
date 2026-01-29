@@ -69,6 +69,7 @@ Route::post('/github-webhook', function () {
 
 - ✅ Validates the webhook signature
 - ✅ Automatically logs the event to the database
+- ✅ Rejects duplicate webhooks (returns `200 OK` with `already_processed`)
 - ✅ Returns 403 for invalid signatures
 - ✅ Returns 400 for missing headers or malformed payloads
 

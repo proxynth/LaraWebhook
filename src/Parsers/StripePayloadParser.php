@@ -43,6 +43,18 @@ class StripePayloadParser implements PayloadParserInterface
     }
 
     /**
+     * Extract the external ID from Stripe payload.
+     *
+     * Stripe provides a unique event ID in the payload (e.g., "evt_xxxxx").
+     *
+     * @param  array<string, mixed>  $data
+     */
+    public function extractExternalId(array $data, ?string $headerValue = null): ?string
+    {
+        return $data['id'] ?? null;
+    }
+
+    /**
      * Get the service name this parser handles.
      */
     public function serviceName(): string

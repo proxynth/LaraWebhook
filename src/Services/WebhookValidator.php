@@ -53,6 +53,8 @@ class WebhookValidator
      * @param  string  $signature  Signature provided by the service
      * @param  string|WebhookService  $service  Service name or enum
      * @param  string  $event  Event type (e.g., 'payment_intent.succeeded')
+     * @param  int  $attempt  Retry attempt number (0 = first try)
+     * @param  string|null  $externalId  External ID for idempotency
      * @return WebhookLog The created log entry
      *
      * @throws Exception
@@ -62,7 +64,8 @@ class WebhookValidator
         string $signature,
         string|WebhookService $service,
         string $event,
-        int $attempt = 0
+        int $attempt = 0,
+        ?string $externalId = null
     ): WebhookLog {
         $serviceName = $service instanceof WebhookService ? $service->value : $service;
         $logger = $this->logger ?? new WebhookLogger;
@@ -71,9 +74,9 @@ class WebhookValidator
         try {
             $this->validate($payload, $signature, $service);
 
-            return $logger->logSuccess($serviceName, $event, $decodedPayload, $attempt);
+            return $logger->logSuccess($serviceName, $event, $decodedPayload, $attempt, $externalId);
         } catch (WebhookException|InvalidSignatureException $e) {
-            return $logger->logFailure($serviceName, $event, $decodedPayload, $e->getMessage(), $attempt);
+            return $logger->logFailure($serviceName, $event, $decodedPayload, $e->getMessage(), $attempt, $externalId);
         }
     }
 
@@ -84,6 +87,7 @@ class WebhookValidator
      * @param  string  $signature  Signature provided by the service
      * @param  string|WebhookService  $service  Service name or enum
      * @param  string  $event  Event type (e.g., 'payment_intent.succeeded')
+     * @param  string|null  $externalId  External ID for idempotency
      * @return WebhookLog The final log entry (success or last failed attempt)
      *
      * @throws WebhookException|InvalidSignatureException If all retries fail
@@ -93,12 +97,13 @@ class WebhookValidator
         string $payload,
         string $signature,
         string|WebhookService $service,
-        string $event
+        string $event,
+        ?string $externalId = null
     ): WebhookLog {
         $serviceName = $service instanceof WebhookService ? $service->value : $service;
 
         if (! config('larawebhook.retries.enabled', true)) {
-            return $this->validateAndLog($payload, $signature, $service, $event);
+            return $this->validateAndLog($payload, $signature, $service, $event, 0, $externalId);
         }
 
         $logger = $this->logger ?? new WebhookLogger;
@@ -113,7 +118,7 @@ class WebhookValidator
                 $this->validate($payload, $signature, $service);
 
                 // Success - log and return
-                return $logger->logSuccess($serviceName, $event, $decodedPayload, $attempt);
+                return $logger->logSuccess($serviceName, $event, $decodedPayload, $attempt, $externalId);
             } catch (WebhookException|InvalidSignatureException $e) {
                 $lastException = $e;
 
@@ -123,7 +128,8 @@ class WebhookValidator
                     $event,
                     $decodedPayload,
                     $e->getMessage(),
-                    $attempt
+                    $attempt,
+                    $externalId
                 );
 
                 // If not the last attempt, wait before retrying

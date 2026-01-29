@@ -655,3 +655,175 @@ describe('ValidateWebhook middleware with Shopify', function () {
         $response->assertStatus(403);
     });
 });
+
+describe('ValidateWebhook middleware idempotency', function () {
+    it('rejects duplicate Stripe webhooks', function () {
+        $payload = '{"id": "evt_test_duplicate", "type": "payment_intent.succeeded"}';
+        $timestamp = time();
+        $signedPayload = "{$timestamp}.{$payload}";
+        $signature = hash_hmac('sha256', $signedPayload, 'test_stripe_secret');
+        $signatureHeader = "t={$timestamp},v1={$signature}";
+
+        // First request should succeed
+        $response1 = $this->call(
+            'POST',
+            'test-stripe-webhook',
+            [],
+            [],
+            [],
+            ['HTTP_STRIPE_SIGNATURE' => $signatureHeader, 'CONTENT_TYPE' => 'application/json'],
+            $payload
+        );
+
+        $response1->assertOk()
+            ->assertJson(['status' => 'success']);
+
+        expect(WebhookLog::count())->toBe(1);
+
+        // Second request with same external_id should be rejected
+        $response2 = $this->call(
+            'POST',
+            'test-stripe-webhook',
+            [],
+            [],
+            [],
+            ['HTTP_STRIPE_SIGNATURE' => $signatureHeader, 'CONTENT_TYPE' => 'application/json'],
+            $payload
+        );
+
+        $response2->assertOk()
+            ->assertJson([
+                'status' => 'already_processed',
+                'external_id' => 'evt_test_duplicate',
+            ]);
+
+        // No new log should be created
+        expect(WebhookLog::count())->toBe(1);
+    });
+
+    it('rejects duplicate GitHub webhooks via header', function () {
+        $payload = '{"action": "opened", "number": 1}';
+        $signature = 'sha256='.hash_hmac('sha256', $payload, 'test_github_secret');
+        $deliveryId = 'github-delivery-123';
+
+        // First request
+        $response1 = $this->call(
+            'POST',
+            'test-github-webhook',
+            [],
+            [],
+            [],
+            [
+                'HTTP_X_HUB_SIGNATURE_256' => $signature,
+                'HTTP_X_GITHUB_DELIVERY' => $deliveryId,
+                'CONTENT_TYPE' => 'application/json',
+            ],
+            $payload
+        );
+
+        $response1->assertOk();
+        expect(WebhookLog::count())->toBe(1);
+
+        // Second request with same delivery ID
+        $response2 = $this->call(
+            'POST',
+            'test-github-webhook',
+            [],
+            [],
+            [],
+            [
+                'HTTP_X_HUB_SIGNATURE_256' => $signature,
+                'HTTP_X_GITHUB_DELIVERY' => $deliveryId,
+                'CONTENT_TYPE' => 'application/json',
+            ],
+            $payload
+        );
+
+        $response2->assertOk()
+            ->assertJson([
+                'status' => 'already_processed',
+                'external_id' => $deliveryId,
+            ]);
+
+        expect(WebhookLog::count())->toBe(1);
+    });
+
+    it('allows same external_id for different services', function () {
+        $stripePayload = '{"id": "shared_id_123", "type": "payment_intent.succeeded"}';
+        $timestamp = time();
+        $signedPayload = "{$timestamp}.{$stripePayload}";
+        $stripeSignature = hash_hmac('sha256', $signedPayload, 'test_stripe_secret');
+        $stripeSignatureHeader = "t={$timestamp},v1={$stripeSignature}";
+
+        // Stripe webhook
+        $this->call(
+            'POST',
+            'test-stripe-webhook',
+            [],
+            [],
+            [],
+            ['HTTP_STRIPE_SIGNATURE' => $stripeSignatureHeader, 'CONTENT_TYPE' => 'application/json'],
+            $stripePayload
+        )->assertOk();
+
+        // Slack webhook with same external_id in payload
+        $slackPayload = '{"event_id": "shared_id_123", "type": "event_callback", "event": {"type": "app_mention"}}';
+        $slackTimestamp = (string) time();
+        $slackSignature = 'v0='.hash_hmac('sha256', "v0:{$slackTimestamp}:{$slackPayload}", 'test_slack_secret');
+
+        $this->call(
+            'POST',
+            'test-slack-webhook',
+            [],
+            [],
+            [],
+            [
+                'HTTP_X_SLACK_SIGNATURE' => $slackSignature,
+                'HTTP_X_SLACK_REQUEST_TIMESTAMP' => $slackTimestamp,
+                'CONTENT_TYPE' => 'application/json',
+            ],
+            $slackPayload
+        )->assertOk()->assertJson(['status' => 'success']);
+
+        // Both should be logged (different services)
+        expect(WebhookLog::count())->toBe(2);
+    });
+
+    it('processes webhook without external_id normally', function () {
+        // Payload without id field
+        $payload = '{"type": "unknown_event"}';
+        $timestamp = time();
+        $signedPayload = "{$timestamp}.{$payload}";
+        $signature = hash_hmac('sha256', $signedPayload, 'test_stripe_secret');
+        $signatureHeader = "t={$timestamp},v1={$signature}";
+
+        // First request
+        $response1 = $this->call(
+            'POST',
+            'test-stripe-webhook',
+            [],
+            [],
+            [],
+            ['HTTP_STRIPE_SIGNATURE' => $signatureHeader, 'CONTENT_TYPE' => 'application/json'],
+            $payload
+        );
+
+        $response1->assertOk();
+
+        // Second request - should also succeed (no external_id to check)
+        $response2 = $this->call(
+            'POST',
+            'test-stripe-webhook',
+            [],
+            [],
+            [],
+            ['HTTP_STRIPE_SIGNATURE' => $signatureHeader, 'CONTENT_TYPE' => 'application/json'],
+            $payload
+        );
+
+        $response2->assertOk()->assertJson(['status' => 'success']);
+
+        // Both should be logged
+        expect(WebhookLog::count())->toBe(2);
+    });
+});

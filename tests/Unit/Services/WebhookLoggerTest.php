@@ -158,3 +158,112 @@ describe('WebhookLog timestamps', function () {
         expect($recentLog->payload['id'])->toBe('2');
     });
 });
+
+describe('WebhookLogger external_id support', function () {
+    beforeEach(function () {
+        $this->logger = new WebhookLogger;
+    });
+
+    it('logs webhook with external_id', function () {
+        $log = $this->logger->log(
+            service: 'stripe',
+            event: 'payment_intent.succeeded',
+            status: 'success',
+            payload: ['id' => 'pi_123'],
+            externalId: 'evt_1234567890'
+        );
+
+        expect($log->external_id)->toBe('evt_1234567890');
+    });
+
+    it('logs success with external_id', function () {
+        $log = $this->logger->logSuccess(
+            service: 'github',
+            event: 'push',
+            payload: ['ref' => 'main'],
+            externalId: 'abc123-delivery-id'
+        );
+
+        expect($log->external_id)->toBe('abc123-delivery-id');
+    });
+
+    it('logs failure with external_id', function () {
+        $log = $this->logger->logFailure(
+            service: 'shopify',
+            event: 'orders/create',
+            payload: ['id' => 123],
+            errorMessage: 'Invalid signature',
+            externalId: 'shopify-webhook-id-123'
+        );
+
+        expect($log->external_id)->toBe('shopify-webhook-id-123');
+    });
+
+    it('stores null external_id when not provided', function () {
+        $log = $this->logger->logSuccess(
+            service: 'stripe',
+            event: 'payment_intent.succeeded',
+            payload: ['id' => 'pi_123']
+        );
+
+        expect($log->external_id)->toBeNull();
+    });
+});
+
+describe('WebhookLog external_id model methods', function () {
+    beforeEach(function () {
+        $this->logger = new WebhookLogger;
+    });
+
+    it('checks if webhook exists for external_id', function () {
+        $this->logger->logSuccess('stripe', 'payment.success', ['id' => '1'], 0, 'evt_existing');
+
+        expect(WebhookLog::existsForExternalId('stripe', 'evt_existing'))->toBeTrue()
+            ->and(WebhookLog::existsForExternalId('stripe', 'evt_nonexistent'))->toBeFalse()
+            ->and(WebhookLog::existsForExternalId('github', 'evt_existing'))->toBeFalse();
+    });
+
+    it('finds webhook by service and external_id', function () {
+        $this->logger->logSuccess('stripe', 'payment.success', ['amount' => 1000], 0, 'evt_findable');
+
+        $found = WebhookLog::findByExternalId('stripe', 'evt_findable');
+
+        expect($found)->not->toBeNull()
+            ->and($found->payload['amount'])->toBe(1000);
+    });
+
+    it('returns null when webhook not found by external_id', function () {
+        $found = WebhookLog::findByExternalId('stripe', 'evt_nonexistent');
+
+        expect($found)->toBeNull();
+    });
+
+    it('filters by external_id scope', function () {
+        $this->logger->logSuccess('stripe', 'event1', ['id' => '1'], 0, 'evt_a');
+        $this->logger->logSuccess('stripe', 'event2', ['id' => '2'], 0, 'evt_b');
+        $this->logger->logSuccess('github', 'event3', ['id' => '3'], 0, 'evt_a');
+
+        $logs = WebhookLog::externalId('evt_a')->get();
+
+        expect($logs)->toHaveCount(2);
+    });
+
+    it('enforces unique constraint on service + external_id', function () {
+        $this->logger->logSuccess('stripe', 'event1', ['id' => '1'], 0, 'evt_unique');
+
+        // Attempting to create another log with same service + external_id should fail
+        expect(fn () => $this->logger->logSuccess('stripe', 'event2', ['id' => '2'], 0, 'evt_unique'))
+            ->toThrow(\Illuminate\Database\QueryException::class);
+    });
+
+    it('allows same external_id for different services', function () {
+        $this->logger->logSuccess('stripe', 'event1', ['id' => '1'], 0, 'same_external_id');
+        $this->logger->logSuccess('github', 'event2', ['id' => '2'], 0, 'same_external_id');
+
+        $stripeLogs = WebhookLog::service('stripe')->externalId('same_external_id')->get();
+        $githubLogs = WebhookLog::service('github')->externalId('same_external_id')->get();
+
+        expect($stripeLogs)->toHaveCount(1)
+            ->and($githubLogs)->toHaveCount(1);
+    });
+});

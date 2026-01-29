@@ -167,9 +167,53 @@ Access at `/larawebhook/dashboard`:
 
 ## Idempotency
 
-### Handle Duplicate Webhooks
+LaraWebhook **automatically handles idempotency**. The middleware extracts external IDs from webhook providers and rejects duplicates before they reach your handler.
 
-Providers may send the same webhook multiple times. Handle this gracefully:
+### Automatic Behavior
+
+::: tip No Code Required
+The middleware automatically rejects duplicate webhooks with:
+```json
+{"status": "already_processed", "external_id": "evt_xxx"}
+```
+This returns `200 OK` to prevent infinite retries from providers.
+:::
+
+### External ID Sources
+
+| Service | External ID Source | Example |
+|---------|-------------------|---------|
+| **Stripe** | Payload `id` field | `evt_1234567890abcdef` |
+| **GitHub** | `X-GitHub-Delivery` header | `abc123-delivery-uuid` |
+| **Slack** | Payload `event_id` field | `Ev1234567890` |
+| **Shopify** | `X-Shopify-Webhook-Id` header | `b54557e4-e9e0-...` |
+
+### Query by External ID (Optional)
+
+If you need to look up previously processed webhooks:
+
+```php
+use Proxynth\Larawebhook\Models\WebhookLog;
+
+// Find a specific webhook
+$log = WebhookLog::findByExternalId('stripe', 'evt_1234567890');
+
+// Check if exists
+$exists = WebhookLog::existsForExternalId('stripe', 'evt_1234567890');
+
+// Filter by external ID
+$logs = WebhookLog::service('github')
+    ->externalId('abc123-delivery-id')
+    ->get();
+```
+
+::: info Unique Constraint
+The `external_id` column has a unique constraint per service, preventing duplicate database entries.
+:::
+
+### Handle Business Logic Duplicates
+
+For idempotent business logic, use `updateOrCreate`:
 
 ```php
 private function handlePaymentSucceeded(array $payload): void
@@ -181,25 +225,6 @@ private function handlePaymentSucceeded(array $payload): void
         ['stripe_payment_intent_id' => $paymentIntent['id']],
         ['status' => 'paid']
     );
-}
-```
-
-### Store Webhook IDs
-
-```php
-private function handleWebhook(array $payload): void
-{
-    $webhookId = $payload['id'];
-    
-    // Check if already processed
-    if (ProcessedWebhook::where('webhook_id', $webhookId)->exists()) {
-        Log::info('Webhook already processed', ['id' => $webhookId]);
-        return;
-    }
-    
-    // Process and mark as done
-    $this->processWebhook($payload);
-    ProcessedWebhook::create(['webhook_id' => $webhookId]);
 }
 ```
 

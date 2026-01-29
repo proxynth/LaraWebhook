@@ -8,6 +8,7 @@ use Closure;
 use Exception;
 use Illuminate\Http\Request;
 use Proxynth\Larawebhook\Enums\WebhookService;
+use Proxynth\Larawebhook\Models\WebhookLog;
 use Proxynth\Larawebhook\Services\WebhookValidator;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -43,7 +44,17 @@ class ValidateWebhook
             return response('Request body is empty.', Response::HTTP_BAD_REQUEST);
         }
 
-        $event = $this->extractEventType($payload, $webhookService);
+        $decodedPayload = json_decode($payload, true);
+        $event = $this->extractEventType($decodedPayload, $webhookService);
+        $externalId = $this->extractExternalId($request, $webhookService, $decodedPayload);
+
+        // Check for duplicate webhook (idempotency)
+        if ($externalId !== null && WebhookLog::existsForExternalId($service, $externalId)) {
+            return response()->json([
+                'status' => 'already_processed',
+                'external_id' => $externalId,
+            ], Response::HTTP_OK);
+        }
 
         $secret = $webhookService->secret();
         if (empty($secret)) {
@@ -51,7 +62,7 @@ class ValidateWebhook
         }
 
         $validator = new WebhookValidator($secret);
-        $log = $validator->validateAndLog($payload, $signature, $service, $event);
+        $log = $validator->validateAndLog($payload, $signature, $service, $event, 0, $externalId);
 
         if ($log->status === 'failed') {
             $statusCode = str_contains($log->error_message, 'format') || str_contains($log->error_message, 'expired')
@@ -90,15 +101,32 @@ class ValidateWebhook
 
     /**
      * Extract event type from the webhook payload using the service's parser.
+     *
+     * @param  array<string, mixed>|null  $data  The decoded payload data
      */
-    private function extractEventType(string $payload, WebhookService $service): string
+    private function extractEventType(?array $data, WebhookService $service): string
     {
-        $data = json_decode($payload, true);
-
         if (! is_array($data)) {
             return 'unknown';
         }
 
         return $service->parser()->extractEventType($data);
+    }
+
+    /**
+     * Extract the external ID for idempotency from the request.
+     *
+     * @param  array<string, mixed>|null  $data  The decoded payload data
+     */
+    private function extractExternalId(Request $request, WebhookService $service, ?array $data): ?string
+    {
+        $externalIdHeader = $service->externalIdHeader();
+        $headerValue = $externalIdHeader ? $request->header($externalIdHeader) : null;
+
+        if (! is_array($data)) {
+            return $headerValue;
+        }
+
+        return $service->parser()->extractExternalId($data, $headerValue);
     }
 }

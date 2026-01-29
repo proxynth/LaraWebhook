@@ -11,6 +11,7 @@ use Proxynth\Larawebhook\Database\Factories\WebhookLogFactory;
 
 /**
  * @property string $service
+ * @property string|null $external_id
  * @property string $event
  * @property string $status
  * @property array $payload
@@ -25,6 +26,7 @@ class WebhookLog extends Model
 
     protected $fillable = [
         'service',
+        'external_id',
         'event',
         'status',
         'payload',
@@ -43,6 +45,37 @@ class WebhookLog extends Model
     public function scopeService($query, string $service)
     {
         return $query->where('service', $service);
+    }
+
+    /**
+     * Scope to filter by external ID.
+     */
+    public function scopeExternalId($query, string $externalId)
+    {
+        return $query->where('external_id', $externalId);
+    }
+
+    /**
+     * Check if a webhook with this external ID already exists for the given service.
+     */
+    public static function existsForExternalId(string $service, string $externalId): bool
+    {
+        return static::where('service', $service)
+            ->where('external_id', $externalId)
+            ->exists();
+    }
+
+    /**
+     * Find a webhook log by service and external ID.
+     *
+     * @return static|null
+     */
+    public static function findByExternalId(string $service, string $externalId): ?self
+    {
+        /** @var static|null */
+        return static::where('service', $service)
+            ->where('external_id', $externalId)
+            ->first();
     }
 
     /**

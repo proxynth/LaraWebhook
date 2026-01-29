@@ -151,3 +151,39 @@ describe('GithubPayloadParser extractMetadata', function () {
         expect($metadata['repository'])->toBeNull();
     });
 });
+
+describe('GithubPayloadParser extractExternalId', function () {
+    beforeEach(function () {
+        $this->parser = new GithubPayloadParser;
+    });
+
+    it('extracts external id from header value', function () {
+        $data = [];
+        $headerValue = 'abc123-delivery-id-from-header';
+
+        expect($this->parser->extractExternalId($data, $headerValue))->toBe('abc123-delivery-id-from-header');
+    });
+
+    it('falls back to payload delivery field when header is null', function () {
+        $data = ['delivery' => 'delivery-id-from-payload'];
+
+        expect($this->parser->extractExternalId($data, null))->toBe('delivery-id-from-payload');
+    });
+
+    it('prefers header value over payload delivery field', function () {
+        $data = ['delivery' => 'delivery-id-from-payload'];
+        $headerValue = 'delivery-id-from-header';
+
+        expect($this->parser->extractExternalId($data, $headerValue))->toBe('delivery-id-from-header');
+    });
+
+    it('returns null when both header and payload delivery are missing', function () {
+        $data = ['action' => 'opened'];
+
+        expect($this->parser->extractExternalId($data, null))->toBeNull();
+    });
+
+    it('returns null for empty payload and null header', function () {
+        expect($this->parser->extractExternalId([], null))->toBeNull();
+    });
+});

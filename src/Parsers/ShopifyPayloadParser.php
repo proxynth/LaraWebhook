@@ -57,6 +57,19 @@ class ShopifyPayloadParser implements PayloadParserInterface
     }
 
     /**
+     * Extract the external ID from Shopify webhook.
+     *
+     * Shopify provides a unique webhook ID via X-Shopify-Webhook-Id header.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    public function extractExternalId(array $data, ?string $headerValue = null): ?string
+    {
+        // Shopify sends the webhook ID via header
+        return $headerValue ?? $data['_webhook_id'] ?? null;
+    }
+
+    /**
      * Get the service name this parser handles.
      */
     public function serviceName(): string

@@ -13,6 +13,7 @@
 ## ✨ Features
 
 - **Signature Validation**: Verify webhook authenticity (Stripe, GitHub, Slack, Shopify)
+- **Automatic Idempotency**: Duplicate webhooks are automatically rejected with `200 OK`
 - **Retry Management**: Automatically retry failed webhooks with exponential backoff
 - **Detailed Logging**: Store events and errors for debugging
 - **Failure Notifications**: Get alerted via Email and Slack when webhooks fail repeatedly
@@ -81,6 +82,7 @@ Route::post('/github-webhook', function () {
 **What the middleware does:**
 - ✅ Validates the webhook signature
 - ✅ Automatically logs the event to the database
+- ✅ Rejects duplicate webhooks (returns `200 OK` with `already_processed`)
 - ✅ Returns 403 for invalid signatures
 - ✅ Returns 400 for missing headers or malformed payloads
 
@@ -1456,6 +1458,42 @@ public function handle(Request $request): JsonResponse
 // Don't let webhook processing block the response
 set_time_limit(30); // 30 seconds max
 ```
+
+#### Idempotency
+
+LaraWebhook **automatically handles idempotency**. The middleware extracts external IDs from webhook providers and rejects duplicates before they reach your handler.
+
+**Automatic Behavior:**
+- Duplicate webhooks return `200 OK` with `{"status": "already_processed", "external_id": "..."}`
+- This prevents infinite retries from providers
+- Your handler only processes each webhook once
+
+**External ID Sources:**
+
+| Service | External ID Source | Example |
+|---------|-------------------|---------|
+| **Stripe** | Payload `id` field | `evt_1234567890abcdef` |
+| **GitHub** | `X-GitHub-Delivery` header | `abc123-delivery-uuid` |
+| **Slack** | Payload `event_id` field | `Ev1234567890` |
+| **Shopify** | `X-Shopify-Webhook-Id` header | `b54557e4-e9e0-4d5c-8e6b-9d2e7a8b1c3d` |
+
+**✅ Query logs by external ID (optional)**
+```php
+use Proxynth\Larawebhook\Models\WebhookLog;
+
+// Find a specific webhook
+$log = WebhookLog::findByExternalId('stripe', 'evt_1234567890');
+
+// Check if exists
+$exists = WebhookLog::existsForExternalId('stripe', 'evt_1234567890');
+
+// Filter by external ID
+$logs = WebhookLog::service('github')
+    ->externalId('abc123-delivery-id')
+    ->get();
+```
+
+> **Note:** The `external_id` column has a unique constraint per service, preventing duplicate entries.
 
 #### Monitoring
 
