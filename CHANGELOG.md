@@ -5,6 +5,13 @@ All notable changes to `larawebhook` will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.11.0](https://github.com/proxynth/LaraWebhook/compare/v1.10.0...v1.11.0) (2026-01-30)
+
+
+### Features
+
+* implement async retry management for webhook validation ([#35](https://github.com/proxynth/LaraWebhook/issues/35)) ([570f007](https://github.com/proxynth/LaraWebhook/commit/570f0078b8b52054c8d685b3f2b91b5ec6c4e435))
+
 ## [1.10.0](https://github.com/proxynth/LaraWebhook/compare/v1.9.1...v1.10.0) (2026-01-29)
 
 
