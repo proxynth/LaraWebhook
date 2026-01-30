@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Proxynth\Larawebhook\Services;
 
+use Illuminate\Support\Facades\Log;
 use Proxynth\Larawebhook\Models\WebhookLog;
 
 class WebhookLogger
@@ -42,9 +43,19 @@ class WebhookLogger
             'attempt' => $attempt,
         ]);
 
-        // Check for repeated failures and send notification if needed
+        // Log to Laravel logs
+        $logContext = [
+            'service' => $service,
+            'event' => $event,
+            'external_id' => $externalId,
+            'attempt' => $attempt,
+        ];
+
         if ($status === 'failed') {
+            Log::error("Webhook validation failed: {$errorMessage}", $logContext);
             $this->checkAndNotify($service, $event);
+        } else {
+            Log::info('Webhook processed successfully', $logContext);
         }
 
         return $log;

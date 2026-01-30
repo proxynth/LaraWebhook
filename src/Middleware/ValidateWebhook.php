@@ -8,6 +8,7 @@ use Closure;
 use Exception;
 use Illuminate\Http\Request;
 use Proxynth\Larawebhook\Enums\WebhookService;
+use Proxynth\Larawebhook\Jobs\RetryWebhookJob;
 use Proxynth\Larawebhook\Models\WebhookLog;
 use Proxynth\Larawebhook\Services\WebhookValidator;
 use Symfony\Component\HttpFoundation\Response;
@@ -65,6 +66,17 @@ class ValidateWebhook
         $log = $validator->validateAndLog($payload, $signature, $service, $event, 0, $externalId);
 
         if ($log->status === 'failed') {
+            // Check if async retries are enabled
+            if ($this->shouldRetryAsync()) {
+                $this->dispatchRetryJob($payload, $signature, $service, $event, $secret, $externalId);
+
+                return response()->json([
+                    'status' => 'accepted_for_retry',
+                    'message' => 'Webhook validation failed, queued for retry',
+                    'external_id' => $externalId,
+                ], Response::HTTP_ACCEPTED);
+            }
+
             $statusCode = str_contains($log->error_message, 'format') || str_contains($log->error_message, 'expired')
                 ? Response::HTTP_BAD_REQUEST
                 : Response::HTTP_FORBIDDEN;
@@ -128,5 +140,39 @@ class ValidateWebhook
         }
 
         return $service->parser()->extractExternalId($data, $headerValue);
+    }
+
+    /**
+     * Check if async retries are enabled.
+     */
+    private function shouldRetryAsync(): bool
+    {
+        return config('larawebhook.retries.enabled', true)
+            && config('larawebhook.retries.async', false);
+    }
+
+    /**
+     * Dispatch a retry job for failed webhook validation.
+     */
+    private function dispatchRetryJob(
+        string $payload,
+        string $signature,
+        string $service,
+        string $event,
+        string $secret,
+        ?string $externalId
+    ): void {
+        $delays = config('larawebhook.retries.delays', [1, 5, 10]);
+        $firstDelay = $delays[0] ?? 1;
+
+        RetryWebhookJob::dispatch(
+            $payload,
+            $signature,
+            $service,
+            $event,
+            $secret,
+            1, // Start at attempt 1 (0 was the initial failed attempt)
+            $externalId
+        )->delay(now()->addSeconds($firstDelay));
     }
 }

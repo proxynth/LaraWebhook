@@ -14,8 +14,8 @@
 
 - **Signature Validation**: Verify webhook authenticity (Stripe, GitHub, Slack, Shopify)
 - **Automatic Idempotency**: Duplicate webhooks are automatically rejected with `200 OK`
-- **Retry Management**: Automatically retry failed webhooks with exponential backoff
-- **Detailed Logging**: Store events and errors for debugging
+- **Async Retry Management**: Queue failed webhooks for background retry (returns 202 Accepted)
+- **Detailed Logging**: Database logs + Laravel logs (`Log::info/error`) for debugging
 - **Failure Notifications**: Get alerted via Email and Slack when webhooks fail repeatedly
 - **Interactive Dashboard**: Modern UI with Alpine.js and Tailwind CSS for log management
 - **REST API**: Programmatic access to webhook logs with filtering and pagination
@@ -1350,6 +1350,78 @@ shopify webhook trigger --topic orders/create \
 
 ---
 
+### 🔄 Async Retry Management
+
+When a webhook validation fails, you can automatically queue it for background retry instead of returning an error immediately.
+
+#### Enable Async Retries
+
+```env
+WEBHOOK_RETRIES_ENABLED=true
+WEBHOOK_ASYNC_RETRIES=true
+WEBHOOK_MAX_ATTEMPTS=3
+```
+
+#### How It Works
+
+1. Webhook arrives, validation fails
+2. Middleware returns `202 Accepted` with `{"status": "accepted_for_retry"}`
+3. `RetryWebhookJob` is dispatched to the queue with delay
+4. Job retries validation in background
+5. If all retries fail, error is logged
+
+```php
+// config/larawebhook.php
+'retries' => [
+    'enabled' => true,
+    'max_attempts' => 3,
+    'delays' => [1, 5, 10], // seconds between retries
+    'async' => true, // Enable queue-based retries
+],
+```
+
+#### Response Codes
+
+| Scenario | Response |
+|----------|----------|
+| Validation success | `200 OK` + handler response |
+| Duplicate webhook | `200 OK` + `{"status": "already_processed"}` |
+| Validation fails (async=true) | `202 Accepted` + `{"status": "accepted_for_retry"}` |
+| Validation fails (async=false) | `403 Forbidden` |
+
+---
+
+### 📋 Laravel Logging
+
+All webhook events are automatically logged to Laravel's logging system in addition to the database.
+
+#### Log Levels
+
+- **Success**: `Log::info('Webhook processed successfully', $context)`
+- **Failure**: `Log::error('Webhook validation failed: {message}', $context)`
+
+#### Log Context
+
+```php
+[
+    'service' => 'stripe',
+    'event' => 'payment_intent.succeeded',
+    'external_id' => 'evt_123',
+    'attempt' => 0,
+]
+```
+
+#### View Logs
+
+```bash
+# Laravel default log
+tail -f storage/logs/laravel.log | grep -i webhook
+
+# Or use your logging channel (e.g., Papertrail, Loggly, etc.)
+```
+
+---
+
 ### 🔒 Best Practices
 
 #### Security
@@ -1674,6 +1746,7 @@ Example:
     'enabled' => true,
     'max_attempts' => 3,
     'delays' => [1, 5, 10], // seconds
+    'async' => false, // Queue retries in background (returns 202 Accepted)
 ],
 
 'notifications' => [

@@ -49,6 +49,26 @@ Configure automatic retry behavior for failed webhooks:
 ],
 ```
 
+### Async Retries
+
+When `async` is `true`:
+- Failed validations return `202 Accepted` immediately
+- The webhook is queued for background retry via `RetryWebhookJob`
+- Provider receives quick response, preventing timeouts
+
+```env
+WEBHOOK_RETRIES_ENABLED=true
+WEBHOOK_ASYNC_RETRIES=true
+WEBHOOK_MAX_ATTEMPTS=3
+```
+
+::: tip Queue Configuration
+Make sure your queue worker is running to process retry jobs:
+```bash
+php artisan queue:work
+```
+:::
+
 ## Dashboard
 
 Configure the webhook dashboard:
