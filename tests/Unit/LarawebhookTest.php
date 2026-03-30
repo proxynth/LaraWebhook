@@ -289,14 +289,14 @@ describe('Larawebhook configuration helpers', function () {
 
 describe('Larawebhook facade usage', function () {
     it('can be used via facade', function () {
-        expect(\Proxynth\Larawebhook\Facades\Larawebhook::supportedServices())->toBe(['stripe', 'github', 'slack', 'shopify']);
+        expect(Proxynth\Larawebhook\Facades\Larawebhook::supportedServices())->toBe(['stripe', 'github', 'slack', 'shopify']);
     });
 
     it('facade provides same functionality', function () {
         $payload = '{"action": "opened"}';
         $signature = 'sha256='.hash_hmac('sha256', $payload, 'github_test_secret');
 
-        $result = \Proxynth\Larawebhook\Facades\Larawebhook::validate($payload, $signature, 'github');
+        $result = Proxynth\Larawebhook\Facades\Larawebhook::validate($payload, $signature, 'github');
 
         expect($result)->toBeTrue();
     });
@@ -389,26 +389,26 @@ describe('Larawebhook facade with WebhookService enum', function () {
         $payload = '{"action": "opened"}';
         $signature = 'sha256='.hash_hmac('sha256', $payload, 'github_test_secret');
 
-        $result = \Proxynth\Larawebhook\Facades\Larawebhook::validate($payload, $signature, WebhookService::Github);
+        $result = Proxynth\Larawebhook\Facades\Larawebhook::validate($payload, $signature, WebhookService::Github);
 
         expect($result)->toBeTrue();
     });
 
     it('facade services method returns enum cases', function () {
-        $services = \Proxynth\Larawebhook\Facades\Larawebhook::services();
+        $services = Proxynth\Larawebhook\Facades\Larawebhook::services();
 
         expect($services)->toContain(WebhookService::Stripe)
             ->and($services)->toContain(WebhookService::Github);
     });
 
     it('facade service method converts string to enum', function () {
-        $service = \Proxynth\Larawebhook\Facades\Larawebhook::service('github');
+        $service = Proxynth\Larawebhook\Facades\Larawebhook::service('github');
 
         expect($service)->toBe(WebhookService::Github);
     });
 
     it('facade getSecret works with enum', function () {
-        $secret = \Proxynth\Larawebhook\Facades\Larawebhook::getSecret(WebhookService::Stripe);
+        $secret = Proxynth\Larawebhook\Facades\Larawebhook::getSecret(WebhookService::Stripe);
 
         expect($secret)->toBe('stripe_test_secret');
     });
