@@ -212,7 +212,7 @@ it('catches and returns error when exception occurs during replay', function () 
     // Register an event listener that throws an exception when creating a new WebhookLog
     // This simulates a database error or other unexpected failure during replay
     WebhookLog::creating(function () {
-        throw new \RuntimeException('Database connection lost');
+        throw new RuntimeException('Database connection lost');
     });
 
     $response = $this->postJson("/api/larawebhook/logs/{$log->id}/replay");

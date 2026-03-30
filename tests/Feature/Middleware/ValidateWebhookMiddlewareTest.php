@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Route;
+use Proxynth\Larawebhook\Jobs\RetryWebhookJob;
 use Proxynth\Larawebhook\Models\WebhookLog;
 
 beforeEach(function () {
@@ -684,7 +685,7 @@ describe('ValidateWebhook middleware async retry', function () {
                 'status' => 'accepted_for_retry',
             ]);
 
-        Queue::assertPushed(\Proxynth\Larawebhook\Jobs\RetryWebhookJob::class);
+        Queue::assertPushed(RetryWebhookJob::class);
     });
 
     it('does not dispatch retry job when async retries disabled', function () {

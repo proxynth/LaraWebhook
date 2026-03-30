@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Illuminate\Http\Client\Factory as HttpClient;
 use Illuminate\Notifications\ChannelManager;
+use Illuminate\Routing\Router;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Notification;
 use Proxynth\Larawebhook\LarawebhookServiceProvider;
@@ -96,7 +97,7 @@ describe('LarawebhookServiceProvider Slack channel registration', function () {
         ]);
 
         // Create a simple notification that uses slack
-        $notification = new class extends \Illuminate\Notifications\Notification
+        $notification = new class extends Illuminate\Notifications\Notification
         {
             public function via($notifiable): array
             {
@@ -122,7 +123,7 @@ describe('LarawebhookServiceProvider Slack channel registration', function () {
 
 describe('LarawebhookServiceProvider middleware registration', function () {
     it('registers validate-webhook middleware alias', function () {
-        $router = app(\Illuminate\Routing\Router::class);
+        $router = app(Router::class);
 
         // Get middleware aliases
         $middlewareAliases = $router->getMiddleware();

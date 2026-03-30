@@ -99,7 +99,7 @@ describe('validateWithRetries failure and retry scenarios', function () {
                 'stripe',
                 'test.event'
             );
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             // Expected
         }
 
@@ -128,7 +128,7 @@ describe('validateWithRetries with retry configuration', function () {
                 'stripe',
                 'test.event'
             );
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             // Expected
         }
 
@@ -151,7 +151,7 @@ describe('validateWithRetries with retry configuration', function () {
                 'stripe',
                 'test.event'
             );
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             // Expected
         }
 
@@ -175,7 +175,7 @@ describe('validateWithRetries with retry configuration', function () {
                 'stripe',
                 'test.event'
             );
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             // Expected
         }
         $duration = microtime(true) - $start;
@@ -199,7 +199,7 @@ describe('validateWithRetries scope queries', function () {
                 'stripe',
                 'test.event'
             );
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             // Expected
         }
 
@@ -222,7 +222,7 @@ describe('validateWithRetries scope queries', function () {
                 'stripe',
                 'test.event'
             );
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             // Expected
         }
 
@@ -263,7 +263,7 @@ describe('validateWithRetries edge cases', function () {
                 'stripe',
                 'test.event'
             );
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             // Expected
         }
 

@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Artisan;
 use Proxynth\Larawebhook\Commands\CleanupCommand;
 use Proxynth\Larawebhook\Models\WebhookLog;
@@ -10,7 +11,7 @@ describe('CleanupCommand', function () {
     it('is an Artisan command', function () {
         $command = new CleanupCommand;
 
-        expect($command)->toBeInstanceOf(\Illuminate\Console\Command::class);
+        expect($command)->toBeInstanceOf(Command::class);
     });
 
     it('has correct signature', function () {

@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\Log;
 use Proxynth\Larawebhook\Models\WebhookLog;
 use Proxynth\Larawebhook\Services\WebhookLogger;
@@ -254,7 +255,7 @@ describe('WebhookLog external_id model methods', function () {
 
         // Attempting to create another log with same service + external_id should fail
         expect(fn () => $this->logger->logSuccess('stripe', 'event2', ['id' => '2'], 0, 'evt_unique'))
-            ->toThrow(\Illuminate\Database\QueryException::class);
+            ->toThrow(QueryException::class);
     });
 
     it('allows same external_id for different services', function () {
@@ -277,7 +278,7 @@ describe('WebhookLogger Laravel logging', function () {
     it('logs info message on success', function () {
         Log::shouldReceive('info')
             ->once()
-            ->with('Webhook processed successfully', \Mockery::on(function ($context) {
+            ->with('Webhook processed successfully', Mockery::on(function ($context) {
                 return $context['service'] === 'stripe'
                     && $context['event'] === 'payment.success';
             }));
@@ -288,9 +289,9 @@ describe('WebhookLogger Laravel logging', function () {
     it('logs error message on failure', function () {
         Log::shouldReceive('error')
             ->once()
-            ->with(\Mockery::on(function ($message) {
+            ->with(Mockery::on(function ($message) {
                 return str_contains($message, 'Webhook validation failed');
-            }), \Mockery::on(function ($context) {
+            }), Mockery::on(function ($context) {
                 return $context['service'] === 'stripe'
                     && $context['event'] === 'payment.failed';
             }));
@@ -301,7 +302,7 @@ describe('WebhookLogger Laravel logging', function () {
     it('includes external_id in log context', function () {
         Log::shouldReceive('info')
             ->once()
-            ->with('Webhook processed successfully', \Mockery::on(function ($context) {
+            ->with('Webhook processed successfully', Mockery::on(function ($context) {
                 return $context['external_id'] === 'evt_123';
             }));
 
@@ -311,7 +312,7 @@ describe('WebhookLogger Laravel logging', function () {
     it('includes attempt number in log context', function () {
         Log::shouldReceive('error')
             ->once()
-            ->with(\Mockery::any(), \Mockery::on(function ($context) {
+            ->with(Mockery::any(), Mockery::on(function ($context) {
                 return $context['attempt'] === 2;
             }));
 
