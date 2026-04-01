@@ -1,4 +1,4 @@
-name: phpstan.yml
+name: Check static analysis
 on:
   push:
     branches:
