@@ -1,4 +1,4 @@
-name: release-please.yml
+name: Create release with Google Release Please
 on:
   push:
     branches:
