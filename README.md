@@ -32,6 +32,110 @@ The long-term direction is to evolve LaraWebhook into a safer, stricter, privacy
 
 ---
 
+## Production readiness
+
+LaraWebhook can be used as a foundation for production webhook handling, but it should not be deployed blindly with default settings for sensitive or business-critical flows.
+
+Before using LaraWebhook in production, review the following checklist.
+
+### Access control
+
+Make sure the dashboard and API routes are not publicly exposed.
+
+Recommended actions:
+
+- disable the dashboard if you do not need it;
+- protect dashboard routes with authentication middleware;
+- protect API routes with token-based authentication such as Laravel Sanctum;
+- restrict replay endpoints to trusted users only.
+
+### Payload storage
+
+Webhook payloads may contain sensitive or personal data such as emails, names, addresses, tokens, payment references, customer identifiers, or internal metadata.
+
+Recommended actions:
+
+- avoid storing full payloads unless strictly required;
+- prefer redacted payloads or metadata-only storage;
+- document why payloads are stored;
+- avoid exposing raw payloads in logs, dashboards, notifications or error messages.
+
+### Sensitive data redaction
+
+If payloads are stored, sensitive fields should be masked before persistence.
+
+Recommended actions:
+
+- redact fields such as `email`, `phone`, `address`, `token`, `secret`, `authorization`, `client_secret`, `password`;
+- review provider-specific payloads;
+- test redaction rules with real-world-like examples;
+- never rely on manual cleanup after storage.
+
+### Retention policy
+
+Webhook logs should not be kept forever by default.
+
+Recommended actions:
+
+- configure a retention period;
+- prune old webhook logs regularly;
+- keep shorter retention for full or redacted payloads;
+- document your retention policy according to your application requirements.
+
+### Replay permissions
+
+Replay is useful for recovery and debugging, but it can trigger business actions again.
+
+Recommended actions:
+
+- restrict replay access;
+- log replay attempts;
+- avoid replaying non-idempotent handlers;
+- make sure your application handlers are safe to execute more than once;
+- consider disabling replay for sources where payloads are not stored.
+
+### Provider secrets
+
+Webhook validation depends on provider secrets.
+
+Recommended actions:
+
+- store secrets in environment variables or a secret manager;
+- never commit secrets to the repository;
+- rotate secrets when needed;
+- use different secrets per environment;
+- verify that invalid signatures are rejected.
+
+### Idempotency
+
+Webhook providers may send the same event more than once.
+
+Recommended actions:
+
+- configure idempotency behavior per provider;
+- use stable provider event IDs when available;
+- fallback to payload hashes only when appropriate;
+- make downstream handlers idempotent too.
+
+### Monitoring and failure handling
+
+Validation and delivery failures should be visible.
+
+Recommended actions:
+
+- monitor failed validations;
+- monitor failed processing attempts;
+- alert on repeated failures;
+- distinguish invalid signatures from downstream processing errors.
+
+### Compliance and responsibility
+
+LaraWebhook can help implement safer webhook handling practices, but compliance depends on your own application, configuration, data, infrastructure, contracts and operational procedures.
+
+For more details, see `SECURITY_AND_PRIVACY.md`.
+
+---
+
 ## ✨ Features
 
 - **Signature Validation**: Verify webhook authenticity (Stripe, GitHub, Slack, Shopify)
