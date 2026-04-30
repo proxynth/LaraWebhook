@@ -30,6 +30,11 @@ Before using LaraWebhook in production, you should carefully review and configur
 
 The long-term direction is to evolve LaraWebhook into a safer, stricter, privacy-first webhook toolkit for Laravel, potentially as part of the broader Sovra ecosystem.
 
+### Long-term direction
+
+LaraWebhook may eventually become the Laravel integration layer for **Sovra**, a broader exploration around sovereign, privacy-first and self-hostable webhook infrastructure.
+
+For now, LaraWebhook remains an experimental Laravel package focused on webhook validation, logging, replay and safer payload handling.
 ---
 
 ## Production readiness
