@@ -10,6 +10,28 @@
 
 ---
 
+## Project status
+
+LaraWebhook is currently an experimental side project and MVP-like Laravel package.
+
+It explores webhook reliability patterns such as signature validation, idempotency, logging, replay, provider-specific parsing, and privacy-conscious payload handling.
+
+The package is usable for experimentation, internal tools, prototypes, and non-critical workloads. However, it should not be considered production-hardened by default for sensitive or business-critical webhook flows.
+
+Before using LaraWebhook in production, you should carefully review and configure:
+
+- dashboard and API access control;
+- payload storage strategy;
+- sensitive data redaction;
+- log retention policy;
+- replay permissions;
+- provider secrets and signature validation;
+- idempotency behavior.
+
+The long-term direction is to evolve LaraWebhook into a safer, stricter, privacy-first webhook toolkit for Laravel, potentially as part of the broader Sovra ecosystem.
+
+---
+
 ## ✨ Features
 
 - **Signature Validation**: Verify webhook authenticity (Stripe, GitHub, Slack, Shopify)
