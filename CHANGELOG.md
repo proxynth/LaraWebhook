@@ -5,6 +5,13 @@ All notable changes to `larawebhook` will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.12.0](https://github.com/proxynth/LaraWebhook/compare/v1.11.0...v1.12.0) (2026-05-01)
+
+
+### Features
+
+* disable dashboard routes by default ([#54](https://github.com/proxynth/LaraWebhook/issues/54)) ([4ffabc3](https://github.com/proxynth/LaraWebhook/commit/4ffabc39c2562bb8de0b2577724d2da13c0b13e3))
+
 ## [1.11.0](https://github.com/proxynth/LaraWebhook/compare/v1.10.0...v1.11.0) (2026-01-30)
 
 
