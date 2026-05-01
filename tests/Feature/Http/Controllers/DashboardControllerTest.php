@@ -1,6 +1,14 @@
 <?php
 
+use Proxynth\Larawebhook\LarawebhookServiceProvider;
+
 beforeEach(function () {
+    config()->set('larawebhook.dashboard.enabled', true);
+
+    app()->register(LarawebhookServiceProvider::class, true);
+
+    app('router')->getRoutes()->refreshNameLookups();
+
     // Set app key required for web middleware (sessions/encryption)
     config(['app.key' => 'base64:'.base64_encode(random_bytes(32))]);
 
