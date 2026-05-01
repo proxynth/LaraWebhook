@@ -139,6 +139,18 @@ LaraWebhook can help implement safer webhook handling practices, but compliance 
 
 For more details, see `SECURITY_AND_PRIVACY.md`.
 
+### Dashboard
+
+The dashboard is disabled by default.
+
+To enable it:
+
+```env
+LARAWEBHOOK_DASHBOARD_ENABLED=true
+```
+
+Before enabling the dashboard in production, make sure dashboard routes are protected with authentication middleware.
+
 ---
 
 ## ✨ Features

@@ -32,7 +32,7 @@ class LarawebhookServiceProvider extends PackageServiceProvider
         ]);
 
         $this->loadRoutesFrom(__DIR__.'/../routes/api.php');
-        $this->loadRoutesFrom(__DIR__.'/../routes/web.php');
+        $this->registerDashboardRoutes();
 
         $this->loadViewsFrom(__DIR__.'/../resources/views', 'larawebhook');
 
@@ -110,5 +110,17 @@ class LarawebhookServiceProvider extends PackageServiceProvider
                 return new SlackWebhookChannel($app->make(HttpClient::class));
             });
         });
+    }
+
+    /**
+     * Register dashboard route.
+     */
+    private function registerDashboardRoutes(): void
+    {
+        if (! config('larawebhook.dashboard.enabled', false)) {
+            return;
+        }
+
+        $this->loadRoutesFrom(__DIR__.'/../routes/web.php');
     }
 }

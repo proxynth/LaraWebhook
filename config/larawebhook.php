@@ -66,8 +66,8 @@ return [
     |
     */
     'dashboard' => [
-        'enabled' => env('LARAWEBHOOK_DASHBOARD_ENABLED', true),
-        'path' => env('LARAWEBHOOK_DASHBOARD_PATH', '/larawebhook/dashboard'),
+        'enabled' => env('LARAWEBHOOK_DASHBOARD_ENABLED', false),
+        'path' => env('LARAWEBHOOK_DASHBOARD_PATH', 'larawebhook/dashboard'),
         'middleware' => env('LARAWEBHOOK_DASHBOARD_MIDDLEWARE', 'web'),
     ],
 
