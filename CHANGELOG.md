@@ -5,6 +5,13 @@ All notable changes to `larawebhook` will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.13.0](https://github.com/proxynth/LaraWebhook/compare/v1.12.0...v1.13.0) (2026-05-02)
+
+
+### Features
+
+* make dashboard middleware configurable ([#56](https://github.com/proxynth/LaraWebhook/issues/56)) ([6c2bd09](https://github.com/proxynth/LaraWebhook/commit/6c2bd096bc1a345c3fb2cf525b9cf84e62507bcf))
+
 ## [1.12.0](https://github.com/proxynth/LaraWebhook/compare/v1.11.0...v1.12.0) (2026-05-01)
 
 
