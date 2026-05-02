@@ -3,8 +3,8 @@
 use Illuminate\Support\Facades\Route;
 use Proxynth\Larawebhook\Http\Controllers\DashboardController;
 
-Route::prefix(config('larawebhook.dashboard.path'))
-    ->middleware('web')
+Route::prefix(trim(config('larawebhook.dashboard.path'), '/'))
+    ->middleware(config('larawebhook.dashboard.middleware'))
     ->group(function () {
         Route::get('/', [DashboardController::class, 'index'])->name('larawebhook.dashboard');
     });
