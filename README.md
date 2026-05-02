@@ -151,6 +151,26 @@ LARAWEBHOOK_DASHBOARD_ENABLED=true
 
 Before enabling the dashboard in production, make sure dashboard routes are protected with authentication middleware.
 
+### Dashboard middleware
+
+The dashboard is disabled by default.
+
+When enabling it, you should protect it with authentication middleware:
+
+```php
+'dashboard' => [
+    'enabled' => env('LARAWEBHOOK_DASHBOARD_ENABLED', false),
+    'path' => env('LARAWEBHOOK_DASHBOARD_PATH', 'larawebhook/dashboard'),
+    'middleware' => ['web', 'auth'],
+],
+```
+
+You may also use authorization gates or custom middleware:
+
+```php
+'middleware' => ['web', 'auth', 'can:viewLaraWebhookDashboard'],
+```
+
 ---
 
 ## ✨ Features
