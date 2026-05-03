@@ -1,12 +1,18 @@
 <?php
 
+use Proxynth\Larawebhook\LarawebhookServiceProvider;
 use Proxynth\Larawebhook\Models\WebhookLog;
 
 beforeEach(function () {
     config([
+        'larawebhook.api.enabled' => true,
         'larawebhook.services.stripe.webhook_secret' => 'test_stripe_webhook_secret',
         'larawebhook.services.github.webhook_secret' => 'test_github_webhook_secret',
     ]);
+
+    app()->register(LarawebhookServiceProvider::class, true);
+
+    app('router')->getRoutes()->refreshNameLookups();
 });
 
 it('returns paginated webhook logs', function () {

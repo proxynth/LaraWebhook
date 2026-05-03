@@ -31,7 +31,7 @@ class LarawebhookServiceProvider extends PackageServiceProvider
             __DIR__.'/../database/migrations' => database_path('migrations'),
         ]);
 
-        $this->loadRoutesFrom(__DIR__.'/../routes/api.php');
+        $this->registerApiRoutes();
         $this->registerDashboardRoutes();
 
         $this->loadViewsFrom(__DIR__.'/../resources/views', 'larawebhook');
@@ -122,5 +122,17 @@ class LarawebhookServiceProvider extends PackageServiceProvider
         }
 
         $this->loadRoutesFrom(__DIR__.'/../routes/web.php');
+    }
+
+    /**
+     * Register API routes.
+     */
+    private function registerApiRoutes(): void
+    {
+        if (! config('larawebhook.api.enabled', false)) {
+            return;
+        }
+
+        $this->loadRoutesFrom(__DIR__.'/../routes/api.php');
     }
 }
