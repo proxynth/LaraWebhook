@@ -171,6 +171,20 @@ You may also use authorization gates or custom middleware:
 'middleware' => ['web', 'auth', 'can:viewLaraWebhookDashboard'],
 ```
 
+### API routes
+
+The LaraWebhook API is disabled by default.
+
+To enable it:
+
+```env
+LARAWEBHOOK_API_ENABLED=true
+```
+
+When enabling API routes in production, protect them with authentication middleware such as Laravel Sanctum or a custom token-based middleware.
+
+The replay endpoint should be restricted to trusted users only, as replaying webhook events may trigger business actions again.
+
 ---
 
 ## ✨ Features
