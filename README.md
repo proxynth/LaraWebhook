@@ -185,6 +185,28 @@ When enabling API routes in production, protect them with authentication middlew
 
 The replay endpoint should be restricted to trusted users only, as replaying webhook events may trigger business actions again.
 
+### API middleware
+
+The LaraWebhook API is disabled by default.
+
+When enabling API routes in production, you should protect them with authentication middleware:
+
+```php
+'api' => [
+    'enabled' => env('LARAWEBHOOK_API_ENABLED', false),
+    'path' => env('LARAWEBHOOK_API_PATH', 'api/larawebhook'),
+    'middleware' => ['api', 'auth:sanctum'],
+],
+```
+
+The replay endpoint should be restricted to trusted users only, as replaying webhook events may trigger business actions again.
+
+You may also use authorization gates or custom middleware:
+
+```php
+'middleware' => ['api', 'auth:sanctum', 'can:manageLaraWebhook'],
+```
+
 ---
 
 ## ✨ Features
