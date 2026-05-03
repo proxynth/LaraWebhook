@@ -5,6 +5,13 @@ All notable changes to `larawebhook` will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.14.0](https://github.com/proxynth/LaraWebhook/compare/v1.13.0...v1.14.0) (2026-05-03)
+
+
+### Features
+
+* disable api routes by default ([#58](https://github.com/proxynth/LaraWebhook/issues/58)) ([91260c6](https://github.com/proxynth/LaraWebhook/commit/91260c6a4e34c3234dafbddd0f672ebed1ed8b69))
+
 ## [1.13.0](https://github.com/proxynth/LaraWebhook/compare/v1.12.0...v1.13.0) (2026-05-02)
 
 
