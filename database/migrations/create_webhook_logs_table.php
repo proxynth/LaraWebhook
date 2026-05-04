@@ -14,7 +14,7 @@ return new class extends Migration
             $table->string('external_id')->nullable(); // Provider's event/delivery ID for idempotency
             $table->string('event')->index(); // payment_intent.succeeded, push, etc.
             $table->string('status')->index(); // success, failed
-            $table->json('payload'); // Raw webhook content
+            $table->json('payload')->nullable(); // Raw webhook content
             $table->text('error_message')->nullable(); // Error details if failed
             $table->unsignedTinyInteger('attempt')->default(0); // Retry attempt number (0 = first try)
             $table->timestamps();

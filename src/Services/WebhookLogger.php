@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Proxynth\Larawebhook\Services;
 
 use Illuminate\Support\Facades\Log;
+use Proxynth\Larawebhook\Enums\PayloadStorageMode;
 use Proxynth\Larawebhook\Models\WebhookLog;
 
 class WebhookLogger
@@ -38,7 +39,7 @@ class WebhookLogger
             'external_id' => $externalId,
             'event' => $event,
             'status' => $status,
-            'payload' => $payload,
+            'payload' => $this->resolvePayloadForStorage($payload),
             'error_message' => $errorMessage,
             'attempt' => $attempt,
         ]);
@@ -94,5 +95,18 @@ class WebhookLogger
     private function checkAndNotify(string $service, string $event): void
     {
         $this->notificationSender?->sendIfNeeded($service, $event);
+    }
+
+    private function resolvePayloadForStorage(array $payload): ?array
+    {
+        $mode = PayloadStorageMode::fromConfig(
+            config('larawebhook.payload_storage.mode', 'redacted'),
+        );
+
+        return match ($mode) {
+            PayloadStorageMode::None => null,
+            PayloadStorageMode::Redacted => null,
+            PayloadStorageMode::Full => $payload,
+        };
     }
 }

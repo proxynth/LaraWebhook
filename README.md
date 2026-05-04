@@ -207,6 +207,31 @@ You may also use authorization gates or custom middleware:
 'middleware' => ['api', 'auth:sanctum', 'can:manageLaraWebhook'],
 ```
 
+### Payload storage
+
+Webhook payloads may contain sensitive or personal data.
+
+LaraWebhook supports three payload storage modes:
+
+```php
+'payload_storage' => [
+    'mode' => env('LARAWEBHOOK_PAYLOAD_STORAGE_MODE', 'redacted'),
+],
+```
+
+Supported modes:
+
+| Mode | Description |
+| ---- | ----------- |
+| `none` | Do not store the webhook payload. Only metadata should be persisted. |
+| `redacted` | Store a sanitized version of the payload. Sensitive fields are masked before persistence. |
+| `full` | Store the full payload. This is useful for debugging and replay, but should be explicitly enabled only when required. |
+
+The `full` mode may store personal or sensitive data depending on the provider payload. Use it carefully and configure a retention policy.
+
+> Redacted payload storage is being hardened progressively. Until redaction rules are configured, avoid assuming that all provider-specific sensitive fields are covered.
+> In the current implementation, `redacted` mode avoids storing raw payloads until the redaction engine is fully available.
+
 ---
 
 ## ✨ Features
