@@ -116,4 +116,21 @@ return [
         // Cooldown in minutes between notifications for the same service/event
         'cooldown_minutes' => (int) env('WEBHOOK_NOTIFICATION_COOLDOWN', 30),
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Payload Storage Mode
+    |--------------------------------------------------------------------------
+    |
+    | Supported modes:
+    | - none: do not store the webhook payload
+    | - redacted: store a sanitized version of the payload
+    | - full: store the full raw payload
+    |
+    | The "full" mode should be explicitly enabled only when required.
+    |
+    */
+    'payload_storage' => [
+        'mode' => env('LARAWEBHOOK_PAYLOAD_STORAGE_MODE', 'redacted'),
+    ],
 ];

@@ -10,6 +10,7 @@ use Illuminate\Routing\Controller;
 use Proxynth\Larawebhook\Http\WebhookLogResource;
 use Proxynth\Larawebhook\Models\WebhookLog;
 use Proxynth\Larawebhook\Services\WebhookValidator;
+use RuntimeException;
 
 class WebhookLogController extends Controller
 {
@@ -79,6 +80,10 @@ class WebhookLogController extends Controller
                 $log->event,
                 $log->attempt + 1
             );
+
+            if (empty($newLog->payload)) {
+                throw new RuntimeException('Cannot replay webhook because payload storage is disabled or no payload is available.');
+            }
 
             return response()->json([
                 'success' => $newLog->status === 'success',
