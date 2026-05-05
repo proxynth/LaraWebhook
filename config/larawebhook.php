@@ -133,4 +133,46 @@ return [
     'payload_storage' => [
         'mode' => env('LARAWEBHOOK_PAYLOAD_STORAGE_MODE', 'redacted'),
     ],
+
+    /*
+     |--------------------------------------------------------------------------
+     | Redaction configuration
+     |--------------------------------------------------------------------------
+     */
+    'redaction' => [
+
+        /*
+        |--------------------------------------------------------------------------
+        | Sensitive Fields
+        |--------------------------------------------------------------------------
+        |
+        | Fields listed here will be masked when payload redaction is applied.
+        | Matching is case-insensitive.
+        |
+        */
+        'fields' => [
+            'email',
+            'phone',
+            'address',
+            'token',
+            'secret',
+            'authorization',
+            'client_secret',
+            'password',
+            'api_key',
+            'access_token',
+            'refresh_token',
+        ],
+
+        /*
+        |--------------------------------------------------------------------------
+        | Replacement Value
+        |--------------------------------------------------------------------------
+        |
+        | Value used to replace sensitive fields.
+        |
+        */
+        'replacement' => '[REDACTED]',
+
+    ],
 ];

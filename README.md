@@ -232,6 +232,36 @@ The `full` mode may store personal or sensitive data depending on the provider p
 > Redacted payload storage is being hardened progressively. Until redaction rules are configured, avoid assuming that all provider-specific sensitive fields are covered.
 > In the current implementation, `redacted` mode avoids storing raw payloads until the redaction engine is fully available.
 
+### Sensitive data redaction
+
+LaraWebhook includes a payload redaction service that can mask sensitive fields before payloads are stored.  
+Default sensitive fields include:
+
+```php
+[
+    'email',
+    'phone',
+    'address',
+    'token',
+    'secret',
+    'authorization',
+    'client_secret',
+    'password',
+    'api_key',
+    'access_token',
+    'refresh_token',
+]
+```
+
+When redaction is applied, matching fields are replaced with:
+
+```text
+[REDACTED]
+```
+
+Matching is case-insensitive and recursive.
+
+
 ---
 
 ## ✨ Features
