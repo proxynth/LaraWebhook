@@ -5,6 +5,13 @@ All notable changes to `larawebhook` will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.18.0](https://github.com/proxynth/LaraWebhook/compare/v1.17.0...v1.18.0) (2026-05-29)
+
+
+### Features
+
+* **payload storage:** handle the case when storage mode is null ([#67](https://github.com/proxynth/LaraWebhook/issues/67)) ([50efdd1](https://github.com/proxynth/LaraWebhook/commit/50efdd123eda70faf459d88ad46141dcd47e24c1))
+
 ## [1.17.0](https://github.com/proxynth/LaraWebhook/compare/v1.16.0...v1.17.0) (2026-05-05)
 
 
