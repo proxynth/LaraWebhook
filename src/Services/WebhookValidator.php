@@ -68,7 +68,7 @@ class WebhookValidator
         ?string $externalId = null
     ): WebhookLog {
         $serviceName = $service instanceof WebhookService ? $service->value : $service;
-        $logger = $this->logger ?? new WebhookLogger(app()->make(NotificationSender::class), app()->make(PayloadStorageResolver::class));
+        $logger = $this->logger ?? new WebhookLogger(app()->make(PayloadStorageResolver::class), app()->make(NotificationSender::class));
         $decodedPayload = json_decode($payload, true) ?? ['raw' => $payload];
 
         try {
@@ -106,7 +106,7 @@ class WebhookValidator
             return $this->validateAndLog($payload, $signature, $service, $event, 0, $externalId);
         }
 
-        $logger = $this->logger ?? new WebhookLogger(app()->make(NotificationSender::class), app()->make(PayloadStorageResolver::class));
+        $logger = $this->logger ?? new WebhookLogger(app()->make(PayloadStorageResolver::class), app()->make(NotificationSender::class));
         $decodedPayload = json_decode($payload, true) ?? ['raw' => $payload];
         $maxAttempts = config('larawebhook.retries.max_attempts', 3);
         $delays = config('larawebhook.retries.delays', [1, 5, 10]);

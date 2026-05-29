@@ -96,8 +96,8 @@ class LarawebhookServiceProvider extends PackageServiceProvider
         // Register WebhookLogger as singleton with dependencies
         $this->app->singleton(WebhookLogger::class, function ($app) {
             return new WebhookLogger(
-                $app->make(NotificationSender::class),
-                $app->make(PayloadStorageResolver::class)
+                $app->make(PayloadStorageResolver::class),
+                $app->make(NotificationSender::class)
             );
         });
     }

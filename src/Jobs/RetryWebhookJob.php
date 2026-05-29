@@ -45,7 +45,7 @@ class RetryWebhookJob implements ShouldQueue
     public function handle(): void
     {
         $validator = new WebhookValidator($this->secret);
-        $logger = new WebhookLogger(app()->make(NotificationSender::class), app()->make(PayloadStorageResolver::class));
+        $logger = new WebhookLogger(app()->make(PayloadStorageResolver::class), app()->make(NotificationSender::class));
         $decodedPayload = json_decode($this->payload, true) ?? ['raw' => $this->payload];
 
         $maxAttempts = config('larawebhook.retries.max_attempts', 3);

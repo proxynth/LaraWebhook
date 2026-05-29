@@ -11,8 +11,8 @@ use Proxynth\Larawebhook\Models\WebhookLog;
 class WebhookLogger
 {
     public function __construct(
-        private readonly ?NotificationSender $notificationSender = null,
-        private readonly PayloadStorageResolver $payloadStorageResolver
+        private readonly PayloadStorageResolver $payloadStorageResolver,
+        private readonly ?NotificationSender $notificationSender
     ) {}
 
     /**

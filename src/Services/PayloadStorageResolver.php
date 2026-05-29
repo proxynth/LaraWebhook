@@ -11,6 +11,7 @@ readonly class PayloadStorageResolver
     public function __construct(
         private PayloadRedactor $payloadRedactor,
     ) {}
+
     public function resolve(array $payload): ?array
     {
         $mode = PayloadStorageMode::fromConfig(
