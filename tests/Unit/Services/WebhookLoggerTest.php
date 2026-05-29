@@ -8,7 +8,7 @@ use Proxynth\Larawebhook\Models\WebhookLog;
 use Proxynth\Larawebhook\Services\WebhookLogger;
 
 beforeEach(function () {
-    $this->logger = new WebhookLogger;
+    $this->logger = app()->make(WebhookLogger::class);
 });
 
 describe('WebhookLogger basic logging', function () {
@@ -24,11 +24,9 @@ describe('WebhookLogger basic logging', function () {
             ->and($log->service)->toBe('stripe')
             ->and($log->event)->toBe('payment_intent.succeeded')
             ->and($log->status)->toBe('success')
-            // TODO: change this when payload storage mode is fully implemented
-//            ->and($log->payload)->toBe(['id' => 'pi_123', 'amount' => 1000])
-            ->and($log->payload)->toBeNull()
+            ->and($log->payload)->toBe(['id' => 'pi_123', 'amount' => 1000])
             ->and($log->error_message)->toBeNull();
-    })->todo('change this when payload storage mode is fully implemented');
+    });
 
     it('logs a successful webhook', function () {
         $log = $this->logger->logSuccess(
@@ -71,12 +69,10 @@ describe('WebhookLogger basic logging', function () {
 
         $log = $this->logger->logSuccess('stripe', 'payment_intent.succeeded', $payload);
 
-        // TODO: change this when payload storage mode is fully implemented
-        expect($log->payload)->toBeNull();
-        //        expect($log->payload)->toBeArray()
-        //            ->and($log->payload['type'])->toBe('payment_intent.succeeded')
-        //            ->and($log->payload['data']['object']['amount'])->toBe(5000);
-    })->todo('change this when payload storage mode is fully implemented');
+        expect($log->payload)->toBeArray()
+            ->and($log->payload['type'])->toBe('payment_intent.succeeded')
+            ->and($log->payload['data']['object']['amount'])->toBe(5000);
+    });
 });
 
 describe('WebhookLog model scopes', function () {
@@ -161,17 +157,11 @@ describe('WebhookLog timestamps', function () {
 
         $recentLog = WebhookLog::latest()->first();
 
-        // TODO: change this when payload storage mode is fully implemented
-        //        expect($recentLog->payload['id'])->toBe('2');
-        expect($recentLog->payload)->toBeNull();
-    })->todo('change this when payload storage mode is fully implemented');
+        expect($recentLog->payload['id'])->toBe('2');
+    });
 });
 
 describe('WebhookLogger external_id support', function () {
-    beforeEach(function () {
-        $this->logger = new WebhookLogger;
-    });
-
     it('logs webhook with external_id', function () {
         $log = $this->logger->log(
             service: 'stripe',
@@ -219,10 +209,6 @@ describe('WebhookLogger external_id support', function () {
 });
 
 describe('WebhookLog external_id model methods', function () {
-    beforeEach(function () {
-        $this->logger = new WebhookLogger;
-    });
-
     it('checks if webhook exists for external_id', function () {
         $this->logger->logSuccess('stripe', 'payment.success', ['id' => '1'], 0, 'evt_existing');
 
@@ -236,11 +222,9 @@ describe('WebhookLog external_id model methods', function () {
 
         $found = WebhookLog::findByExternalId('stripe', 'evt_findable');
 
-        // TODO: change this when payload storage mode is fully implemented
         expect($found)->not->toBeNull()
-//            ->and($found->payload['amount'])->toBe(1000);
-            ->and($found->payload)->toBeNull();
-    })->todo('change this when payload storage mode is fully implemented');
+            ->and($found->payload['amount'])->toBe(1000);
+    });
 
     it('returns null when webhook not found by external_id', function () {
         $found = WebhookLog::findByExternalId('stripe', 'evt_nonexistent');
@@ -279,10 +263,6 @@ describe('WebhookLog external_id model methods', function () {
 });
 
 describe('WebhookLogger Laravel logging', function () {
-    beforeEach(function () {
-        $this->logger = new WebhookLogger;
-    });
-
     it('logs info message on success', function () {
         Log::shouldReceive('info')
             ->once()

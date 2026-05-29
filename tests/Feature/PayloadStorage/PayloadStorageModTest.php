@@ -59,7 +59,7 @@ it('stores full payload when payload storage mode is full', function () {
     expect($log->payload)->toBe($payload);
 });
 
-it('does not store raw payload when payload storage mode is redacted', function () {
+it('store partial/redacted payload when payload storage mode is redacted', function () {
     config()->set('larawebhook.payload_storage.mode', 'redacted');
 
     $payload = [
@@ -81,5 +81,8 @@ it('does not store raw payload when payload storage mode is redacted', function 
         'payment_intent.succeeded'
     );
 
-    expect($log->payload)->toBeNull();
+    expect($log->payload)->toBe([
+        'email' => '[REDACTED]',
+        'event' => 'invoice.paid',
+    ]);
 });
