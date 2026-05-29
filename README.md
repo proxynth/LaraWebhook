@@ -255,6 +255,53 @@ php artisan larawebhook:prune
 
 A prune command will use this configuration to determine which logs are eligible for deletion.
 
+### Pruning old webhook logs
+
+LaraWebhook provides a prune command to delete old webhook logs according to your retention policy.
+
+```bash
+php artisan larawebhook:prune
+```
+
+By default, the command uses:
+```php
+'retention' => [
+    'enabled' => true,
+    'days' => 30,
+],
+```
+
+You can override the retention period at runtime:
+```bash
+php artisan larawebhook:prune --older-than=7d
+```
+
+Supported duration units:
+
+| Unit | Meaning |
+| ---- | ------- |
+| d | days |
+| h | hours |
+| m | minutes |
+
+To preview how many logs would be deleted without deleting them:
+```bash
+php artisan larawebhook:prune --older-than=30d --dry-run
+```
+
+### Scheduler exemple
+
+You can schedule pruning in your Laravel application:
+
+```php
+use Illuminate\Support\Facades\Schedule;
+
+Schedule::command('larawebhook:prune')->daily();
+```
+
+---
+
+
 ### Sensitive data redaction
 
 LaraWebhook includes a payload redaction service that can mask sensitive fields before payloads are stored.  
@@ -283,7 +330,6 @@ When redaction is applied, matching fields are replaced with:
 ```
 
 Matching is case-insensitive and recursive.
-
 
 ---
 

@@ -30,7 +30,7 @@ uses(RefreshDatabase::class)->in(
     'Unit/Notifications/WebhookFailedNotificationTest.php',
     'Unit/Jobs/RetryWebhookJobTest.php',
     'Unit/LarawebhookTest.php',
-    'Unit/Commands/CleanupCommandTest.php',
+    'Unit/Commands/PruneWebhookLogsCommandTest.php',
     'Unit/Events/WebhookNotificationSentTest.php',
     'Unit/Facades/LarawebhookFacadeTest.php',
     // All Feature tests
