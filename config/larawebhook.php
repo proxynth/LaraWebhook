@@ -175,4 +175,31 @@ return [
         'replacement' => '[REDACTED]',
 
     ],
+
+    'retention' => [
+        /*
+        |--------------------------------------------------------------------------
+        | Retention Policy
+        |--------------------------------------------------------------------------
+        |
+        | Webhook logs may contain operational metadata and, depending on your
+        | payload storage mode, personal or sensitive data.
+        |
+        | When enabled, old webhook logs can be pruned by the LaraWebhook prune
+        | command according to the number of days configured below.
+        |
+        */
+        'enabled' => env('LARAWEBHOOK_RETENTION_ENABLED', true),
+
+        /*
+        |--------------------------------------------------------------------------
+        | Retention Period
+        |--------------------------------------------------------------------------
+        |
+        | Number of days webhook logs should be kept before they become eligible
+        | for pruning.
+        |
+        */
+        'days' => (int) env('LARAWEBHOOK_RETENTION_DAYS', 30),
+    ],
 ];

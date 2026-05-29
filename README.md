@@ -232,6 +232,29 @@ The `full` mode may store personal or sensitive data depending on the provider p
 > Redacted payload storage is being hardened progressively. Until redaction rules are configured, avoid assuming that all provider-specific sensitive fields are covered.
 > In the current implementation, `redacted` mode avoids storing raw payloads until the redaction engine is fully available.
 
+### Retention policy
+
+Webhook logs should not be kept forever by default.  
+LaraWebhook provides a retention configuration that will be used by the prune command:
+
+```php
+'retention' => [
+    'enabled' => env('LARAWEBHOOK_RETENTION_ENABLED', true),
+    'days' => (int) env('LARAWEBHOOK_RETENTION_DAYS', 30),
+],
+```
+
+By default, webhook logs become eligible for pruning after 30 days.  
+You should adjust this value according to your debugging needs, payload storage mode, legal requirements and internal 
+data retention policies.  
+
+The actual pruning command is handled separately by:
+```bash
+php artisan larawebhook:prune
+```
+
+A prune command will use this configuration to determine which logs are eligible for deletion.
+
 ### Sensitive data redaction
 
 LaraWebhook includes a payload redaction service that can mask sensitive fields before payloads are stored.  
