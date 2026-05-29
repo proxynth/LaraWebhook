@@ -5,6 +5,13 @@ All notable changes to `larawebhook` will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.19.0](https://github.com/proxynth/LaraWebhook/compare/v1.18.0...v1.19.0) (2026-05-29)
+
+
+### Features
+
+* add webhook log retention config ([#69](https://github.com/proxynth/LaraWebhook/issues/69)) ([86bf4b5](https://github.com/proxynth/LaraWebhook/commit/86bf4b5cc02c999d54213126c5a87ac6e48240ed))
+
 ## [1.18.0](https://github.com/proxynth/LaraWebhook/compare/v1.17.0...v1.18.0) (2026-05-29)
 
 
