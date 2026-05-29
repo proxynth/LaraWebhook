@@ -12,6 +12,8 @@ use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 use Proxynth\Larawebhook\Exceptions\InvalidSignatureException;
 use Proxynth\Larawebhook\Exceptions\WebhookException;
+use Proxynth\Larawebhook\Services\NotificationSender;
+use Proxynth\Larawebhook\Services\PayloadStorageResolver;
 use Proxynth\Larawebhook\Services\WebhookLogger;
 use Proxynth\Larawebhook\Services\WebhookValidator;
 
@@ -43,7 +45,7 @@ class RetryWebhookJob implements ShouldQueue
     public function handle(): void
     {
         $validator = new WebhookValidator($this->secret);
-        $logger = new WebhookLogger;
+        $logger = new WebhookLogger(app()->make(NotificationSender::class), app()->make(PayloadStorageResolver::class));
         $decodedPayload = json_decode($this->payload, true) ?? ['raw' => $this->payload];
 
         $maxAttempts = config('larawebhook.retries.max_attempts', 3);

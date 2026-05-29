@@ -13,6 +13,7 @@ use Proxynth\Larawebhook\Middleware\ValidateWebhook;
 use Proxynth\Larawebhook\Notifications\Channels\SlackWebhookChannel;
 use Proxynth\Larawebhook\Services\FailureDetector;
 use Proxynth\Larawebhook\Services\NotificationSender;
+use Proxynth\Larawebhook\Services\PayloadStorageResolver;
 use Proxynth\Larawebhook\Services\WebhookLogger;
 use Spatie\LaravelPackageTools\Package;
 use Spatie\LaravelPackageTools\PackageServiceProvider;
@@ -95,7 +96,8 @@ class LarawebhookServiceProvider extends PackageServiceProvider
         // Register WebhookLogger as singleton with dependencies
         $this->app->singleton(WebhookLogger::class, function ($app) {
             return new WebhookLogger(
-                $app->make(NotificationSender::class)
+                $app->make(NotificationSender::class),
+                $app->make(PayloadStorageResolver::class)
             );
         });
     }

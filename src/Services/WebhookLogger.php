@@ -11,7 +11,8 @@ use Proxynth\Larawebhook\Models\WebhookLog;
 class WebhookLogger
 {
     public function __construct(
-        private readonly ?NotificationSender $notificationSender = null
+        private readonly ?NotificationSender $notificationSender = null,
+        private readonly PayloadStorageResolver $payloadStorageResolver
     ) {}
 
     /**
@@ -105,7 +106,7 @@ class WebhookLogger
 
         return match ($mode) {
             PayloadStorageMode::None => null,
-            PayloadStorageMode::Redacted => null,
+            PayloadStorageMode::Redacted => $this->payloadStorageResolver->resolve($payload),
             PayloadStorageMode::Full => $payload,
         };
     }
