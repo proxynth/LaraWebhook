@@ -10,7 +10,6 @@ use Illuminate\Routing\Controller;
 use Proxynth\Larawebhook\Http\WebhookLogResource;
 use Proxynth\Larawebhook\Models\WebhookLog;
 use Proxynth\Larawebhook\Services\WebhookValidator;
-use RuntimeException;
 
 class WebhookLogController extends Controller
 {
@@ -58,6 +57,14 @@ class WebhookLogController extends Controller
     public function replay(WebhookLog $log): JsonResponse
     {
         try {
+            if ($log->payload === null || $log->payload === []) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Cannot replay webhook because the payload was not stored for this log.',
+                    'reason' => 'payload_not_available',
+                ], 422);
+            }
+
             $secret = config("larawebhook.services.{$log->service}.webhook_secret");
 
             if (empty($secret)) {
@@ -69,7 +76,7 @@ class WebhookLogController extends Controller
 
             // Re-validate the webhook with retries
             $validator = new WebhookValidator($secret);
-            $payload = json_encode($log->payload);
+            $payload = json_encode($log->payload, JSON_THROW_ON_ERROR);
 
             // Extract signature from original log (stored in payload metadata if available)
             // For replay, we'll create a new validation attempt
@@ -80,10 +87,6 @@ class WebhookLogController extends Controller
                 $log->event,
                 $log->attempt + 1
             );
-
-            if (empty($newLog->payload)) {
-                throw new RuntimeException('Cannot replay webhook because payload storage is disabled or no payload is available.');
-            }
 
             return response()->json([
                 'success' => $newLog->status === 'success',

@@ -14,7 +14,7 @@ use Proxynth\Larawebhook\Database\Factories\WebhookLogFactory;
  * @property string|null $external_id
  * @property string $event
  * @property string $status
- * @property array $payload
+ * @property array|null $payload
  * @property string|null $error_message
  * @property int $attempt
  * @property Carbon $created_at

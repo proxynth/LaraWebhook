@@ -189,6 +189,24 @@ it('returns empty data when no logs exist', function () {
         ]);
 });
 
+it('does not replay webhook when payload is not available', function () {
+    $log = WebhookLog::create([
+        'service' => 'stripe',
+        'external_id' => 'evt_123',
+        'event' => 'invoice.paid',
+        'status' => 'success',
+        'payload' => null,
+        'attempt' => 1,
+    ]);
+
+    $this->postJson("/api/larawebhook/logs/{$log->id}/replay")
+        ->assertStatus(422)
+        ->assertJson([
+            'success' => false,
+            'reason' => 'payload_not_available',
+        ]);
+});
+
 it('catches and returns error when exception occurs during replay', function () {
     $log = WebhookLog::factory()->create([
         'service' => 'stripe',
