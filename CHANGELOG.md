@@ -5,6 +5,13 @@ All notable changes to `larawebhook` will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.22.0](https://github.com/proxynth/LaraWebhook/compare/v1.21.0...v1.22.0) (2026-06-07)
+
+
+### Features
+
+* add payload hash idempotency fallback ([#75](https://github.com/proxynth/LaraWebhook/issues/75)) ([8807a58](https://github.com/proxynth/LaraWebhook/commit/8807a58068678eeb3f468960c8ae90f8ea83b384))
+
 ## [1.21.0](https://github.com/proxynth/LaraWebhook/compare/v1.20.0...v1.21.0) (2026-06-07)
 
 
