@@ -935,7 +935,7 @@ describe('ValidateWebhook middleware idempotency', function () {
         expect(WebhookLog::count())->toBe(2);
     });
 
-    it('processes webhook without external_id normally', function () {
+    it('processes webhook without external_id and check duplication', function () {
         // Payload without id field
         $payload = '{"type": "unknown_event"}';
         $timestamp = time();
@@ -956,7 +956,7 @@ describe('ValidateWebhook middleware idempotency', function () {
 
         $response1->assertOk();
 
-        // Second request - should also succeed (no external_id to check)
+        // Second request - should be already processed (no external_id to check, but same payload, service and signature)
         $response2 = $this->call(
             'POST',
             'test-stripe-webhook',
@@ -967,9 +967,9 @@ describe('ValidateWebhook middleware idempotency', function () {
             $payload
         );
 
-        $response2->assertOk()->assertJson(['status' => 'success']);
+        $response2->assertOk()->assertJson(['status' => 'already_processed', 'external_id' => null]);
 
-        // Both should be logged
-        expect(WebhookLog::count())->toBe(2);
+        // Only first should be logged
+        expect(WebhookLog::count())->toBe(1);
     });
 });
