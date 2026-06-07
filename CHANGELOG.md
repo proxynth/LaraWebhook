@@ -5,6 +5,13 @@ All notable changes to `larawebhook` will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.21.0](https://github.com/proxynth/LaraWebhook/compare/v1.20.0...v1.21.0) (2026-06-07)
+
+
+### Features
+
+* add idempotency resolver contract ([#73](https://github.com/proxynth/LaraWebhook/issues/73)) ([dde5b94](https://github.com/proxynth/LaraWebhook/commit/dde5b944072f65ba033ba540f25ed77eec3e290c))
+
 ## [1.20.0](https://github.com/proxynth/LaraWebhook/compare/v1.19.0...v1.20.0) (2026-05-29)
 
 
