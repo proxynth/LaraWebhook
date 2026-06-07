@@ -1865,6 +1865,15 @@ LaraWebhook **automatically handles idempotency**. The middleware extracts exter
 
 The idempotency resolution logic is now isolated internally so it can evolve without changing the public API.
 
+**Idempotency fallback**
+
+By default, LaraWebhook uses the provider external event ID as the idempotency key.  
+If no external ID is available, LaraWebhook falls back to a deterministic SHA-256 hash of the normalized payload.  
+Object keys are sorted recursively before hashing, so equivalent JSON objects produce the same idempotency key even if
+ their keys are ordered differently.  
+List order remains significant.  
+The generated fallback key is prefixed with `payload_hash:`.
+
 **External ID Sources:**
 
 | Service | External ID Source | Example |
