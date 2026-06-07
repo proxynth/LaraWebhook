@@ -7,6 +7,7 @@ namespace Proxynth\Larawebhook\Middleware;
 use Closure;
 use Exception;
 use Illuminate\Http\Request;
+use Proxynth\Larawebhook\Contracts\IdempotencyResolver;
 use Proxynth\Larawebhook\Enums\WebhookService;
 use Proxynth\Larawebhook\Jobs\RetryWebhookJob;
 use Proxynth\Larawebhook\Models\WebhookLog;
@@ -15,6 +16,14 @@ use Symfony\Component\HttpFoundation\Response;
 
 class ValidateWebhook
 {
+    private IdempotencyResolver $idempotencyResolver;
+
+    public function __construct(
+        ?IdempotencyResolver $idempotencyResolver = null,
+    ) {
+        $this->idempotencyResolver = $idempotencyResolver ?? app(IdempotencyResolver::class);
+    }
+
     /**
      * Handle an incoming request.
      *
@@ -49,8 +58,15 @@ class ValidateWebhook
         $event = $this->extractEventType($decodedPayload, $webhookService);
         $externalId = $this->extractExternalId($request, $webhookService, $decodedPayload);
 
+        $idempotencyKey = $this->idempotencyResolver->resolve(
+            service: $service,
+            payload: $decodedPayload,
+            externalId: $externalId,
+            event: $event
+        );
+
         // Check for duplicate webhook (idempotency)
-        if ($externalId !== null && WebhookLog::existsForExternalId($service, $externalId)) {
+        if ($idempotencyKey !== null && WebhookLog::existsForExternalId($service, $idempotencyKey)) {
             return response()->json([
                 'status' => 'already_processed',
                 'external_id' => $externalId,
@@ -63,17 +79,17 @@ class ValidateWebhook
         }
 
         $validator = new WebhookValidator($secret);
-        $log = $validator->validateAndLog($payload, $signature, $service, $event, 0, $externalId);
+        $log = $validator->validateAndLog($payload, $signature, $service, $event, 0, $idempotencyKey);
 
         if ($log->status === 'failed') {
             // Check if async retries are enabled
             if ($this->shouldRetryAsync()) {
-                $this->dispatchRetryJob($payload, $signature, $service, $event, $secret, $externalId);
+                $this->dispatchRetryJob($payload, $signature, $service, $event, $secret, $idempotencyKey);
 
                 return response()->json([
                     'status' => 'accepted_for_retry',
                     'message' => 'Webhook validation failed, queued for retry',
-                    'external_id' => $externalId,
+                    'external_id' => $idempotencyKey,
                 ], Response::HTTP_ACCEPTED);
             }
 

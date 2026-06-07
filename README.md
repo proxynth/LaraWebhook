@@ -1863,6 +1863,8 @@ LaraWebhook **automatically handles idempotency**. The middleware extracts exter
 - This prevents infinite retries from providers
 - Your handler only processes each webhook once
 
+The idempotency resolution logic is now isolated internally so it can evolve without changing the public API.
+
 **External ID Sources:**
 
 | Service | External ID Source | Example |
