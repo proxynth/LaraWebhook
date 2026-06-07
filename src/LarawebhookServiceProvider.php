@@ -9,8 +9,10 @@ use Illuminate\Notifications\ChannelManager;
 use Illuminate\Routing\Router;
 use Illuminate\Support\Facades\Notification;
 use Proxynth\Larawebhook\Commands\PruneWebhookLogsCommand;
+use Proxynth\Larawebhook\Contracts\IdempotencyResolver;
 use Proxynth\Larawebhook\Middleware\ValidateWebhook;
 use Proxynth\Larawebhook\Notifications\Channels\SlackWebhookChannel;
+use Proxynth\Larawebhook\Services\DefaultIdempotencyResolver;
 use Proxynth\Larawebhook\Services\FailureDetector;
 use Proxynth\Larawebhook\Services\NotificationSender;
 use Proxynth\Larawebhook\Services\PayloadStorageResolver;
@@ -100,6 +102,9 @@ class LarawebhookServiceProvider extends PackageServiceProvider
                 $app->make(NotificationSender::class)
             );
         });
+
+        // Register IdempotencyResolver as singleton with default implementation
+        $this->app->singleton(IdempotencyResolver::class, DefaultIdempotencyResolver::class);
     }
 
     /**
