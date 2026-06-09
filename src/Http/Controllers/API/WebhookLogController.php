@@ -7,12 +7,17 @@ namespace Proxynth\Larawebhook\Http\Controllers\API;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
+use Proxynth\Larawebhook\Enums\WebhookService;
 use Proxynth\Larawebhook\Http\WebhookLogResource;
 use Proxynth\Larawebhook\Models\WebhookLog;
-use Proxynth\Larawebhook\Services\WebhookValidator;
+use Proxynth\Larawebhook\Services\WebhookValidatorFactory;
 
 class WebhookLogController extends Controller
 {
+    public function __construct(
+        private readonly WebhookValidatorFactory $webhookValidatorFactory,
+    ) {}
+
     public function index(Request $request): JsonResponse
     {
         $query = WebhookLog::query();
@@ -65,17 +70,8 @@ class WebhookLogController extends Controller
                 ], 422);
             }
 
-            $secret = config("larawebhook.services.{$log->service}.webhook_secret");
-
-            if (empty($secret)) {
-                return response()->json([
-                    'success' => false,
-                    'message' => "Webhook secret not configured for {$log->service}.",
-                ], 500);
-            }
-
             // Re-validate the webhook with retries
-            $validator = new WebhookValidator($secret);
+            $validator = $this->webhookValidatorFactory->forService(WebhookService::tryFromString($log->service));
             $payload = json_encode($log->payload, JSON_THROW_ON_ERROR);
 
             // Extract signature from original log (stored in payload metadata if available)

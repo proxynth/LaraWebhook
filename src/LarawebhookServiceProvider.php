@@ -17,6 +17,7 @@ use Proxynth\Larawebhook\Services\FailureDetector;
 use Proxynth\Larawebhook\Services\NotificationSender;
 use Proxynth\Larawebhook\Services\PayloadStorageResolver;
 use Proxynth\Larawebhook\Services\WebhookLogger;
+use Proxynth\Larawebhook\Services\WebhookValidatorFactory;
 use Spatie\LaravelPackageTools\Package;
 use Spatie\LaravelPackageTools\PackageServiceProvider;
 
@@ -105,6 +106,9 @@ class LarawebhookServiceProvider extends PackageServiceProvider
 
         // Register IdempotencyResolver as singleton with default implementation
         $this->app->singleton(IdempotencyResolver::class, DefaultIdempotencyResolver::class);
+
+        // Register WebhookValidatorFactory as singleton
+        $this->app->singleton(WebhookValidatorFactory::class);
     }
 
     /**
