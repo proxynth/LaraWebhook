@@ -420,3 +420,5 @@ Before enabling LaraWebhook in production:
 * Downstream handlers are idempotent.
 * Logs and payloads are not exposed to unauthorized users.
 * Error messages do not leak secrets or raw payloads.
+
+For a practical deployment checklist, see [PRODUCTION_CHECKLIST.md](PRODUCTION_CHECKLIST.md).
