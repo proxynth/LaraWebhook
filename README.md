@@ -41,7 +41,7 @@ For now, LaraWebhook remains an experimental Laravel package focused on webhook 
 
 LaraWebhook can be used as a foundation for production webhook handling, but it should not be deployed blindly with default settings for sensitive or business-critical flows.
 
-Before using LaraWebhook in production, review the following checklist. You can also read `PRODUCT_CHECKLIST.md`
+Before using LaraWebhook in production, review the following checklist. You can also read `PRODUCTION_CHECKLIST.md`
 
 ### Access control
 
@@ -137,7 +137,7 @@ Recommended actions:
 
 LaraWebhook can help implement safer webhook handling practices, but compliance depends on your own application, configuration, data, infrastructure, contracts and operational procedures.
 
-For more details, see `SECURITY_AND_PRIVACY.md`.
+For more details, see [`SECURITY_AND_PRIVACY.md`](SECURITY_AND_PRIVACY.md).
 
 ### Dashboard
 
