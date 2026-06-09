@@ -13,6 +13,7 @@ use Proxynth\Larawebhook\Services\FailureDetector;
 use Proxynth\Larawebhook\Services\NotificationSender;
 use Proxynth\Larawebhook\Services\WebhookLogger;
 use Proxynth\Larawebhook\Services\WebhookValidator;
+use Proxynth\Larawebhook\Services\WebhookValidatorFactory;
 
 /**
  * Main entry point for the Larawebhook package.
@@ -21,7 +22,7 @@ use Proxynth\Larawebhook\Services\WebhookValidator;
  */
 class Larawebhook
 {
-    private ?WebhookValidator $validator = null;
+    private ?WebhookValidatorFactory $validatorFactory = null;
 
     private ?WebhookLogger $logger = null;
 
@@ -40,7 +41,7 @@ class Larawebhook
     {
         $serviceName = $this->resolveServiceName($service);
 
-        return $this->getValidator($serviceName)->validate($payload, $signature, $service);
+        return $this->getValidator(WebhookService::fromString($serviceName))->validate($payload, $signature, $service);
     }
 
     /**
@@ -54,7 +55,7 @@ class Larawebhook
     ): WebhookLog {
         $serviceName = $this->resolveServiceName($service);
 
-        return $this->getValidator($serviceName)->validateAndLog($payload, $signature, $service, $event);
+        return $this->getValidator(WebhookService::fromString($serviceName))->validateAndLog($payload, $signature, $service, $event);
     }
 
     /**
@@ -71,7 +72,7 @@ class Larawebhook
     ): WebhookLog {
         $serviceName = $this->resolveServiceName($service);
 
-        return $this->getValidator($serviceName)->validateWithRetries($payload, $signature, $service, $event);
+        return $this->getValidator(WebhookService::fromString($serviceName))->validateWithRetries($payload, $signature, $service, $event);
     }
 
     /**
@@ -239,28 +240,30 @@ class Larawebhook
 
     /**
      * Resolve service name from string or enum.
+     *
+     * @throws WebhookException
      */
     private function resolveServiceName(string|WebhookService $service): string
     {
+        if (is_string($service) && ! WebhookService::isSupported($service)) {
+            throw new WebhookException("Webhook service '$service' is not supported");
+        }
+
         return $service instanceof WebhookService ? $service->value : $service;
     }
 
     /**
      * Get a validator instance for a service.
+     *
+     * @throws WebhookException
      */
-    private function getValidator(string $service): WebhookValidator
+    private function getValidator(WebhookService $service): WebhookValidator
     {
-        $secret = $this->getSecret($service);
-
-        if ($secret === null) {
-            throw new WebhookException("No secret configured for service: {$service}");
+        if ($this->validatorFactory === null) {
+            $this->validatorFactory = app(WebhookValidatorFactory::class);
         }
 
-        if ($this->validator === null) {
-            $this->validator = new WebhookValidator($secret, 300, $this->getLogger());
-        }
-
-        return $this->validator;
+        return $this->validatorFactory->forService($service);
     }
 
     /**

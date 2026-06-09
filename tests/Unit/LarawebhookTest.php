@@ -59,7 +59,7 @@ describe('Larawebhook validation', function () {
 
     it('throws exception for unsupported service', function () {
         expect(fn () => $this->larawebhook->validate('{}', 'sig', 'unknown'))
-            ->toThrow(WebhookException::class, 'No secret configured for service: unknown');
+            ->toThrow(WebhookException::class, "Webhook service 'unknown' is not supported");
     });
 
     it('throws exception when secret is not configured', function () {

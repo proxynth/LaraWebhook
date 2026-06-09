@@ -11,17 +11,21 @@ use Proxynth\Larawebhook\Contracts\IdempotencyResolver;
 use Proxynth\Larawebhook\Enums\WebhookService;
 use Proxynth\Larawebhook\Jobs\RetryWebhookJob;
 use Proxynth\Larawebhook\Models\WebhookLog;
-use Proxynth\Larawebhook\Services\WebhookValidator;
+use Proxynth\Larawebhook\Services\WebhookValidatorFactory;
 use Symfony\Component\HttpFoundation\Response;
 
 class ValidateWebhook
 {
+    private WebhookValidatorFactory $webhookValidatorFactory;
+
     private IdempotencyResolver $idempotencyResolver;
 
     public function __construct(
+        ?WebhookValidatorFactory $webhookValidatorFactory = null,
         ?IdempotencyResolver $idempotencyResolver = null,
     ) {
         $this->idempotencyResolver = $idempotencyResolver ?? app(IdempotencyResolver::class);
+        $this->webhookValidatorFactory = $webhookValidatorFactory ?? app(WebhookValidatorFactory::class);
     }
 
     /**
@@ -78,8 +82,7 @@ class ValidateWebhook
             return response("Webhook secret not configured for {$service}.", Response::HTTP_INTERNAL_SERVER_ERROR);
         }
 
-        $validator = new WebhookValidator($secret);
-        $log = $validator->validateAndLog($payload, $signature, $service, $event, 0, $idempotencyKey);
+        $log = $this->webhookValidatorFactory->forService($webhookService)->validateAndLog($payload, $signature, $service, $event, 0, $idempotencyKey);
 
         if ($log->status === 'failed') {
             // Check if async retries are enabled

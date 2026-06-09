@@ -169,7 +169,7 @@ it('returns error when replaying webhook without configured secret', function ()
     $response->assertStatus(500)
         ->assertJson([
             'success' => false,
-            'message' => 'Webhook secret not configured for stripe.',
+            'message' => 'Error replaying webhook: No secret configured for service: stripe',
         ]);
 });
 
