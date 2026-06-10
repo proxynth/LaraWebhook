@@ -2510,6 +2510,14 @@ git commit -m "feat!: change webhook validation API"
 
 ---
 
+## Architecture
+
+LaraWebhook follows a pragmatic architecture inspired by Domain Driven Design, hexagonal architecture and CQRS.
+
+The goal is to keep the package readable, testable and explicit without introducing unnecessary abstractions.
+
+See [ARCHITECTURE.md](ARCHITECTURE.md) for details.
+
 ## 🤝 Contributing
 
 1. Fork the repository
