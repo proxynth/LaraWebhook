@@ -325,6 +325,28 @@ The package should remain functional after each step.
 
 No big-bang rewrite is required.
 
+## Current source structure
+
+The package is being progressively migrated toward the following bounded context structure:
+
+```text
+src/
+├── Ingestion/
+├── Processing/
+├── Audit/
+└── Shared/
+```
+
+Each context may contain:
+```text
+Domain/
+Application/
+Infrastructure/
+```
+
+Empty folders may temporarily contain .gitkeep files during the migration. These placeholders should be removed once 
+real classes are introduced.
+
 ## Dependency rules
 
 The intended dependency direction is:
