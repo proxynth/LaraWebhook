@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Console;
 
-use Carbon\CarbonImmutable;
+use Carbon\Carbon;
 use Illuminate\Console\Command;
-use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Persistence\Models\WebhookLog;
+use Proxynth\Larawebhook\Audit\Application\Commands\PruneWebhookLogsCommand;
+use Proxynth\Larawebhook\Audit\Application\Results\PruneWebhookLogsResult;
+use Proxynth\Larawebhook\Audit\Application\UseCases\PruneWebhookLogs;
 
 /**
  * Command to clean up old webhook logs.
@@ -25,18 +27,15 @@ class PruneWebhookLogsConsoleCommand extends Command
 
     protected $description = 'Prune old LaraWebhook logs according to the configured retention policy.';
 
+    public function __construct(
+        private readonly PruneWebhookLogs $pruneWebhookLogs,
+    ) {
+        parent::__construct();
+    }
+
     public function handle(): int
     {
-        if (! config('larawebhook.retention.enabled', true)) {
-            $this->warn('LaraWebhook retention is disabled. No logs were pruned.');
-
-            return self::SUCCESS;
-        }
-
-        $olderThan = $this->option('older-than');
-        $cutoff = $olderThan
-            ? $this->cutoffFromDuration($olderThan)
-            : now()->subDays((int) config('larawebhook.retention.days', 30));
+        $cutoff = $this->resolveCutoff();
 
         if (! $cutoff) {
             $this->error('Invalid --older-than value. Use a duration like 7d, 30d, 12h, or 60m.');
@@ -44,32 +43,27 @@ class PruneWebhookLogsConsoleCommand extends Command
             return self::FAILURE;
         }
 
-        $query = WebhookLog::query()
-            ->where('created_at', '<', $cutoff);
-        $count = $query->count();
-
-        if ($this->option('dry-run')) {
-            $this->info(sprintf(
-                'Dry run: %d webhook log(s) older than %s would be pruned.',
-                $count,
-                $cutoff->toDateTimeString()
-            ));
-
-            return self::SUCCESS;
-        }
-
-        $deleted = $query->delete();
-        $this->info(sprintf(
-            'Pruned %d webhook log(s) older than %s.',
-            $deleted,
-            $cutoff->toDateTimeString()
+        $result = $this->pruneWebhookLogs->handle(new PruneWebhookLogsCommand(
+            retentionEnabled: (bool) config('larawebhook.retention.enabled', true),
+            cutoff: $cutoff,
+            dryRun: (bool) $this->option('dry-run'),
         ));
+
+        $this->renderResult($result);
 
         return self::SUCCESS;
     }
 
-    private function cutoffFromDuration(string $olderThan): ?CarbonImmutable
+    private function resolveCutoff(): ?Carbon
     {
+        $olderThan = $this->option('older-than');
+
+        if ($olderThan === null || $olderThan === '') {
+            return now()->subDays((int) config('larawebhook.retention.days', 30));
+        }
+
+        $olderThan = (string) $olderThan;
+
         if (! preg_match('/^(\d+)([dhm])$/', $olderThan, $matches)) {
             return null;
         }
@@ -80,10 +74,46 @@ class PruneWebhookLogsConsoleCommand extends Command
             return null;
         }
 
-        return match ($matches[2]) {
-            'd' => CarbonImmutable::now()->subDays($amount),
-            'h' => CarbonImmutable::now()->subHours($amount),
-            'm' => CarbonImmutable::now()->subMinutes($amount),
-        };
+        $unit = $matches[2];
+        if ($unit === 'd') {
+            return now()->subDays($amount);
+        }
+
+        if ($unit === 'h') {
+            return now()->subHours($amount);
+        }
+
+        return now()->subMinutes($amount);
+    }
+
+    private function renderResult(PruneWebhookLogsResult $result): void
+    {
+        if ($result->isDisabled()) {
+            $this->warn('LaraWebhook retention is disabled. No logs were pruned.');
+
+            return;
+        }
+
+        if (! $result->cutoff) {
+            $this->error('Unable to determine pruning cutoff.');
+
+            return;
+        }
+
+        if ($result->isDryRun()) {
+            $this->info(sprintf(
+                'Dry run: %d webhook log(s) older than %s would be pruned.',
+                $result->count,
+                $result->cutoff->toDateTimeString()
+            ));
+
+            return;
+        }
+
+        $this->info(sprintf(
+            'Pruned %d webhook log(s) older than %s.',
+            $result->count,
+            $result->cutoff->toDateTimeString()
+        ));
     }
 }
