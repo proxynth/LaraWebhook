@@ -158,7 +158,7 @@ foreach ($logs as $log) {
 ## Querying Logs Directly
 
 ```php
-use Proxynth\Larawebhook\Models\WebhookLog;
+use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Persistence\Models\WebhookLog;
 
 // Get all logs
 $logs = WebhookLog::all();

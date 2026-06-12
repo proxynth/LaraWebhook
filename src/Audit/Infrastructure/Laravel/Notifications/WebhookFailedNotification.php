@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-namespace Proxynth\Larawebhook\Notifications;
+namespace Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Notifications;
 
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
-use Proxynth\Larawebhook\Models\WebhookLog;
+use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Persistence\Models\WebhookLog;
 
 class WebhookFailedNotification extends Notification implements ShouldQueue
 {

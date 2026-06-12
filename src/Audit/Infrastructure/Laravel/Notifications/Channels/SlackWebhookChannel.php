@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Proxynth\Larawebhook\Notifications\Channels;
+namespace Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Notifications\Channels;
 
 use Illuminate\Http\Client\Factory as HttpClient;
 use Illuminate\Notifications\Notification;

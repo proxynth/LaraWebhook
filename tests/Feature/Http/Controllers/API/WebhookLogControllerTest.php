@@ -1,7 +1,7 @@
 <?php
 
-use Proxynth\Larawebhook\LarawebhookServiceProvider;
-use Proxynth\Larawebhook\Models\WebhookLog;
+use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Persistence\Models\WebhookLog;
+use Proxynth\Larawebhook\Shared\Infrastructure\Laravel\Providers\LarawebhookServiceProvider;
 
 beforeEach(function () {
     config([

@@ -6,9 +6,9 @@ namespace Proxynth\Larawebhook\Services;
 
 use Illuminate\Contracts\Events\Dispatcher;
 use Illuminate\Support\Facades\Notification;
-use Proxynth\Larawebhook\Events\WebhookNotificationSent;
-use Proxynth\Larawebhook\Models\WebhookLog;
-use Proxynth\Larawebhook\Notifications\WebhookFailedNotification;
+use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Events\WebhookNotificationSent;
+use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Notifications\WebhookFailedNotification;
+use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Persistence\Models\WebhookLog;
 
 /**
  * Sends notifications for webhook failures.

@@ -5,11 +5,11 @@ declare(strict_types=1);
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Facade;
 use Illuminate\Support\Facades\Notification;
+use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Persistence\Models\WebhookLog;
 use Proxynth\Larawebhook\Enums\WebhookService;
-use Proxynth\Larawebhook\Facades\Larawebhook;
-use Proxynth\Larawebhook\Larawebhook as LarawebhookClass;
-use Proxynth\Larawebhook\Models\WebhookLog;
 use Proxynth\Larawebhook\Services\FailureDetector;
+use Proxynth\Larawebhook\Shared\Application\Larawebhook as LarawebhookClass;
+use Proxynth\Larawebhook\Shared\Infrastructure\Laravel\Facades\Larawebhook;
 
 describe('Larawebhook Facade', function () {
     it('extends the base Facade class', function () {

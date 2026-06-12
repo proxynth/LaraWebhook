@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace Proxynth\Larawebhook\Commands;
+namespace Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Console;
 
 use Carbon\CarbonImmutable;
 use Illuminate\Console\Command;
-use Proxynth\Larawebhook\Models\WebhookLog;
+use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Persistence\Models\WebhookLog;
 
 /**
  * Command to clean up old webhook logs.

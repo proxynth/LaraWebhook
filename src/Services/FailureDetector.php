@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Proxynth\Larawebhook\Services;
 
 use Illuminate\Support\Facades\Cache;
-use Proxynth\Larawebhook\Models\WebhookLog;
+use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Persistence\Models\WebhookLog;
 
 /**
  * Detects repeated webhook failures for a service/event combination.

@@ -3,8 +3,8 @@
 declare(strict_types=1);
 
 use Illuminate\Notifications\Messages\MailMessage;
-use Proxynth\Larawebhook\Models\WebhookLog;
-use Proxynth\Larawebhook\Notifications\WebhookFailedNotification;
+use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Notifications\WebhookFailedNotification;
+use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Persistence\Models\WebhookLog;
 
 beforeEach(function () {
     config([

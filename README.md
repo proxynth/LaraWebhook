@@ -456,7 +456,7 @@ LaraWebhook provides a powerful Facade and an Enum for type-safe service handlin
 The `Larawebhook` facade provides a fluent API for all webhook operations:
 
 ```php
-use Proxynth\Larawebhook\Facades\Larawebhook;
+use Proxynth\Larawebhook\Shared\Infrastructure\Laravel\Facades\Larawebhook;
 
 // Validate a webhook
 Larawebhook::validate($payload, $signature, 'stripe');
@@ -529,7 +529,7 @@ WebhookService::validationRule(); // ['stripe', 'github']
 All facade methods accept both strings and the enum:
 
 ```php
-use Proxynth\Larawebhook\Facades\Larawebhook;
+use Proxynth\Larawebhook\Shared\Infrastructure\Laravel\Facades\Larawebhook;
 use Proxynth\Larawebhook\Enums\WebhookService;
 
 // Both are equivalent
@@ -1884,8 +1884,9 @@ The generated fallback key is prefixed with `payload_hash:`.
 | **Shopify** | `X-Shopify-Webhook-Id` header | `b54557e4-e9e0-4d5c-8e6b-9d2e7a8b1c3d` |
 
 **✅ Query logs by external ID (optional)**
+
 ```php
-use Proxynth\Larawebhook\Models\WebhookLog;
+use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Persistence\Models\WebhookLog;
 
 // Find a specific webhook
 $log = WebhookLog::findByExternalId('stripe', 'evt_1234567890');
@@ -2391,7 +2392,7 @@ MAIL_FROM_NAME="LaraWebhook"
 LaraWebhook dispatches an event when a notification is sent, allowing you to add custom logic:
 
 ```php
-use Proxynth\Larawebhook\Events\WebhookNotificationSent;
+use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Events\WebhookNotificationSent;
 
 // In your EventServiceProvider
 protected $listen = [

@@ -2,15 +2,15 @@
 
 declare(strict_types=1);
 
-namespace Proxynth\Larawebhook\Middleware;
+namespace Proxynth\Larawebhook\Ingestion\Infrastructure\Laravel\Middleware;
 
 use Closure;
 use Exception;
 use Illuminate\Http\Request;
+use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Persistence\Models\WebhookLog;
 use Proxynth\Larawebhook\Contracts\IdempotencyResolver;
 use Proxynth\Larawebhook\Enums\WebhookService;
-use Proxynth\Larawebhook\Jobs\RetryWebhookJob;
-use Proxynth\Larawebhook\Models\WebhookLog;
+use Proxynth\Larawebhook\Processing\Infrastructure\Laravel\Jobs\RetryWebhookJob;
 use Proxynth\Larawebhook\Services\WebhookValidatorFactory;
 use Symfony\Component\HttpFoundation\Response;
 

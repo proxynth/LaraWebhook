@@ -1,7 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
-use Proxynth\Larawebhook\LarawebhookServiceProvider;
+use Proxynth\Larawebhook\Shared\Infrastructure\Laravel\Providers\LarawebhookServiceProvider;
 
 it('applies configured dashboard middleware to dashboard routes', function () {
     config()->set('larawebhook.dashboard.enabled', true);

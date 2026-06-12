@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Proxynth\Larawebhook\Services;
 
 use Illuminate\Support\Facades\Log;
+use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Persistence\Models\WebhookLog;
 use Proxynth\Larawebhook\Enums\PayloadStorageMode;
-use Proxynth\Larawebhook\Models\WebhookLog;
 
 class WebhookLogger
 {

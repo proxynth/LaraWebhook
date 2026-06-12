@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace Proxynth\Larawebhook\Events;
+namespace Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Events;
 
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
-use Proxynth\Larawebhook\Models\WebhookLog;
+use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Persistence\Models\WebhookLog;
 
 /**
  * Event dispatched when a webhook failure notification is sent.

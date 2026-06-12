@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace Proxynth\Larawebhook\Http;
+namespace Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Http\Resources;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Carbon;
-use Proxynth\Larawebhook\Models\WebhookLog;
+use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Persistence\Models\WebhookLog;
 
 /**
  * @mixin WebhookLog

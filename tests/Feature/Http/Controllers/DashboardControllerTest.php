@@ -1,6 +1,6 @@
 <?php
 
-use Proxynth\Larawebhook\LarawebhookServiceProvider;
+use Proxynth\Larawebhook\Shared\Infrastructure\Laravel\Providers\LarawebhookServiceProvider;
 
 beforeEach(function () {
     config()->set('larawebhook.dashboard.enabled', true);

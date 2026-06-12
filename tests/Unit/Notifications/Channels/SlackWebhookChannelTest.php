@@ -6,7 +6,7 @@ use Illuminate\Http\Client\Factory as HttpClient;
 use Illuminate\Http\Client\Response;
 use Illuminate\Notifications\Notification;
 use Illuminate\Support\Facades\Log;
-use Proxynth\Larawebhook\Notifications\Channels\SlackWebhookChannel;
+use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Notifications\Channels\SlackWebhookChannel;
 
 beforeEach(function () {
     Log::spy();
