@@ -209,8 +209,6 @@ At this stage, LaraWebhook does not require:
 - event sourcing;
 - asynchronous projections.
 
-These may be introduced later only if they solve a real problem.
-
 ### Commands
 
 Commands change system state.
