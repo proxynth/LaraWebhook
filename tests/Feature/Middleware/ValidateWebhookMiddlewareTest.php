@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Route;
-use Proxynth\Larawebhook\Jobs\RetryWebhookJob;
-use Proxynth\Larawebhook\Models\WebhookLog;
+use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Persistence\Models\WebhookLog;
+use Proxynth\Larawebhook\Processing\Infrastructure\Laravel\Jobs\RetryWebhookJob;
 
 beforeEach(function () {
     // Set up test secrets in config

@@ -4,7 +4,7 @@ namespace Proxynth\Larawebhook\Tests;
 
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Orchestra\Testbench\TestCase as Orchestra;
-use Proxynth\Larawebhook\LarawebhookServiceProvider;
+use Proxynth\Larawebhook\Shared\Infrastructure\Laravel\Providers\LarawebhookServiceProvider;
 
 class Testcase extends Orchestra
 {

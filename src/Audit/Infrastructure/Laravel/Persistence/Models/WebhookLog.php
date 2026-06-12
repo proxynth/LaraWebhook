@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace Proxynth\Larawebhook\Models;
+namespace Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Persistence\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
-use Proxynth\Larawebhook\Database\Factories\WebhookLogFactory;
+use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Persistence\Factories\WebhookLogFactory;
 
 /**
  * @property string $service

@@ -1,6 +1,6 @@
 <?php
 
-use Proxynth\Larawebhook\LarawebhookServiceProvider;
+use Proxynth\Larawebhook\Shared\Infrastructure\Laravel\Providers\LarawebhookServiceProvider;
 
 it('registers api routes when api is enabled', function () {
     config()->set('larawebhook.api.enabled', true);

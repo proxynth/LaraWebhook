@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-namespace Proxynth\Larawebhook\Http\Controllers\API;
+namespace Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Http\Controllers;
 
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
+use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Http\Resources\WebhookLogResource;
+use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Persistence\Models\WebhookLog;
 use Proxynth\Larawebhook\Enums\WebhookService;
-use Proxynth\Larawebhook\Http\WebhookLogResource;
-use Proxynth\Larawebhook\Models\WebhookLog;
 use Proxynth\Larawebhook\Services\WebhookValidatorFactory;
 
 class WebhookLogController extends Controller

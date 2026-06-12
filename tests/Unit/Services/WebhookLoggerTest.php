@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\Log;
-use Proxynth\Larawebhook\Models\WebhookLog;
+use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Persistence\Models\WebhookLog;
 use Proxynth\Larawebhook\Services\WebhookLogger;
 
 beforeEach(function () {

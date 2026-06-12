@@ -193,7 +193,7 @@ This returns `200 OK` to prevent infinite retries from providers.
 If you need to look up previously processed webhooks:
 
 ```php
-use Proxynth\Larawebhook\Models\WebhookLog;
+use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Persistence\Models\WebhookLog;
 
 // Find a specific webhook
 $log = WebhookLog::findByExternalId('stripe', 'evt_1234567890');

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use Proxynth\Larawebhook\Models\WebhookLog;
+use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Persistence\Models\WebhookLog;
 use Proxynth\Larawebhook\Services\FailureDetector;
 
 beforeEach(function () {

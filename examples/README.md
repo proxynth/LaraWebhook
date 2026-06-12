@@ -334,14 +334,14 @@ php artisan tinker
 
 ```php
 // Create test webhook logs
-\Proxynth\Larawebhook\Models\WebhookLog::factory()
+\Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Persistence\Models\WebhookLog::factory()
     ->forService('stripe')
     ->successful()
     ->count(10)
     ->create();
 
 // View logs
-\Proxynth\Larawebhook\Models\WebhookLog::latest()->get();
+\Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Persistence\Models\WebhookLog::latest()->get();
 ```
 
 ---
@@ -473,7 +473,7 @@ LaraWebhook's middleware **automatically handles idempotency**. Duplicate webhoo
 If you need to query previous webhooks manually:
 
 ```php
-use Proxynth\Larawebhook\Models\WebhookLog;
+use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Persistence\Models\WebhookLog;
 
 // Find a specific webhook
 $log = WebhookLog::findByExternalId('stripe', 'evt_1234567890');

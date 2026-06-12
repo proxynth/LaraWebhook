@@ -2,17 +2,17 @@
 
 declare(strict_types=1);
 
-namespace Proxynth\Larawebhook\Http\Controllers;
+namespace Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Http\Controllers;
 
 use Illuminate\Routing\Controller;
-use Illuminate\View\View;
+use Proxynth\Larawebhook\Http\Controllers\view;
 
 class DashboardController extends Controller
 {
     /**
      * Display the webhook dashboard
      */
-    public function index(): View
+    public function index(): \Illuminate\View\View
     {
         /** @var array<string, array<string, mixed>> $services */
         $services = config('larawebhook.services', []);

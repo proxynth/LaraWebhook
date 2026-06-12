@@ -1,7 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
-use Proxynth\Larawebhook\Http\Controllers\DashboardController;
+use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Http\Controllers\DashboardController;
 
 Route::prefix(trim(config('larawebhook.dashboard.path'), '/'))
     ->middleware(config('larawebhook.dashboard.middleware'))

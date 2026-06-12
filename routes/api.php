@@ -1,7 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
-use Proxynth\Larawebhook\Http\Controllers\API\WebhookLogController;
+use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Http\Controllers\WebhookLogController;
 
 Route::prefix(trim(config('larawebhook.api.path', 'api/larawebhook'), '/'))
     ->middleware(config('larawebhook.api.middleware', ['api']))

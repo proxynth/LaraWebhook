@@ -5,9 +5,9 @@ declare(strict_types=1);
 use Illuminate\Notifications\AnonymousNotifiable;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Notification;
-use Proxynth\Larawebhook\Events\WebhookNotificationSent;
-use Proxynth\Larawebhook\Models\WebhookLog;
-use Proxynth\Larawebhook\Notifications\WebhookFailedNotification;
+use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Events\WebhookNotificationSent;
+use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Notifications\WebhookFailedNotification;
+use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Persistence\Models\WebhookLog;
 use Proxynth\Larawebhook\Services\FailureDetector;
 use Proxynth\Larawebhook\Services\WebhookLogger;
 

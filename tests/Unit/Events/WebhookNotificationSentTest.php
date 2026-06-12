@@ -5,8 +5,8 @@ declare(strict_types=1);
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Event;
-use Proxynth\Larawebhook\Events\WebhookNotificationSent;
-use Proxynth\Larawebhook\Models\WebhookLog;
+use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Events\WebhookNotificationSent;
+use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Persistence\Models\WebhookLog;
 
 describe('WebhookNotificationSent', function () {
     it('uses Dispatchable trait', function () {

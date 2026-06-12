@@ -1,9 +1,9 @@
 <?php
 
-namespace Proxynth\Larawebhook\Database\Factories;
+namespace Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Persistence\Factories;
 
 use Illuminate\Database\Eloquent\Factories\Factory;
-use Proxynth\Larawebhook\Models\WebhookLog;
+use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Persistence\Models\WebhookLog;
 
 class WebhookLogFactory extends Factory
 {

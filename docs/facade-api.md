@@ -9,7 +9,7 @@ The `Larawebhook` facade provides a fluent API for all webhook operations.
 ### Validation
 
 ```php
-use Proxynth\Larawebhook\Facades\Larawebhook;
+use Proxynth\Larawebhook\Shared\Infrastructure\Laravel\Facades\Larawebhook;
 
 // Validate a webhook
 Larawebhook::validate($payload, $signature, 'stripe');
@@ -148,7 +148,7 @@ WebhookService::validationRule(); // ['stripe', 'github', 'slack', 'shopify']
 All facade methods accept both strings and the enum:
 
 ```php
-use Proxynth\Larawebhook\Facades\Larawebhook;
+use Proxynth\Larawebhook\Shared\Infrastructure\Laravel\Facades\Larawebhook;
 use Proxynth\Larawebhook\Enums\WebhookService;
 
 // Both are equivalent

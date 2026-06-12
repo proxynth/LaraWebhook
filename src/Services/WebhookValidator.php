@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace Proxynth\Larawebhook\Services;
 
 use Exception;
+use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Persistence\Models\WebhookLog;
 use Proxynth\Larawebhook\Enums\WebhookService;
 use Proxynth\Larawebhook\Exceptions\InvalidSignatureException;
 use Proxynth\Larawebhook\Exceptions\WebhookException;
-use Proxynth\Larawebhook\Models\WebhookLog;
 
 class WebhookValidator
 {

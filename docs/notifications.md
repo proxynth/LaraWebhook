@@ -121,7 +121,7 @@ MAIL_FROM_NAME="LaraWebhook"
 LaraWebhook dispatches an event when a notification is sent:
 
 ```php
-use Proxynth\Larawebhook\Events\WebhookNotificationSent;
+use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Events\WebhookNotificationSent;
 
 // In EventServiceProvider
 protected $listen = [
