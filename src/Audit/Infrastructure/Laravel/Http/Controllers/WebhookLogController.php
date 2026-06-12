@@ -7,15 +7,19 @@ namespace Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Http\Controllers;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
+use JsonException;
+use Proxynth\Larawebhook\Audit\Domain\Exceptions\PayloadNotAvailable;
 use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Http\Resources\WebhookLogResource;
 use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Persistence\Models\WebhookLog;
-use Proxynth\Larawebhook\Enums\WebhookService;
-use Proxynth\Larawebhook\Ingestion\Infrastructure\Validation\WebhookValidatorFactory;
+use Proxynth\Larawebhook\Processing\Application\Commands\ReplayWebhookCommand;
+use Proxynth\Larawebhook\Processing\Application\UseCases\ReplayWebhook;
+use RuntimeException;
+use Throwable;
 
 class WebhookLogController extends Controller
 {
     public function __construct(
-        private readonly WebhookValidatorFactory $webhookValidatorFactory,
+        private readonly ReplayWebhook $replayWebhook,
     ) {}
 
     public function index(Request $request): JsonResponse
@@ -62,36 +66,30 @@ class WebhookLogController extends Controller
     public function replay(WebhookLog $log): JsonResponse
     {
         try {
-            if ($log->payload === null || $log->payload === []) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Cannot replay webhook because the payload was not stored for this log.',
-                    'reason' => 'payload_not_available',
-                ], 422);
-            }
-
-            // Re-validate the webhook with retries
-            $validator = $this->webhookValidatorFactory->forService(WebhookService::tryFromString($log->service));
-            $payload = json_encode($log->payload, JSON_THROW_ON_ERROR);
-
-            // Extract signature from original log (stored in payload metadata if available)
-            // For replay, we'll create a new validation attempt
-            $newLog = $validator->validateAndLog(
-                $payload,
-                $this->extractSignatureFromPayload($log),
-                $log->service,
-                $log->event,
-                $log->attempt + 1
-            );
+            $newLog = $this->replayWebhook->handle(new ReplayWebhookCommand(
+                log: $log,
+                signature: $this->extractSignatureFromPayload($log),
+            ));
 
             return response()->json([
                 'success' => $newLog->status === 'success',
                 'message' => $newLog->status === 'success'
-                    ? 'Webhook replayed successfully!'
+                    ? 'Webhook replayed successfully.'
                     : 'Webhook replay failed: '.$newLog->error_message,
                 'log' => new WebhookLogResource($newLog),
             ]);
-        } catch (\Exception $e) {
+        } catch (PayloadNotAvailable) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Cannot replay webhook because the payload was not stored for this log.',
+                'reason' => 'payload_not_available',
+            ], 422);
+        } catch (JsonException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error encoding webhook payload for replay: '.$e->getMessage(),
+            ], 500);
+        } catch (Throwable $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Error replaying webhook: '.$e->getMessage(),
@@ -109,6 +107,10 @@ class WebhookLogController extends Controller
         // In a real implementation, you'd store the original signature
         $payload = json_encode($log->payload);
         $secret = config("larawebhook.services.{$log->service}.webhook_secret");
+
+        if ($secret === null) {
+            throw new RuntimeException('No secret configured for service: '.$log->service);
+        }
 
         if ($log->service === 'stripe') {
             $timestamp = time();

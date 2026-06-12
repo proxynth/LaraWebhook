@@ -143,7 +143,7 @@ it('successfully replays a webhook', function () {
     $response->assertSuccessful()
         ->assertJson([
             'success' => true,
-            'message' => 'Webhook replayed successfully!',
+            'message' => 'Webhook replayed successfully.',
         ])
         ->assertJsonStructure([
             'log' => ['id', 'service', 'event', 'status', 'attempt'],
