@@ -8,7 +8,7 @@ use Illuminate\Http\Client\Factory as HttpClient;
 use Illuminate\Notifications\ChannelManager;
 use Illuminate\Routing\Router;
 use Illuminate\Support\Facades\Notification;
-use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Console\PruneWebhookLogsCommand;
+use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Console\PruneWebhookLogsConsoleCommand;
 use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Notifications\Channels\SlackWebhookChannel;
 use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Notifications\FailureDetector;
 use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Notifications\NotificationSender;
@@ -71,7 +71,7 @@ class LarawebhookServiceProvider extends PackageServiceProvider
         $package->name('larawebhook')
             ->hasMigrations([
                 'create_webhook_logs_table',
-            ])->hasCommands(PruneWebhookLogsCommand::class)
+            ])->hasCommands(PruneWebhookLogsConsoleCommand::class)
             ->hasViews();
     }
 

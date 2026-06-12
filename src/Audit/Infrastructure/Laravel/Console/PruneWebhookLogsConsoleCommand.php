@@ -17,7 +17,7 @@ use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Persistence\Models\Webhook
  *   php artisan larawebhook:cleanup --status=failed  # Delete only failed logs
  *   php artisan larawebhook:cleanup --dry-run  # Show what would be deleted
  */
-class PruneWebhookLogsCommand extends Command
+class PruneWebhookLogsConsoleCommand extends Command
 {
     public $signature = 'larawebhook:prune
         {--older-than= : Delete logs older than this duration, for example 7d, 30d, 12h}
