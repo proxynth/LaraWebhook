@@ -17,6 +17,7 @@ use Proxynth\Larawebhook\Audit\Infrastructure\Payload\PayloadStorageResolver;
 use Proxynth\Larawebhook\Ingestion\Infrastructure\Laravel\Middleware\ValidateWebhook;
 use Proxynth\Larawebhook\Ingestion\Infrastructure\Validation\WebhookValidatorFactory;
 use Proxynth\Larawebhook\Processing\Application\Ports\IdempotencyResolver;
+use Proxynth\Larawebhook\Processing\Application\UseCases\ReplayWebhook;
 use Proxynth\Larawebhook\Processing\Infrastructure\Idempotency\DefaultIdempotencyResolver;
 use Proxynth\Larawebhook\Shared\Application\Larawebhook;
 use Spatie\LaravelPackageTools\Package;
@@ -113,6 +114,9 @@ class LarawebhookServiceProvider extends PackageServiceProvider
 
         // Register WebhookValidatorFactory as singleton
         $this->app->singleton(WebhookValidatorFactory::class);
+
+        // Register ReplayWebhook use case
+        $this->app->singleton(ReplayWebhook::class);
     }
 
     /**

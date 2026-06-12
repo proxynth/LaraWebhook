@@ -10,6 +10,7 @@ use Illuminate\Support\Carbon;
 use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Persistence\Factories\WebhookLogFactory;
 
 /**
+ * @property int $id
  * @property string $service
  * @property string|null $external_id
  * @property string $event
