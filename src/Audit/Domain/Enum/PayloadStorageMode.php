@@ -1,6 +1,6 @@
 <?php
 
-namespace Proxynth\Larawebhook\Enums;
+namespace Proxynth\Larawebhook\Audit\Domain\Enum;
 
 enum PayloadStorageMode: string
 {

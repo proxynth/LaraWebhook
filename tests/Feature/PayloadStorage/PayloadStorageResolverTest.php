@@ -1,6 +1,6 @@
 <?php
 
-use Proxynth\Larawebhook\Services\PayloadStorageResolver;
+use Proxynth\Larawebhook\Audit\Infrastructure\Payload\PayloadStorageResolver;
 
 beforeEach(function () {
     $this->payloadStorageResolver = app()->make(PayloadStorageResolver::class);

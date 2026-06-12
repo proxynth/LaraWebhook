@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Proxynth\Larawebhook\Services;
+namespace Proxynth\Larawebhook\Audit\Infrastructure\Payload;
 
-use Proxynth\Larawebhook\Enums\PayloadStorageMode;
+use Proxynth\Larawebhook\Audit\Domain\Enum\PayloadStorageMode;
 
 readonly class PayloadStorageResolver
 {

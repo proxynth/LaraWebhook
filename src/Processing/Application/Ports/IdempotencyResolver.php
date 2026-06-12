@@ -1,6 +1,6 @@
 <?php
 
-namespace Proxynth\Larawebhook\Contracts;
+namespace Proxynth\Larawebhook\Processing\Application\Ports;
 
 interface IdempotencyResolver
 {

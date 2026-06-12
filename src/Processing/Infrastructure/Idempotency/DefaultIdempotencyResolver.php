@@ -1,9 +1,9 @@
 <?php
 
-namespace Proxynth\Larawebhook\Services;
+namespace Proxynth\Larawebhook\Processing\Infrastructure\Idempotency;
 
 use JsonException;
-use Proxynth\Larawebhook\Contracts\IdempotencyResolver;
+use Proxynth\Larawebhook\Processing\Application\Ports\IdempotencyResolver;
 
 class DefaultIdempotencyResolver implements IdempotencyResolver
 {

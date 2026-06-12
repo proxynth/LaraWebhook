@@ -10,12 +10,12 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
+use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Notifications\NotificationSender;
+use Proxynth\Larawebhook\Audit\Infrastructure\Logging\WebhookLogger;
+use Proxynth\Larawebhook\Audit\Infrastructure\Payload\PayloadStorageResolver;
 use Proxynth\Larawebhook\Exceptions\InvalidSignatureException;
 use Proxynth\Larawebhook\Exceptions\WebhookException;
-use Proxynth\Larawebhook\Services\NotificationSender;
-use Proxynth\Larawebhook\Services\PayloadStorageResolver;
-use Proxynth\Larawebhook\Services\WebhookLogger;
-use Proxynth\Larawebhook\Services\WebhookValidator;
+use Proxynth\Larawebhook\Ingestion\Infrastructure\Validation\WebhookValidator;
 
 class RetryWebhookJob implements ShouldQueue
 {

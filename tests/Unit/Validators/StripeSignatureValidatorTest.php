@@ -5,7 +5,7 @@ declare(strict_types=1);
 use Proxynth\Larawebhook\Contracts\SignatureValidatorInterface;
 use Proxynth\Larawebhook\Exceptions\InvalidSignatureException;
 use Proxynth\Larawebhook\Exceptions\WebhookException;
-use Proxynth\Larawebhook\Validators\StripeSignatureValidator;
+use Proxynth\Larawebhook\Ingestion\Infrastructure\Validation\StripeSignatureValidator;
 
 describe('StripeSignatureValidator', function () {
     beforeEach(function () {

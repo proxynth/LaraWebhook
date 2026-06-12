@@ -5,15 +5,15 @@ declare(strict_types=1);
 namespace Proxynth\Larawebhook\Shared\Application;
 
 use Illuminate\Database\Eloquent\Collection;
+use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Notifications\FailureDetector;
+use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Notifications\NotificationSender;
 use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Persistence\Models\WebhookLog;
+use Proxynth\Larawebhook\Audit\Infrastructure\Logging\WebhookLogger;
 use Proxynth\Larawebhook\Enums\WebhookService;
 use Proxynth\Larawebhook\Exceptions\InvalidSignatureException;
 use Proxynth\Larawebhook\Exceptions\WebhookException;
-use Proxynth\Larawebhook\Services\FailureDetector;
-use Proxynth\Larawebhook\Services\NotificationSender;
-use Proxynth\Larawebhook\Services\WebhookLogger;
-use Proxynth\Larawebhook\Services\WebhookValidator;
-use Proxynth\Larawebhook\Services\WebhookValidatorFactory;
+use Proxynth\Larawebhook\Ingestion\Infrastructure\Validation\WebhookValidator;
+use Proxynth\Larawebhook\Ingestion\Infrastructure\Validation\WebhookValidatorFactory;
 
 /**
  * Main entry point for the Larawebhook package.

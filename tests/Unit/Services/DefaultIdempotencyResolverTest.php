@@ -1,7 +1,7 @@
 <?php
 
-use Proxynth\Larawebhook\Contracts\IdempotencyResolver;
-use Proxynth\Larawebhook\Services\DefaultIdempotencyResolver;
+use Proxynth\Larawebhook\Processing\Application\Ports\IdempotencyResolver;
+use Proxynth\Larawebhook\Processing\Infrastructure\Idempotency\DefaultIdempotencyResolver;
 
 it('binds idempotency resolver contract to default implementation', function () {
     expect(app(IdempotencyResolver::class))

@@ -1,6 +1,6 @@
 <?php
 
-use Proxynth\Larawebhook\Services\PayloadRedactor;
+use Proxynth\Larawebhook\Audit\Infrastructure\Payload\PayloadRedactor;
 
 beforeEach(function () {
     $this->payloadRedactor = new PayloadRedactor;

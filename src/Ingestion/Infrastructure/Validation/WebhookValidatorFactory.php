@@ -1,6 +1,6 @@
 <?php
 
-namespace Proxynth\Larawebhook\Services;
+namespace Proxynth\Larawebhook\Ingestion\Infrastructure\Validation;
 
 use Illuminate\Support\Facades\Config;
 use Proxynth\Larawebhook\Enums\WebhookService;

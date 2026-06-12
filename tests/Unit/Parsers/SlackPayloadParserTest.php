@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 use Proxynth\Larawebhook\Contracts\PayloadParserInterface;
-use Proxynth\Larawebhook\Parsers\SlackPayloadParser;
+use Proxynth\Larawebhook\Ingestion\Infrastructure\Parsing\SlackPayloadParser;
 
 describe('SlackPayloadParser', function () {
     beforeEach(function () {

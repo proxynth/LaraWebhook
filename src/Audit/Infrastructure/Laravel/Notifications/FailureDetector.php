@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Proxynth\Larawebhook\Services;
+namespace Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Notifications;
 
 use Illuminate\Support\Facades\Cache;
 use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Persistence\Models\WebhookLog;

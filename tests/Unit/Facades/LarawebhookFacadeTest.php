@@ -5,9 +5,9 @@ declare(strict_types=1);
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Facade;
 use Illuminate\Support\Facades\Notification;
+use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Notifications\FailureDetector;
 use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Persistence\Models\WebhookLog;
 use Proxynth\Larawebhook\Enums\WebhookService;
-use Proxynth\Larawebhook\Services\FailureDetector;
 use Proxynth\Larawebhook\Shared\Application\Larawebhook as LarawebhookClass;
 use Proxynth\Larawebhook\Shared\Infrastructure\Laravel\Facades\Larawebhook;
 

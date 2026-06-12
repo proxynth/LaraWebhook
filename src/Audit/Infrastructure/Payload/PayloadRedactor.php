@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Proxynth\Larawebhook\Services;
+namespace Proxynth\Larawebhook\Audit\Infrastructure\Payload;
 
 use Illuminate\Support\Str;
 
