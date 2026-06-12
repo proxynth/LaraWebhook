@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Proxynth\Larawebhook\Validators;
+namespace Proxynth\Larawebhook\Ingestion\Infrastructure\Validation;
 
 use Proxynth\Larawebhook\Contracts\SignatureValidatorInterface;
 use Proxynth\Larawebhook\Exceptions\InvalidSignatureException;

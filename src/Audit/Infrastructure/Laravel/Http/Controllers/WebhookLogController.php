@@ -10,7 +10,7 @@ use Illuminate\Routing\Controller;
 use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Http\Resources\WebhookLogResource;
 use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Persistence\Models\WebhookLog;
 use Proxynth\Larawebhook\Enums\WebhookService;
-use Proxynth\Larawebhook\Services\WebhookValidatorFactory;
+use Proxynth\Larawebhook\Ingestion\Infrastructure\Validation\WebhookValidatorFactory;
 
 class WebhookLogController extends Controller
 {

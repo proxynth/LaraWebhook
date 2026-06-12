@@ -2,11 +2,13 @@
 
 declare(strict_types=1);
 
-namespace Proxynth\Larawebhook\Services;
+namespace Proxynth\Larawebhook\Audit\Infrastructure\Logging;
 
 use Illuminate\Support\Facades\Log;
+use Proxynth\Larawebhook\Audit\Domain\Enum\PayloadStorageMode;
+use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Notifications\NotificationSender;
 use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Persistence\Models\WebhookLog;
-use Proxynth\Larawebhook\Enums\PayloadStorageMode;
+use Proxynth\Larawebhook\Audit\Infrastructure\Payload\PayloadStorageResolver;
 
 class WebhookLogger
 {
@@ -54,7 +56,7 @@ class WebhookLogger
         ];
 
         if ($status === 'failed') {
-            Log::error("Webhook validation failed: {$errorMessage}", $logContext);
+            Log::error("Webhook validation failed: $errorMessage", $logContext);
             $this->checkAndNotify($service, $event);
         } else {
             Log::info('Webhook processed successfully', $logContext);

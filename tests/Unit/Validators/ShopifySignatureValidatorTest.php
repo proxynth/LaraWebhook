@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 use Proxynth\Larawebhook\Contracts\SignatureValidatorInterface;
 use Proxynth\Larawebhook\Exceptions\InvalidSignatureException;
-use Proxynth\Larawebhook\Validators\ShopifySignatureValidator;
+use Proxynth\Larawebhook\Ingestion\Infrastructure\Validation\ShopifySignatureValidator;
 
 describe('ShopifySignatureValidator', function () {
     beforeEach(function () {

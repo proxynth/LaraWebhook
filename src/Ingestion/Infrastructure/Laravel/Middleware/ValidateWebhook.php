@@ -8,10 +8,10 @@ use Closure;
 use Exception;
 use Illuminate\Http\Request;
 use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Persistence\Models\WebhookLog;
-use Proxynth\Larawebhook\Contracts\IdempotencyResolver;
 use Proxynth\Larawebhook\Enums\WebhookService;
+use Proxynth\Larawebhook\Ingestion\Infrastructure\Validation\WebhookValidatorFactory;
+use Proxynth\Larawebhook\Processing\Application\Ports\IdempotencyResolver;
 use Proxynth\Larawebhook\Processing\Infrastructure\Laravel\Jobs\RetryWebhookJob;
-use Proxynth\Larawebhook\Services\WebhookValidatorFactory;
 use Symfony\Component\HttpFoundation\Response;
 
 class ValidateWebhook

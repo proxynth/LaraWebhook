@@ -6,10 +6,10 @@ use Illuminate\Notifications\AnonymousNotifiable;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Notification;
 use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Events\WebhookNotificationSent;
+use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Notifications\FailureDetector;
+use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Notifications\NotificationSender;
 use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Notifications\WebhookFailedNotification;
 use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Persistence\Models\WebhookLog;
-use Proxynth\Larawebhook\Services\FailureDetector;
-use Proxynth\Larawebhook\Services\NotificationSender;
 
 beforeEach(function () {
     $this->failureDetector = new FailureDetector;

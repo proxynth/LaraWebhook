@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 use Proxynth\Larawebhook\Contracts\PayloadParserInterface;
-use Proxynth\Larawebhook\Parsers\StripePayloadParser;
+use Proxynth\Larawebhook\Ingestion\Infrastructure\Parsing\StripePayloadParser;
 
 describe('StripePayloadParser', function () {
     beforeEach(function () {

@@ -2,12 +2,11 @@
 
 declare(strict_types=1);
 
-namespace Proxynth\Larawebhook\Services;
+namespace Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Notifications;
 
 use Illuminate\Contracts\Events\Dispatcher;
 use Illuminate\Support\Facades\Notification;
 use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Events\WebhookNotificationSent;
-use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Notifications\WebhookFailedNotification;
 use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Persistence\Models\WebhookLog;
 
 /**

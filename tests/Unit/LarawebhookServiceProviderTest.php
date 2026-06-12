@@ -8,9 +8,9 @@ use Illuminate\Routing\Router;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Notification;
 use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Notifications\Channels\SlackWebhookChannel;
-use Proxynth\Larawebhook\Services\FailureDetector;
-use Proxynth\Larawebhook\Services\NotificationSender;
-use Proxynth\Larawebhook\Services\WebhookLogger;
+use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Notifications\FailureDetector;
+use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Notifications\NotificationSender;
+use Proxynth\Larawebhook\Audit\Infrastructure\Logging\WebhookLogger;
 use Proxynth\Larawebhook\Shared\Infrastructure\Laravel\Providers\LarawebhookServiceProvider;
 
 describe('LarawebhookServiceProvider service registration', function () {

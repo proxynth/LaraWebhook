@@ -5,14 +5,14 @@ declare(strict_types=1);
 use Proxynth\Larawebhook\Contracts\PayloadParserInterface;
 use Proxynth\Larawebhook\Contracts\SignatureValidatorInterface;
 use Proxynth\Larawebhook\Enums\WebhookService;
-use Proxynth\Larawebhook\Parsers\GithubPayloadParser;
-use Proxynth\Larawebhook\Parsers\ShopifyPayloadParser;
-use Proxynth\Larawebhook\Parsers\SlackPayloadParser;
-use Proxynth\Larawebhook\Parsers\StripePayloadParser;
-use Proxynth\Larawebhook\Validators\GithubSignatureValidator;
-use Proxynth\Larawebhook\Validators\ShopifySignatureValidator;
-use Proxynth\Larawebhook\Validators\SlackSignatureValidator;
-use Proxynth\Larawebhook\Validators\StripeSignatureValidator;
+use Proxynth\Larawebhook\Ingestion\Infrastructure\Parsing\GithubPayloadParser;
+use Proxynth\Larawebhook\Ingestion\Infrastructure\Parsing\ShopifyPayloadParser;
+use Proxynth\Larawebhook\Ingestion\Infrastructure\Parsing\SlackPayloadParser;
+use Proxynth\Larawebhook\Ingestion\Infrastructure\Parsing\StripePayloadParser;
+use Proxynth\Larawebhook\Ingestion\Infrastructure\Validation\GithubSignatureValidator;
+use Proxynth\Larawebhook\Ingestion\Infrastructure\Validation\ShopifySignatureValidator;
+use Proxynth\Larawebhook\Ingestion\Infrastructure\Validation\SlackSignatureValidator;
+use Proxynth\Larawebhook\Ingestion\Infrastructure\Validation\StripeSignatureValidator;
 
 beforeEach(function () {
     config([

@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Persistence\Models\WebhookLog;
-use Proxynth\Larawebhook\Services\WebhookValidator;
+use Proxynth\Larawebhook\Ingestion\Infrastructure\Validation\WebhookValidator;
 
 beforeEach(function () {
     $this->secret = 'test_secret_key_123';

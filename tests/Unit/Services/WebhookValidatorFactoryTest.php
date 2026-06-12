@@ -1,8 +1,8 @@
 <?php
 
 use Proxynth\Larawebhook\Exceptions\WebhookException;
-use Proxynth\Larawebhook\Services\WebhookValidator;
-use Proxynth\Larawebhook\Services\WebhookValidatorFactory;
+use Proxynth\Larawebhook\Ingestion\Infrastructure\Validation\WebhookValidator;
+use Proxynth\Larawebhook\Ingestion\Infrastructure\Validation\WebhookValidatorFactory;
 
 it('resolves one validator per service', function () {
     config()->set('larawebhook.services.stripe.webhook_secret', 'stripe-secret');

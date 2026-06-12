@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 use Proxynth\Larawebhook\Contracts\PayloadParserInterface;
-use Proxynth\Larawebhook\Parsers\ShopifyPayloadParser;
+use Proxynth\Larawebhook\Ingestion\Infrastructure\Parsing\ShopifyPayloadParser;
 
 describe('ShopifyPayloadParser', function () {
     beforeEach(function () {

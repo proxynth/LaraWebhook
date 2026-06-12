@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
+use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Notifications\FailureDetector;
 use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Persistence\Models\WebhookLog;
-use Proxynth\Larawebhook\Services\FailureDetector;
 
 beforeEach(function () {
     $this->detector = new FailureDetector;

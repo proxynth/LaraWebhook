@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Proxynth\Larawebhook\Parsers;
+namespace Proxynth\Larawebhook\Ingestion\Infrastructure\Parsing;
 
 use Proxynth\Larawebhook\Contracts\PayloadParserInterface;
 
