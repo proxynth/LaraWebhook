@@ -12,6 +12,7 @@ final readonly class ListWebhookLogsQuery implements Query
         public ?string $service = null,
         public ?string $status = null,
         public ?string $event = null,
+        public ?string $date = null,
         public int $perPage = 25,
     ) {}
 }
