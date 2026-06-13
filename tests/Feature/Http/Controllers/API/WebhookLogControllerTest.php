@@ -27,7 +27,7 @@ it('returns paginated webhook logs', function () {
             ],
             'meta' => ['current_page', 'last_page', 'per_page', 'total'],
             'links' => ['first', 'last', 'prev', 'next'],
-        ])->assertJsonCount(10, 'data');
+        ])->assertJsonCount(15, 'data');
 
     expect($response->json('meta.total'))->toBe(15);
 });

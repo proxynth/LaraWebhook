@@ -7,6 +7,7 @@ namespace Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Http\Resources;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Carbon;
+use Proxynth\Larawebhook\Audit\Application\ReadModels\WebhookLogReadModel;
 use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Persistence\Models\WebhookLog;
 
 /**
@@ -31,16 +32,36 @@ class WebhookLogResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
+        $log = $this->toReadModel();
+
         return [
-            'id' => $this->id,
-            'service' => $this->service,
-            'event' => $this->event,
-            'status' => $this->status,
-            'payload' => $this->payload,
-            'error_message' => $this->error_message,
-            'attempt' => $this->attempt,
-            'created_at' => $this->created_at->format('d/m/Y H:i:s'),
-            'updated_at' => $this->updated_at->format('d/m/Y H:i:s'),
+            'id' => $log->id,
+            'service' => $log->service,
+            'event' => $log->event,
+            'status' => $log->status,
+            'payload' => $log->payload,
+            'error_message' => $log->errorMessage,
+            'attempt' => $log->attempt,
+            'created_at' => $log->createdAt?->toISOString(),
+            'updated_at' => $log->updatedAt?->toISOString(),
         ];
+    }
+
+    private function toReadModel(): WebhookLogReadModel
+    {
+        if ($this->resource instanceof WebhookLogReadModel) {
+            return $this->resource;
+        }
+
+        if ($this->resource instanceof WebhookLog) {
+            return WebhookLogReadModel::fromModel($this->resource);
+        }
+
+        throw new \InvalidArgumentException(sprintf(
+            'WebhookLogResource expects [%s] or [%s], [%s] given.',
+            WebhookLogReadModel::class,
+            WebhookLog::class,
+            get_debug_type($this->resource)
+        ));
     }
 }

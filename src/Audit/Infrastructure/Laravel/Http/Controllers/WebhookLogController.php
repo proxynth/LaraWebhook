@@ -8,6 +8,10 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use JsonException;
+use Proxynth\Larawebhook\Audit\Application\Queries\GetWebhookLogDetails;
+use Proxynth\Larawebhook\Audit\Application\Queries\GetWebhookLogDetailsQuery;
+use Proxynth\Larawebhook\Audit\Application\Queries\ListWebhookLogs;
+use Proxynth\Larawebhook\Audit\Application\Queries\ListWebhookLogsQuery;
 use Proxynth\Larawebhook\Audit\Domain\Exceptions\PayloadNotAvailable;
 use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Http\Resources\WebhookLogResource;
 use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Persistence\Models\WebhookLog;
@@ -19,32 +23,23 @@ use Throwable;
 class WebhookLogController extends Controller
 {
     public function __construct(
+        private readonly ListWebhookLogs $listWebhookLogs,
+        private readonly GetWebhookLogDetails $getWebhookLogDetails,
         private readonly ReplayWebhook $replayWebhook,
     ) {}
 
     public function index(Request $request): JsonResponse
     {
-        $query = WebhookLog::query();
-
-        if ($request->filled('service')) {
-            $query->service($request->input('service'));
-        }
-
-        if ($request->filled('status')) {
-            $query->status($request->input('status'));
-        }
-
-        if ($request->filled('date')) {
-            $query->whereDate('created_at', $request->input('date'));
-        }
-
-        $query->orderBy('created_at', 'desc');
-
-        $perPage = $request->input('per_page', 10);
-        $logs = $query->paginate((int) $perPage);
+        $logs = $this->listWebhookLogs->handle(new ListWebhookLogsQuery(
+            service: $this->nullableString($request, 'service'),
+            status: $this->nullableString($request, 'status'),
+            event: $this->nullableString($request, 'event'),
+            date: $this->nullableString($request, 'date'),
+            perPage: min(max($request->integer('per_page', 25), 1), 100),
+        ));
 
         return response()->json([
-            'data' => WebhookLogResource::collection($logs->items()),
+            'data' => WebhookLogResource::collection($logs),
             'meta' => [
                 'total' => $logs->total(),
                 'per_page' => $logs->perPage(),
@@ -58,6 +53,15 @@ class WebhookLogController extends Controller
                 'next' => $logs->nextPageUrl(),
             ],
         ]);
+    }
+
+    public function show(WebhookLog $log): WebhookLogResource
+    {
+        $readModel = $this->getWebhookLogDetails->handle(
+            new GetWebhookLogDetailsQuery($log->getKey())
+        );
+
+        return new WebhookLogResource($readModel);
     }
 
     /**
@@ -124,5 +128,12 @@ class WebhookLogController extends Controller
         $signature = hash_hmac('sha256', $payload, $secret);
 
         return "sha256={$signature}";
+    }
+
+    private function nullableString(Request $request, string $key): ?string
+    {
+        $value = $request->string($key)->trim()->toString();
+
+        return $value === '' ? null : $value;
     }
 }
