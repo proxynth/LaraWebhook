@@ -12,12 +12,13 @@ use Proxynth\Larawebhook\Ingestion\Application\Commands\ReceiveWebhookCommand;
 use Proxynth\Larawebhook\Ingestion\Application\Results\ReceiveWebhookResult;
 use Proxynth\Larawebhook\Ingestion\Infrastructure\Validation\WebhookValidatorFactory;
 use Proxynth\Larawebhook\Processing\Application\Ports\IdempotencyResolver;
+use Proxynth\Larawebhook\Processing\Domain\ValueObjects\DeliveryAttempt;
+use Proxynth\Larawebhook\Processing\Domain\ValueObjects\IdempotencyKey;
+use Proxynth\Larawebhook\Processing\Domain\ValueObjects\WebhookStatus;
 use Symfony\Component\HttpFoundation\Response;
 
 final readonly class ReceiveWebhook
 {
-    private const INITIAL_ATTEMPT = 0;
-
     public function __construct(
         private WebhookValidatorFactory $validatorFactory,
         private IdempotencyResolver $idempotencyResolver,
@@ -43,17 +44,19 @@ final readonly class ReceiveWebhook
 
         $payloadForIdempotency = is_array($decodedPayload) ? $decodedPayload : [];
 
-        $idempotencyKey = $this->idempotencyResolver->resolve(
+        $idempotencyKeyValue = $this->idempotencyResolver->resolve(
             service: $serviceName,
             payload: $payloadForIdempotency,
             externalId: $externalId,
             event: $event,
         );
 
-        if ($idempotencyKey !== null && WebhookLog::existsForExternalId($serviceName, $idempotencyKey)) {
+        $idempotencyKey = IdempotencyKey::nullable($idempotencyKeyValue);
+
+        if ($idempotencyKey !== null && WebhookLog::existsForExternalId($serviceName, $idempotencyKey->value())) {
             return ReceiveWebhookResult::alreadyProcessed(
                 externalId: $externalId,
-                idempotencyKey: $idempotencyKey,
+                idempotencyKey: $idempotencyKey->value(),
             );
         }
 
@@ -69,11 +72,12 @@ final readonly class ReceiveWebhook
                 signature: $command->signature,
                 service: $serviceName,
                 event: $event,
-                attempt: self::INITIAL_ATTEMPT,
-                externalId: $idempotencyKey,
+                attempt: DeliveryAttempt::initial()->value(),
+                externalId: $idempotencyKey?->value(),
             );
 
-        if ($log->status !== 'failed') {
+        $status = WebhookStatus::fromString((string) $log->status);
+        if (! $status->isFailed()) {
             return ReceiveWebhookResult::success($log);
         }
 
@@ -82,7 +86,7 @@ final readonly class ReceiveWebhook
                 log: $log,
                 event: $event,
                 secret: $secret,
-                idempotencyKey: $idempotencyKey,
+                idempotencyKey: $idempotencyKey?->value(),
             );
         }
 
