@@ -23,7 +23,7 @@ describe('RetryWebhookJob class structure', function () {
     it('implements ShouldQueue interface', function () {
         $job = new RetryWebhookJob(
             payload: '{"test": "data"}',
-            signature: 'test_signature',
+            signature: incomingSignature('test_signature'),
             service: 'stripe',
             event: 'payment.succeeded',
             secret: 'test_secret'
@@ -35,7 +35,7 @@ describe('RetryWebhookJob class structure', function () {
     it('has tries set to 1', function () {
         $job = new RetryWebhookJob(
             payload: '{"test": "data"}',
-            signature: 'test_signature',
+            signature: incomingSignature('test_signature'),
             service: 'stripe',
             event: 'payment.succeeded',
             secret: 'test_secret'
@@ -47,7 +47,7 @@ describe('RetryWebhookJob class structure', function () {
     it('generates unique id based on job properties', function () {
         $job = new RetryWebhookJob(
             payload: '{"test": "data"}',
-            signature: 'test_signature',
+            signature: incomingSignature('test_signature'),
             service: 'stripe',
             event: 'payment.succeeded',
             secret: 'test_secret',
@@ -62,7 +62,7 @@ describe('RetryWebhookJob class structure', function () {
     it('generates different unique ids for different attempts', function () {
         $job1 = new RetryWebhookJob(
             payload: '{"test": "data"}',
-            signature: 'test_signature',
+            signature: incomingSignature('test_signature'),
             service: 'stripe',
             event: 'payment.succeeded',
             secret: 'test_secret',
@@ -71,7 +71,7 @@ describe('RetryWebhookJob class structure', function () {
 
         $job2 = new RetryWebhookJob(
             payload: '{"test": "data"}',
-            signature: 'test_signature',
+            signature: incomingSignature('test_signature'),
             service: 'stripe',
             event: 'payment.succeeded',
             secret: 'test_secret',
@@ -84,7 +84,7 @@ describe('RetryWebhookJob class structure', function () {
     it('generates different unique ids for different services', function () {
         $job1 = new RetryWebhookJob(
             payload: '{"test": "data"}',
-            signature: 'test_signature',
+            signature: incomingSignature('test_signature'),
             service: 'stripe',
             event: 'payment.succeeded',
             secret: 'test_secret'
@@ -92,7 +92,7 @@ describe('RetryWebhookJob class structure', function () {
 
         $job2 = new RetryWebhookJob(
             payload: '{"test": "data"}',
-            signature: 'test_signature',
+            signature: incomingSignature('test_signature'),
             service: 'github',
             event: 'payment.succeeded',
             secret: 'test_secret'
@@ -108,7 +108,7 @@ describe('RetryWebhookJob successful validation', function () {
         $payload = '{"type": "payment_intent.succeeded"}';
         $timestamp = time();
         $signedPayload = "{$timestamp}.{$payload}";
-        $signature = 't='.$timestamp.',v1='.hash_hmac('sha256', $signedPayload, $secret);
+        $signature = incomingSignature('t='.$timestamp.',v1='.hash_hmac('sha256', $signedPayload, $secret));
 
         $job = new RetryWebhookJob(
             payload: $payload,
@@ -134,7 +134,7 @@ describe('RetryWebhookJob successful validation', function () {
     it('logs success when github webhook signature is valid', function () {
         $secret = 'github_secret_key';
         $payload = '{"action": "push", "ref": "refs/heads/main"}';
-        $signature = 'sha256='.hash_hmac('sha256', $payload, $secret);
+        $signature = incomingSignature('sha256='.hash_hmac('sha256', $payload, $secret));
 
         $job = new RetryWebhookJob(
             payload: $payload,
@@ -159,7 +159,7 @@ describe('RetryWebhookJob successful validation', function () {
     it('logs success with correct attempt number on retry', function () {
         $secret = 'github_secret_key';
         $payload = '{"action": "push"}';
-        $signature = 'sha256='.hash_hmac('sha256', $payload, $secret);
+        $signature = incomingSignature('sha256='.hash_hmac('sha256', $payload, $secret));
 
         $job = new RetryWebhookJob(
             payload: $payload,
@@ -183,7 +183,7 @@ describe('RetryWebhookJob successful validation', function () {
 
         $secret = 'github_secret_key';
         $payload = '{"action": "push"}';
-        $signature = 'sha256='.hash_hmac('sha256', $payload, $secret);
+        $signature = incomingSignature('sha256='.hash_hmac('sha256', $payload, $secret));
 
         $job = new RetryWebhookJob(
             payload: $payload,
@@ -204,7 +204,7 @@ describe('RetryWebhookJob failed validation', function () {
     it('logs failure when signature is invalid', function () {
         $job = new RetryWebhookJob(
             payload: '{"test": "data"}',
-            signature: 'sha256=invalid_signature',
+            signature: incomingSignature('sha256=invalid_signature'),
             service: 'github',
             event: 'push',
             secret: 'correct_secret',
@@ -226,7 +226,7 @@ describe('RetryWebhookJob failed validation', function () {
     it('logs failure when service is unsupported', function () {
         $job = new RetryWebhookJob(
             payload: '{"test": "data"}',
-            signature: 'some_signature',
+            signature: incomingSignature('some_signature'),
             service: 'unknown_service',
             event: 'some_event',
             secret: 'some_secret',
@@ -245,7 +245,7 @@ describe('RetryWebhookJob failed validation', function () {
     it('logs failure when stripe signature format is invalid', function () {
         $job = new RetryWebhookJob(
             payload: '{"test": "data"}',
-            signature: 'invalid_format',
+            signature: incomingSignature('invalid_format'),
             service: 'stripe',
             event: 'payment.succeeded',
             secret: 'stripe_secret',
@@ -263,7 +263,7 @@ describe('RetryWebhookJob failed validation', function () {
     it('logs failure when github signature format is invalid', function () {
         $job = new RetryWebhookJob(
             payload: '{"test": "data"}',
-            signature: 'invalid_format_without_sha256',
+            signature: incomingSignature('invalid_format_without_sha256'),
             service: 'github',
             event: 'push',
             secret: 'github_secret',
@@ -281,7 +281,7 @@ describe('RetryWebhookJob failed validation', function () {
     it('logs failure with correct attempt number', function () {
         $job = new RetryWebhookJob(
             payload: '{"test": "data"}',
-            signature: 'sha256=invalid',
+            signature: incomingSignature('sha256=invalid'),
             service: 'github',
             event: 'push',
             secret: 'secret',
@@ -302,7 +302,7 @@ describe('RetryWebhookJob retry dispatching', function () {
 
         $job = new RetryWebhookJob(
             payload: '{"test": "data"}',
-            signature: 'sha256=invalid',
+            signature: incomingSignature('sha256=invalid'),
             service: 'github',
             event: 'push',
             secret: 'secret',
@@ -322,7 +322,7 @@ describe('RetryWebhookJob retry dispatching', function () {
 
         $job = new RetryWebhookJob(
             payload: '{"test": "data"}',
-            signature: 'sha256=invalid',
+            signature: incomingSignature('sha256=invalid'),
             service: 'github',
             event: 'push',
             secret: 'secret',
@@ -340,7 +340,7 @@ describe('RetryWebhookJob retry dispatching', function () {
 
         $job = new RetryWebhookJob(
             payload: '{"test": "data"}',
-            signature: 'sha256=invalid',
+            signature: incomingSignature('sha256=invalid'),
             service: 'github',
             event: 'push',
             secret: 'secret',
@@ -358,7 +358,7 @@ describe('RetryWebhookJob retry dispatching', function () {
 
         $job = new RetryWebhookJob(
             payload: '{"test": "data"}',
-            signature: 'sha256=invalid',
+            signature: incomingSignature('sha256=invalid'),
             service: 'github',
             event: 'push',
             secret: 'secret',
@@ -376,7 +376,7 @@ describe('RetryWebhookJob retry dispatching', function () {
 
         $job = new RetryWebhookJob(
             payload: '{"test": "data"}',
-            signature: 'sha256=invalid',
+            signature: incomingSignature('sha256=invalid'),
             service: 'github',
             event: 'push',
             secret: 'secret',
@@ -397,7 +397,7 @@ describe('RetryWebhookJob retry dispatching', function () {
 
         $job = new RetryWebhookJob(
             payload: '{"test": "data"}',
-            signature: 'sha256=invalid',
+            signature: incomingSignature('sha256=invalid'),
             service: 'github',
             event: 'push',
             secret: 'secret',
@@ -417,7 +417,7 @@ describe('RetryWebhookJob payload handling', function () {
     it('handles valid JSON payload', function () {
         $secret = 'github_secret';
         $payload = '{"action": "push", "repository": {"name": "test"}}';
-        $signature = 'sha256='.hash_hmac('sha256', $payload, $secret);
+        $signature = incomingSignature('sha256='.hash_hmac('sha256', $payload, $secret));
 
         $job = new RetryWebhookJob(
             payload: $payload,
@@ -441,7 +441,7 @@ describe('RetryWebhookJob payload handling', function () {
 
         $job = new RetryWebhookJob(
             payload: $payload,
-            signature: 'sha256=invalid',
+            signature: incomingSignature('sha256=invalid'),
             service: 'github',
             event: 'push',
             secret: 'secret'
@@ -459,7 +459,7 @@ describe('RetryWebhookJob payload handling', function () {
     it('handles empty payload', function () {
         $job = new RetryWebhookJob(
             payload: '',
-            signature: 'sha256=invalid',
+            signature: incomingSignature('sha256=invalid'),
             service: 'github',
             event: 'push',
             secret: 'secret'
@@ -476,7 +476,7 @@ describe('RetryWebhookJob payload handling', function () {
     it('handles null JSON values', function () {
         $secret = 'github_secret';
         $payload = '{"value": null, "empty": ""}';
-        $signature = 'sha256='.hash_hmac('sha256', $payload, $secret);
+        $signature = incomingSignature('sha256='.hash_hmac('sha256', $payload, $secret));
 
         $job = new RetryWebhookJob(
             payload: $payload,
@@ -506,7 +506,7 @@ describe('RetryWebhookJob configuration', function () {
         // At attempt 3, should still retry (since max is 5)
         $job = new RetryWebhookJob(
             payload: '{"test": "data"}',
-            signature: 'sha256=invalid',
+            signature: incomingSignature('sha256=invalid'),
             service: 'github',
             event: 'push',
             secret: 'secret',
@@ -528,7 +528,7 @@ describe('RetryWebhookJob configuration', function () {
         // Attempt 2 should still retry using the last delay (2 seconds)
         $job = new RetryWebhookJob(
             payload: '{"test": "data"}',
-            signature: 'sha256=invalid',
+            signature: incomingSignature('sha256=invalid'),
             service: 'github',
             event: 'push',
             secret: 'secret',
@@ -547,7 +547,7 @@ describe('RetryWebhookJob configuration', function () {
         // Test that with attempt=2 (last of 3), no retry happens
         $job = new RetryWebhookJob(
             payload: '{"test": "data"}',
-            signature: 'sha256=invalid',
+            signature: incomingSignature('sha256=invalid'),
             service: 'github',
             event: 'push',
             secret: 'secret',
@@ -567,7 +567,7 @@ describe('RetryWebhookJob stripe specific scenarios', function () {
         $payload = '{"type": "payment_intent.succeeded"}';
         $expiredTimestamp = time() - 400; // 400 seconds ago (beyond 300s tolerance)
         $signedPayload = "{$expiredTimestamp}.{$payload}";
-        $signature = 't='.$expiredTimestamp.',v1='.hash_hmac('sha256', $signedPayload, $secret);
+        $signature = incomingSignature('t='.$expiredTimestamp.',v1='.hash_hmac('sha256', $signedPayload, $secret));
 
         $job = new RetryWebhookJob(
             payload: $payload,
@@ -591,7 +591,7 @@ describe('RetryWebhookJob stripe specific scenarios', function () {
         $payload = '{"type": "payment_intent.succeeded"}';
         $timestamp = time() - 100; // 100 seconds ago (within 300s tolerance)
         $signedPayload = "{$timestamp}.{$payload}";
-        $signature = 't='.$timestamp.',v1='.hash_hmac('sha256', $signedPayload, $secret);
+        $signature = incomingSignature('t='.$timestamp.',v1='.hash_hmac('sha256', $signedPayload, $secret));
 
         $job = new RetryWebhookJob(
             payload: $payload,
@@ -614,7 +614,7 @@ describe('RetryWebhookJob external_id support', function () {
     it('logs success with external_id', function () {
         $secret = 'github_secret_key';
         $payload = '{"action": "push"}';
-        $signature = 'sha256='.hash_hmac('sha256', $payload, $secret);
+        $signature = incomingSignature('sha256='.hash_hmac('sha256', $payload, $secret));
 
         $job = new RetryWebhookJob(
             payload: $payload,
@@ -638,7 +638,7 @@ describe('RetryWebhookJob external_id support', function () {
 
         $job = new RetryWebhookJob(
             payload: '{"test": "data"}',
-            signature: 'sha256=invalid',
+            signature: incomingSignature('sha256=invalid'),
             service: 'github',
             event: 'push',
             secret: 'secret',
@@ -660,7 +660,7 @@ describe('RetryWebhookJob external_id support', function () {
 
         $job = new RetryWebhookJob(
             payload: '{"test": "data"}',
-            signature: 'sha256=invalid',
+            signature: incomingSignature('sha256=invalid'),
             service: 'github',
             event: 'push',
             secret: 'secret',
@@ -684,7 +684,7 @@ describe('RetryWebhookJob multiple logs creation', function () {
         // First attempt - fails
         $job1 = new RetryWebhookJob(
             payload: '{"test": "data"}',
-            signature: 'sha256=invalid',
+            signature: incomingSignature('sha256=invalid'),
             service: 'github',
             event: 'push',
             secret: 'secret',
@@ -695,7 +695,7 @@ describe('RetryWebhookJob multiple logs creation', function () {
         // Second attempt - fails
         $job2 = new RetryWebhookJob(
             payload: '{"test": "data"}',
-            signature: 'sha256=invalid',
+            signature: incomingSignature('sha256=invalid'),
             service: 'github',
             event: 'push',
             secret: 'secret',
@@ -706,7 +706,7 @@ describe('RetryWebhookJob multiple logs creation', function () {
         // Third attempt - success
         $secret = 'secret';
         $payload = '{"test": "data"}';
-        $validSignature = 'sha256='.hash_hmac('sha256', $payload, $secret);
+        $validSignature = incomingSignature('sha256='.hash_hmac('sha256', $payload, $secret));
 
         $job3 = new RetryWebhookJob(
             payload: $payload,
@@ -737,7 +737,7 @@ describe('RetryWebhookJob multiple logs creation', function () {
 
         $githubJob = new RetryWebhookJob(
             payload: '{"test": "github"}',
-            signature: 'sha256=invalid',
+            signature: incomingSignature('sha256=invalid'),
             service: 'github',
             event: 'push',
             secret: 'secret',
@@ -747,7 +747,7 @@ describe('RetryWebhookJob multiple logs creation', function () {
 
         $stripeJob = new RetryWebhookJob(
             payload: '{"test": "stripe"}',
-            signature: 'invalid_format',
+            signature: incomingSignature('invalid_format'),
             service: 'stripe',
             event: 'payment.succeeded',
             secret: 'secret',

@@ -12,6 +12,7 @@ use Proxynth\Larawebhook\Audit\Infrastructure\Payload\PayloadStorageResolver;
 use Proxynth\Larawebhook\Enums\WebhookService;
 use Proxynth\Larawebhook\Exceptions\InvalidSignatureException;
 use Proxynth\Larawebhook\Exceptions\WebhookException;
+use Proxynth\Larawebhook\Ingestion\Application\Data\IncomingWebhookSignature;
 
 class WebhookValidator
 {
@@ -25,13 +26,13 @@ class WebhookValidator
      * Validates a webhook signature using the service's validator.
      *
      * @param  string  $payload  Raw webhook content
-     * @param  string  $signature  Signature provided by the service
+     * @param  IncomingWebhookSignature  $signature  Signature provided by the service
      * @param  string|WebhookService  $service  Service name or enum
      *
      * @throws InvalidSignatureException
      * @throws WebhookException
      */
-    public function validate(string $payload, string $signature, string|WebhookService $service): bool
+    public function validate(string $payload, IncomingWebhookSignature $signature, string|WebhookService $service): bool
     {
         $webhookService = $service instanceof WebhookService
             ? $service
@@ -53,7 +54,7 @@ class WebhookValidator
      * Validates webhook signature and logs the result.
      *
      * @param  string  $payload  Raw webhook content
-     * @param  string  $signature  Signature provided by the service
+     * @param  IncomingWebhookSignature  $signature  Signature provided by the service
      * @param  string|WebhookService  $service  Service name or enum
      * @param  string  $event  Event type (e.g., 'payment_intent.succeeded')
      * @param  int  $attempt  Retry attempt number (0 = first try)
@@ -64,7 +65,7 @@ class WebhookValidator
      */
     public function validateAndLog(
         string $payload,
-        string $signature,
+        IncomingWebhookSignature $signature,
         string|WebhookService $service,
         string $event,
         int $attempt = 0,
@@ -87,7 +88,7 @@ class WebhookValidator
      * Validates webhook signature with automatic retries on failure.
      *
      * @param  string  $payload  Raw webhook content
-     * @param  string  $signature  Signature provided by the service
+     * @param  IncomingWebhookSignature  $signature  Signature provided by the service
      * @param  string|WebhookService  $service  Service name or enum
      * @param  string  $event  Event type (e.g., 'payment_intent.succeeded')
      * @param  string|null  $externalId  External ID for idempotency
@@ -98,7 +99,7 @@ class WebhookValidator
      */
     public function validateWithRetries(
         string $payload,
-        string $signature,
+        IncomingWebhookSignature $signature,
         string|WebhookService $service,
         string $event,
         ?string $externalId = null

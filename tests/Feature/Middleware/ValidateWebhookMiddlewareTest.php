@@ -8,6 +8,8 @@ use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Persistence\Models\Webhook
 use Proxynth\Larawebhook\Processing\Infrastructure\Laravel\Jobs\RetryWebhookJob;
 
 beforeEach(function () {
+    Queue::fake();
+
     // Set up test secrets in config
     config([
         'larawebhook.services.stripe.webhook_secret' => 'test_stripe_secret',
@@ -94,7 +96,7 @@ describe('ValidateWebhook middleware with Stripe', function () {
         );
 
         $response->assertStatus(400)
-            ->assertSee('Request body is empty');
+            ->assertSee('Payload is empty.');
     });
 
     it('rejects Stripe webhooks with invalid signature', function () {
@@ -369,7 +371,7 @@ describe('ValidateWebhook middleware with unsupported service', function () {
         );
 
         $response->assertStatus(400);
-        expect($response->getContent())->toContain('Service paypal is not supported');
+        expect($response->getContent())->toContain("Service 'paypal' is not supported.");
     });
 
     it('does not log anything for unsupported service', function () {
@@ -509,7 +511,7 @@ describe('ValidateWebhook middleware with Slack', function () {
         // Without timestamp, validator receives just "v0=hash" instead of "timestamp:v0=hash"
         // This causes invalid format error
         $response->assertStatus(400);
-        expect($response->getContent())->toContain('format');
+        expect($response->getContent())->toContain('Missing X-Slack-Request-Timestamp');
     });
 
     it('extracts slash_command event type', function () {

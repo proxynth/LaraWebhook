@@ -19,7 +19,7 @@ it('throws when replaying a log without payload', function () {
 
     $useCase->handle(new ReplayWebhookCommand(
         log: $log,
-        signature: 'signature'
+        signature: incomingSignature('signature')
     ));
 })->throws(PayloadNotAvailable::class);
 
@@ -37,6 +37,6 @@ it('throws when replaying a log with an empty payload', function () {
 
     $useCase->handle(new ReplayWebhookCommand(
         log: $log,
-        signature: 'signature',
+        signature: incomingSignature('signature'),
     ));
 })->throws(PayloadNotAvailable::class);

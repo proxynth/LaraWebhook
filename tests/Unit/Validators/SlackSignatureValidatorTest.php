@@ -37,7 +37,7 @@ describe('SlackSignatureValidator validate', function () {
         $signature = 'v0='.hash_hmac('sha256', $sigBaseString, $this->secret);
 
         // Combined format: "timestamp:v0=hash"
-        $combinedSignature = "{$timestamp}:{$signature}";
+        $combinedSignature = slackIncomingSignature($signature, $timestamp);
 
         $result = $this->validator->validate($payload, $combinedSignature, $this->secret);
 
@@ -46,10 +46,10 @@ describe('SlackSignatureValidator validate', function () {
 
     it('throws exception for missing timestamp', function () {
         $payload = '{"event": "test"}';
-        $signature = 'v0=abc123';
+        $signature = incomingSignature('v0=abc123');
 
         expect(fn () => $this->validator->validate($payload, $signature, $this->secret))
-            ->toThrow(WebhookException::class, 'Invalid Slack signature format');
+            ->toThrow(WebhookException::class, 'Missing Slack request timestamp.');
     });
 
     it('throws exception for expired timestamp', function () {
@@ -58,10 +58,10 @@ describe('SlackSignatureValidator validate', function () {
 
         $sigBaseString = "v0:{$timestamp}:{$payload}";
         $signature = 'v0='.hash_hmac('sha256', $sigBaseString, $this->secret);
-        $combinedSignature = "{$timestamp}:{$signature}";
+        $combinedSignature = slackIncomingSignature($signature, $timestamp);
 
         expect(fn () => $this->validator->validate($payload, $combinedSignature, $this->secret, 300))
-            ->toThrow(WebhookException::class, 'Webhook is expired');
+            ->toThrow(WebhookException::class, 'Webhook is expired (tolerance: 300s).');
     });
 
     it('throws exception for future timestamp beyond tolerance', function () {
@@ -70,16 +70,16 @@ describe('SlackSignatureValidator validate', function () {
 
         $sigBaseString = "v0:{$timestamp}:{$payload}";
         $signature = 'v0='.hash_hmac('sha256', $sigBaseString, $this->secret);
-        $combinedSignature = "{$timestamp}:{$signature}";
+        $combinedSignature = slackIncomingSignature($signature, $timestamp);
 
         expect(fn () => $this->validator->validate($payload, $combinedSignature, $this->secret, 300))
-            ->toThrow(WebhookException::class, 'Webhook is expired');
+            ->toThrow(WebhookException::class, 'Webhook is expired (tolerance: 300s).');
     });
 
     it('throws exception for missing v0 prefix', function () {
         $payload = '{"event": "test"}';
         $timestamp = time();
-        $combinedSignature = "{$timestamp}:invalid_signature";
+        $combinedSignature = slackIncomingSignature('invalid_signature', $timestamp);
 
         expect(fn () => $this->validator->validate($payload, $combinedSignature, $this->secret))
             ->toThrow(InvalidSignatureException::class, 'Invalid Slack signature format');
@@ -88,8 +88,10 @@ describe('SlackSignatureValidator validate', function () {
     it('throws exception for invalid signature', function () {
         $payload = '{"event": "test"}';
         $timestamp = time();
-        $combinedSignature = "{$timestamp}:v0=invalid_hash_value_that_does_not_match";
-
+        $combinedSignature = slackIncomingSignature(
+            'v0=invalid_hash_value_that_does_not_match',
+            $timestamp,
+        );
         expect(fn () => $this->validator->validate($payload, $combinedSignature, $this->secret))
             ->toThrow(InvalidSignatureException::class, 'Invalid Slack webhook signature.');
     });
@@ -100,7 +102,7 @@ describe('SlackSignatureValidator validate', function () {
 
         $sigBaseString = "v0:{$timestamp}:{$payload}";
         $signature = 'v0='.hash_hmac('sha256', $sigBaseString, $this->secret);
-        $combinedSignature = "{$timestamp}:{$signature}";
+        $combinedSignature = slackIncomingSignature($signature, $timestamp);
 
         // With 600s tolerance, should pass
         $result = $this->validator->validate($payload, $combinedSignature, $this->secret, 600);
@@ -114,7 +116,7 @@ describe('SlackSignatureValidator validate', function () {
 
         $sigBaseString = "v0:{$timestamp}:{$payload}";
         $signature = 'v0='.hash_hmac('sha256', $sigBaseString, $this->secret);
-        $combinedSignature = "{$timestamp}:{$signature}";
+        $combinedSignature = slackIncomingSignature($signature, $timestamp);
 
         $result = $this->validator->validate($payload, $combinedSignature, $this->secret);
 

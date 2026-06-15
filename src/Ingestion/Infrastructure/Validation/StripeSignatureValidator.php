@@ -7,6 +7,7 @@ namespace Proxynth\Larawebhook\Ingestion\Infrastructure\Validation;
 use Proxynth\Larawebhook\Contracts\SignatureValidatorInterface;
 use Proxynth\Larawebhook\Exceptions\InvalidSignatureException;
 use Proxynth\Larawebhook\Exceptions\WebhookException;
+use Proxynth\Larawebhook\Ingestion\Application\Data\IncomingWebhookSignature;
 
 /**
  * Validator for Stripe webhook signatures.
@@ -23,11 +24,11 @@ class StripeSignatureValidator implements SignatureValidatorInterface
      * @throws InvalidSignatureException If the signature doesn't match
      * @throws WebhookException If the format is invalid or timestamp expired
      */
-    public function validate(string $payload, string $signature, string $secret, int $tolerance = 300): bool
+    public function validate(string $payload, IncomingWebhookSignature $signature, string $secret, int $tolerance = 300): bool
     {
         // Extract timestamp and signature from header
-        preg_match('/t=(\d+)/', $signature, $timestampMatch);
-        preg_match('/v1=([a-f0-9]+)/', $signature, $signatureMatch);
+        preg_match('/t=(\d+)/', $signature->value, $timestampMatch);
+        preg_match('/v1=([a-f0-9]+)/', $signature->value, $signatureMatch);
 
         if (empty($timestampMatch[1]) || empty($signatureMatch[1])) {
             throw new WebhookException('Invalid Stripe signature format.');
