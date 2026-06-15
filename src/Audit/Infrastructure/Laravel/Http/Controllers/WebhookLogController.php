@@ -15,6 +15,7 @@ use Proxynth\Larawebhook\Audit\Application\Queries\ListWebhookLogsQuery;
 use Proxynth\Larawebhook\Audit\Domain\Exceptions\PayloadNotAvailable;
 use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Http\Resources\WebhookLogResource;
 use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Persistence\Models\WebhookLog;
+use Proxynth\Larawebhook\Ingestion\Application\Data\IncomingWebhookSignature;
 use Proxynth\Larawebhook\Processing\Application\Commands\ReplayWebhookCommand;
 use Proxynth\Larawebhook\Processing\Application\UseCases\ReplayWebhook;
 use RuntimeException;
@@ -105,7 +106,7 @@ class WebhookLogController extends Controller
      * Extract signature from original webhook payload.
      * This is a placeholder - in production, you'd store the original signature.
      */
-    private function extractSignatureFromPayload(WebhookLog $log): string
+    private function extractSignatureFromPayload(WebhookLog $log): IncomingWebhookSignature
     {
         // For now, we'll regenerate the signature for replay purposes
         // In a real implementation, you'd store the original signature
@@ -121,13 +122,13 @@ class WebhookLogController extends Controller
             $signedPayload = "{$timestamp}.{$payload}";
             $signature = hash_hmac('sha256', $signedPayload, $secret);
 
-            return "t={$timestamp},v1={$signature}";
+            return new IncomingWebhookSignature("t={$timestamp},v1={$signature}");
         }
 
         // GitHub format
         $signature = hash_hmac('sha256', $payload, $secret);
 
-        return "sha256={$signature}";
+        return new IncomingWebhookSignature("sha256={$signature}");
     }
 
     private function nullableString(Request $request, string $key): ?string

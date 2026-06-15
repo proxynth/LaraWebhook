@@ -16,16 +16,12 @@ it('does not store payload when payload storage mode is none', function () {
         'event' => 'invoice.paid',
     ];
 
-    $encodedPayload = json_encode($payload);
-
-    $timestamp = time();
-    $signedPayload = "{$timestamp}.{$encodedPayload}";
-    $computedSignature = hash_hmac('sha256', $signedPayload, $this->secret);
-    $signatureHeader = "t={$timestamp},v1={$computedSignature}";
+    $encodedPayload = json_encode($payload, JSON_THROW_ON_ERROR);
+    $signature = incomingSignature($encodedPayload);
 
     $log = $this->validator->validateAndLog(
         $encodedPayload,
-        $signatureHeader,
+        $signature,
         'stripe',
         'payment_intent.succeeded'
     );
@@ -42,16 +38,12 @@ it('stores full payload when payload storage mode is full', function () {
         'event' => 'invoice.paid',
     ];
 
-    $encodedPayload = json_encode($payload);
-
-    $timestamp = time();
-    $signedPayload = "{$timestamp}.{$encodedPayload}";
-    $computedSignature = hash_hmac('sha256', $signedPayload, $this->secret);
-    $signatureHeader = "t={$timestamp},v1={$computedSignature}";
+    $encodedPayload = json_encode($payload, JSON_THROW_ON_ERROR);
+    $signature = incomingSignature($encodedPayload);
 
     $log = $this->validator->validateAndLog(
         $encodedPayload,
-        $signatureHeader,
+        $signature,
         'stripe',
         'payment_intent.succeeded'
     );
@@ -59,7 +51,7 @@ it('stores full payload when payload storage mode is full', function () {
     expect($log->payload)->toBe($payload);
 });
 
-it('store partial/redacted payload when payload storage mode is redacted', function () {
+it('stores partial/redacted payload when payload storage mode is redacted', function () {
     config()->set('larawebhook.payload_storage.mode', 'redacted');
 
     $payload = [
@@ -67,16 +59,12 @@ it('store partial/redacted payload when payload storage mode is redacted', funct
         'event' => 'invoice.paid',
     ];
 
-    $encodedPayload = json_encode($payload);
-
-    $timestamp = time();
-    $signedPayload = "{$timestamp}.{$encodedPayload}";
-    $computedSignature = hash_hmac('sha256', $signedPayload, $this->secret);
-    $signatureHeader = "t={$timestamp},v1={$computedSignature}";
+    $encodedPayload = json_encode($payload, JSON_THROW_ON_ERROR);
+    $signature = incomingSignature($encodedPayload);
 
     $log = $this->validator->validateAndLog(
         $encodedPayload,
-        $signatureHeader,
+        $signature,
         'stripe',
         'payment_intent.succeeded'
     );

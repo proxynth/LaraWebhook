@@ -134,7 +134,7 @@ describe('Larawebhook Facade methods - Validation', function () {
 
     it('validate() works via facade', function () {
         $payload = '{"action": "opened"}';
-        $signature = 'sha256='.hash_hmac('sha256', $payload, 'test_github_secret');
+        $signature = incomingSignature('sha256='.hash_hmac('sha256', $payload, 'test_github_secret'));
 
         $result = Larawebhook::validate($payload, $signature, 'github');
 
@@ -143,7 +143,7 @@ describe('Larawebhook Facade methods - Validation', function () {
 
     it('validateAndLog() works via facade', function () {
         $payload = '{"action": "opened"}';
-        $signature = 'sha256='.hash_hmac('sha256', $payload, 'test_github_secret');
+        $signature = incomingSignature('sha256='.hash_hmac('sha256', $payload, 'test_github_secret'));
 
         $log = Larawebhook::validateAndLog($payload, $signature, 'github', 'push');
 
@@ -153,7 +153,7 @@ describe('Larawebhook Facade methods - Validation', function () {
 
     it('validateWithRetries() works via facade', function () {
         $payload = '{"action": "opened"}';
-        $signature = 'sha256='.hash_hmac('sha256', $payload, 'test_github_secret');
+        $signature = incomingSignature('sha256='.hash_hmac('sha256', $payload, 'test_github_secret'));
 
         $log = Larawebhook::validateWithRetries($payload, $signature, 'github', 'push');
 
@@ -346,7 +346,7 @@ describe('Larawebhook Facade with WebhookService enum', function () {
 
     it('validate() accepts enum', function () {
         $payload = '{"action": "opened"}';
-        $signature = 'sha256='.hash_hmac('sha256', $payload, 'test_github_secret');
+        $signature = incomingSignature('sha256='.hash_hmac('sha256', $payload, 'test_github_secret'));
 
         $result = Larawebhook::validate($payload, $signature, WebhookService::Github);
 
@@ -355,7 +355,7 @@ describe('Larawebhook Facade with WebhookService enum', function () {
 
     it('validateAndLog() accepts enum', function () {
         $payload = '{"action": "opened"}';
-        $signature = 'sha256='.hash_hmac('sha256', $payload, 'test_github_secret');
+        $signature = incomingSignature('sha256='.hash_hmac('sha256', $payload, 'test_github_secret'));
 
         $log = Larawebhook::validateAndLog($payload, $signature, WebhookService::Github, 'push');
 

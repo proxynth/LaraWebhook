@@ -25,7 +25,7 @@ describe('validateWithRetries success scenarios', function () {
         $timestamp = time();
         $signedPayload = "{$timestamp}.{$payload}";
         $computedSignature = hash_hmac('sha256', $signedPayload, $this->secret);
-        $signatureHeader = "t={$timestamp},v1={$computedSignature}";
+        $signatureHeader = incomingSignature("t={$timestamp},v1={$computedSignature}");
 
         $log = $this->validator->validateWithRetries(
             $payload,
@@ -44,7 +44,7 @@ describe('validateWithRetries success scenarios', function () {
     it('succeeds on first GitHub webhook attempt', function () {
         $payload = '{"action": "opened"}';
         $computedSignature = hash_hmac('sha256', $payload, $this->secret);
-        $signatureHeader = "sha256={$computedSignature}";
+        $signatureHeader = incomingSignature("sha256={$computedSignature}");
 
         $log = $this->validator->validateWithRetries(
             $payload,
@@ -62,7 +62,7 @@ describe('validateWithRetries failure and retry scenarios', function () {
     it('logs all 3 attempts when validation always fails', function () {
         $payload = '{"event": "test"}';
         $timestamp = time();
-        $signatureHeader = "t={$timestamp},v1=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+        $signatureHeader = incomingSignature("t={$timestamp},v1=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef");
 
         try {
             $this->validator->validateWithRetries(
@@ -90,7 +90,7 @@ describe('validateWithRetries failure and retry scenarios', function () {
 
     it('logs error message on all failed attempts', function () {
         $payload = '{"event": "test"}';
-        $signatureHeader = 'malformed_signature';
+        $signatureHeader = incomingSignature('malformed_signature');
 
         try {
             $this->validator->validateWithRetries(
@@ -119,7 +119,7 @@ describe('validateWithRetries with retry configuration', function () {
 
         $payload = '{"event": "test"}';
         $timestamp = time();
-        $signatureHeader = "t={$timestamp},v1=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+        $signatureHeader = incomingSignature("t={$timestamp},v1=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef");
 
         try {
             $this->validator->validateWithRetries(
@@ -142,7 +142,7 @@ describe('validateWithRetries with retry configuration', function () {
 
         $payload = '{"event": "test"}';
         $timestamp = time();
-        $signatureHeader = "t={$timestamp},v1=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+        $signatureHeader = incomingSignature("t={$timestamp},v1=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef");
 
         try {
             $this->validator->validateWithRetries(
@@ -165,7 +165,7 @@ describe('validateWithRetries with retry configuration', function () {
 
         $payload = '{"event": "test"}';
         $timestamp = time();
-        $signatureHeader = "t={$timestamp},v1=invalid";
+        $signatureHeader = incomingSignature("t={$timestamp},v1=invalid");
 
         $start = microtime(true);
         try {
@@ -190,7 +190,7 @@ describe('validateWithRetries scope queries', function () {
     it('can query retried webhooks', function () {
         $payload = '{"event": "test"}';
         $timestamp = time();
-        $signatureHeader = "t={$timestamp},v1=invalid";
+        $signatureHeader = incomingSignature("t={$timestamp},v1=invalid");
 
         try {
             $this->validator->validateWithRetries(
@@ -213,7 +213,7 @@ describe('validateWithRetries scope queries', function () {
     it('can filter by specific attempt number', function () {
         $payload = '{"event": "test"}';
         $timestamp = time();
-        $signatureHeader = "t={$timestamp},v1=invalid";
+        $signatureHeader = incomingSignature("t={$timestamp},v1=invalid");
 
         try {
             $this->validator->validateWithRetries(
@@ -239,7 +239,7 @@ describe('validateWithRetries scope queries', function () {
 describe('validateWithRetries edge cases', function () {
     it('throws exception after all retries exhausted', function () {
         $payload = '{"event": "test"}';
-        $signatureHeader = 'sha256=invalid';
+        $signatureHeader = incomingSignature('sha256=invalid');
 
         expect(fn () => $this->validator->validateWithRetries(
             $payload,
@@ -254,7 +254,7 @@ describe('validateWithRetries edge cases', function () {
         $expiredTimestamp = time() - 400;
         $signedPayload = "{$expiredTimestamp}.{$payload}";
         $computedSignature = hash_hmac('sha256', $signedPayload, $this->secret);
-        $signatureHeader = "t={$expiredTimestamp},v1={$computedSignature}";
+        $signatureHeader = incomingSignature("t={$expiredTimestamp},v1={$computedSignature}");
 
         try {
             $this->validator->validateWithRetries(
@@ -280,32 +280,32 @@ describe('validateWithRetries edge cases', function () {
         config(['larawebhook.retries.max_attempts' => 0]);
 
         $payload = '{"event": "test"}';
-        $signatureHeader = 'sha256=invalid';
+        $signatureHeader = incomingSignature('sha256=invalid');
 
         expect(fn () => $this->validator->validateWithRetries(
             $payload,
             $signatureHeader,
             'github',
             'test.event'
-        ))->toThrow(WebhookException::class, 'Validation failed with no recorded exception.');
+        ))->toThrow(WebhookException::class, 'Validation failed with no recorded exception.')
+            ->and(WebhookLog::count())->toBe(0);
 
         // No logs should be created since no attempts were made
-        expect(WebhookLog::count())->toBe(0);
     });
 
     it('throws fallback exception when max_attempts is negative', function () {
         config(['larawebhook.retries.max_attempts' => -1]);
 
         $payload = '{"event": "test"}';
-        $signatureHeader = 'sha256=invalid';
+        $signatureHeader = incomingSignature('sha256=invalid');
 
         expect(fn () => $this->validator->validateWithRetries(
             $payload,
             $signatureHeader,
             'github',
             'test.event'
-        ))->toThrow(WebhookException::class, 'Validation failed with no recorded exception.');
+        ))->toThrow(WebhookException::class, 'Validation failed with no recorded exception.')
+            ->and(WebhookLog::count())->toBe(0);
 
-        expect(WebhookLog::count())->toBe(0);
     });
 });

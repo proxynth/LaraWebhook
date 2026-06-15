@@ -16,7 +16,7 @@ describe('validateAndLog with Stripe webhooks', function () {
         $timestamp = time();
         $signedPayload = "{$timestamp}.{$payload}";
         $computedSignature = hash_hmac('sha256', $signedPayload, $this->secret);
-        $signatureHeader = "t={$timestamp},v1={$computedSignature}";
+        $signatureHeader = incomingSignature("t={$timestamp},v1={$computedSignature}");
 
         $log = $this->validator->validateAndLog(
             $payload,
@@ -40,7 +40,7 @@ describe('validateAndLog with Stripe webhooks', function () {
     it('logs failed Stripe webhook validation with invalid signature', function () {
         $payload = '{"event": "payment_intent.succeeded"}';
         $timestamp = time();
-        $signatureHeader = "t={$timestamp},v1=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+        $signatureHeader = incomingSignature("t={$timestamp},v1=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef");
 
         $log = $this->validator->validateAndLog(
             $payload,
@@ -62,7 +62,7 @@ describe('validateAndLog with Stripe webhooks', function () {
         $expiredTimestamp = time() - 400;
         $signedPayload = "{$expiredTimestamp}.{$payload}";
         $computedSignature = hash_hmac('sha256', $signedPayload, $this->secret);
-        $signatureHeader = "t={$expiredTimestamp},v1={$computedSignature}";
+        $signatureHeader = incomingSignature("t={$expiredTimestamp},v1={$computedSignature}");
 
         $log = $this->validator->validateAndLog(
             $payload,
@@ -77,7 +77,7 @@ describe('validateAndLog with Stripe webhooks', function () {
 
     it('logs failed Stripe webhook with malformed signature', function () {
         $payload = '{"event": "test"}';
-        $signatureHeader = 'malformed_signature';
+        $signatureHeader = incomingSignature('malformed_signature');
 
         $log = $this->validator->validateAndLog(
             $payload,
@@ -95,7 +95,7 @@ describe('validateAndLog with GitHub webhooks', function () {
     it('logs successful GitHub webhook validation', function () {
         $payload = '{"action": "opened", "pull_request": {"id": 123}}';
         $computedSignature = hash_hmac('sha256', $payload, $this->secret);
-        $signatureHeader = "sha256={$computedSignature}";
+        $signatureHeader = incomingSignature("sha256={$computedSignature}");
 
         $log = $this->validator->validateAndLog(
             $payload,
@@ -113,7 +113,7 @@ describe('validateAndLog with GitHub webhooks', function () {
 
     it('logs failed GitHub webhook validation with invalid signature', function () {
         $payload = '{"action": "opened"}';
-        $signatureHeader = 'sha256=invalid_hash_value';
+        $signatureHeader = incomingSignature('sha256=invalid_hash_value');
 
         $log = $this->validator->validateAndLog(
             $payload,
@@ -128,7 +128,7 @@ describe('validateAndLog with GitHub webhooks', function () {
 
     it('logs failed GitHub webhook with malformed signature header', function () {
         $payload = '{"action": "opened"}';
-        $signatureHeader = 'sha1=some_hash';
+        $signatureHeader = incomingSignature('sha1=some_hash');
 
         $log = $this->validator->validateAndLog(
             $payload,
@@ -148,7 +148,7 @@ describe('validateAndLog with invalid JSON payload', function () {
         $timestamp = time();
         $signedPayload = "{$timestamp}.{$payload}";
         $computedSignature = hash_hmac('sha256', $signedPayload, $this->secret);
-        $signatureHeader = "t={$timestamp},v1={$computedSignature}";
+        $signatureHeader = incomingSignature("t={$timestamp},v1={$computedSignature}");
 
         $log = $this->validator->validateAndLog(
             $payload,
@@ -168,12 +168,12 @@ describe('validateAndLog database persistence', function () {
         $payload1 = '{"event": "event1"}';
         $timestamp1 = time();
         $signedPayload1 = "{$timestamp1}.{$payload1}";
-        $signature1 = "t={$timestamp1},v1=".hash_hmac('sha256', $signedPayload1, $this->secret);
+        $signature1 = incomingSignature("t={$timestamp1},v1=".hash_hmac('sha256', $signedPayload1, $this->secret));
 
         $payload2 = '{"event": "event2"}';
         $timestamp2 = time();
         $signedPayload2 = "{$timestamp2}.{$payload2}";
-        $signature2 = "t={$timestamp2},v1=".hash_hmac('sha256', $signedPayload2, $this->secret);
+        $signature2 = incomingSignature("t={$timestamp2},v1=".hash_hmac('sha256', $signedPayload2, $this->secret));
 
         $this->validator->validateAndLog($payload1, $signature1, 'stripe', 'event1');
         $this->validator->validateAndLog($payload2, $signature2, 'stripe', 'event2');
@@ -186,10 +186,10 @@ describe('validateAndLog database persistence', function () {
         $stripePayload = '{"event": "stripe_event"}';
         $timestamp = time();
         $signedPayload = "{$timestamp}.{$stripePayload}";
-        $stripeSignature = "t={$timestamp},v1=".hash_hmac('sha256', $signedPayload, $this->secret);
+        $stripeSignature = incomingSignature("t={$timestamp},v1=".hash_hmac('sha256', $signedPayload, $this->secret));
 
         $githubPayload = '{"action": "github_event"}';
-        $githubSignature = 'sha256='.hash_hmac('sha256', $githubPayload, $this->secret);
+        $githubSignature = incomingSignature('sha256='.hash_hmac('sha256', $githubPayload, $this->secret));
 
         $this->validator->validateAndLog($stripePayload, $stripeSignature, 'stripe', 'test.stripe');
         $this->validator->validateAndLog($githubPayload, $githubSignature, 'github', 'test.github');
@@ -205,7 +205,7 @@ describe('validateAndLog database persistence', function () {
 describe('validateAndLog with unsupported service', function () {
     it('logs failure for unsupported service', function () {
         $payload = '{"event": "test"}';
-        $signature = 'some_signature';
+        $signature = incomingSignature('some_signature');
 
         $log = $this->validator->validateAndLog(
             $payload,

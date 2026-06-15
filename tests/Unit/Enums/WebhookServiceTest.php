@@ -380,26 +380,26 @@ describe('WebhookService signatureValidator', function () {
 
         // Test Stripe
         $signedPayload = "{$timestamp}.{$payload}";
-        $stripeSignature = "t={$timestamp},v1=".hash_hmac('sha256', $signedPayload, $secret);
+        $stripeSignature = incomingSignature("t={$timestamp},v1=".hash_hmac('sha256', $signedPayload, $secret));
 
         expect(WebhookService::Stripe->signatureValidator()->validate($payload, $stripeSignature, $secret))
             ->toBeTrue();
 
         // Test GitHub
-        $githubSignature = 'sha256='.hash_hmac('sha256', $payload, $secret);
+        $githubSignature = incomingSignature('sha256='.hash_hmac('sha256', $payload, $secret));
 
         expect(WebhookService::Github->signatureValidator()->validate($payload, $githubSignature, $secret))
             ->toBeTrue();
 
         // Test Slack
         $slackSigBaseString = "v0:{$timestamp}:{$payload}";
-        $slackSignature = "{$timestamp}:v0=".hash_hmac('sha256', $slackSigBaseString, $secret);
+        $slackSignature = slackIncomingSignature('v0='.hash_hmac('sha256', $slackSigBaseString, $secret), $timestamp);
 
         expect(WebhookService::Slack->signatureValidator()->validate($payload, $slackSignature, $secret))
             ->toBeTrue();
 
         // Test Shopify
-        $shopifySignature = base64_encode(hash_hmac('sha256', $payload, $secret, true));
+        $shopifySignature = incomingSignature(base64_encode(hash_hmac('sha256', $payload, $secret, true)));
 
         expect(WebhookService::Shopify->signatureValidator()->validate($payload, $shopifySignature, $secret))
             ->toBeTrue();

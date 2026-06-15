@@ -31,7 +31,7 @@ describe('ShopifySignatureValidator validate', function () {
         $payload = '{"id":123456789,"email":"customer@example.com"}';
 
         // Shopify uses Base64-encoded HMAC-SHA256
-        $signature = base64_encode(hash_hmac('sha256', $payload, $this->secret, true));
+        $signature = incomingSignature(base64_encode(hash_hmac('sha256', $payload, $this->secret, true)));
 
         $result = $this->validator->validate($payload, $signature, $this->secret);
 
@@ -41,13 +41,13 @@ describe('ShopifySignatureValidator validate', function () {
     it('throws exception for empty signature', function () {
         $payload = '{"id": 123}';
 
-        expect(fn () => $this->validator->validate($payload, '', $this->secret))
+        expect(fn () => $this->validator->validate($payload, incomingSignature(''), $this->secret))
             ->toThrow(InvalidSignatureException::class, 'Missing Shopify signature.');
     });
 
     it('throws exception for invalid signature', function () {
         $payload = '{"id": 123}';
-        $signature = 'invalid_base64_signature';
+        $signature = incomingSignature('invalid_base64_signature');
 
         expect(fn () => $this->validator->validate($payload, $signature, $this->secret))
             ->toThrow(InvalidSignatureException::class, 'Invalid Shopify webhook signature.');
@@ -55,7 +55,7 @@ describe('ShopifySignatureValidator validate', function () {
 
     it('throws exception for wrong secret', function () {
         $payload = '{"id": 123}';
-        $signature = base64_encode(hash_hmac('sha256', $payload, 'wrong_secret', true));
+        $signature = incomingSignature(base64_encode(hash_hmac('sha256', $payload, 'wrong_secret', true)));
 
         expect(fn () => $this->validator->validate($payload, $signature, $this->secret))
             ->toThrow(InvalidSignatureException::class, 'Invalid Shopify webhook signature.');
@@ -63,7 +63,7 @@ describe('ShopifySignatureValidator validate', function () {
 
     it('ignores tolerance parameter', function () {
         $payload = '{"id": 123}';
-        $signature = base64_encode(hash_hmac('sha256', $payload, $this->secret, true));
+        $signature = incomingSignature(base64_encode(hash_hmac('sha256', $payload, $this->secret, true)));
 
         // Tolerance should not affect Shopify validation
         $result = $this->validator->validate($payload, $signature, $this->secret, 0);
@@ -73,7 +73,7 @@ describe('ShopifySignatureValidator validate', function () {
 
     it('validates with complex JSON payload', function () {
         $payload = '{"id":123456789,"order_number":1001,"total_price":"99.99","customer":{"id":987654321,"email":"test@example.com"}}';
-        $signature = base64_encode(hash_hmac('sha256', $payload, $this->secret, true));
+        $signature = incomingSignature(base64_encode(hash_hmac('sha256', $payload, $this->secret, true)));
 
         $result = $this->validator->validate($payload, $signature, $this->secret);
 
@@ -93,7 +93,7 @@ describe('ShopifySignatureValidator validate', function () {
             'financial_status' => 'paid',
         ]);
 
-        $signature = base64_encode(hash_hmac('sha256', $payload, $this->secret, true));
+        $signature = incomingSignature(base64_encode(hash_hmac('sha256', $payload, $this->secret, true)));
 
         $result = $this->validator->validate($payload, $signature, $this->secret);
 
@@ -102,7 +102,7 @@ describe('ShopifySignatureValidator validate', function () {
 
     it('throws exception for tampered payload', function () {
         $originalPayload = '{"id":123,"amount":"100.00"}';
-        $signature = base64_encode(hash_hmac('sha256', $originalPayload, $this->secret, true));
+        $signature = incomingSignature(base64_encode(hash_hmac('sha256', $originalPayload, $this->secret, true)));
 
         $tamperedPayload = '{"id":123,"amount":"1000.00"}';
 

@@ -12,6 +12,7 @@ use Proxynth\Larawebhook\Audit\Infrastructure\Logging\WebhookLogger;
 use Proxynth\Larawebhook\Enums\WebhookService;
 use Proxynth\Larawebhook\Exceptions\InvalidSignatureException;
 use Proxynth\Larawebhook\Exceptions\WebhookException;
+use Proxynth\Larawebhook\Ingestion\Application\Data\IncomingWebhookSignature;
 use Proxynth\Larawebhook\Ingestion\Infrastructure\Validation\WebhookValidator;
 use Proxynth\Larawebhook\Ingestion\Infrastructure\Validation\WebhookValidatorFactory;
 
@@ -37,7 +38,7 @@ class Larawebhook
      * @throws InvalidSignatureException
      * @throws WebhookException
      */
-    public function validate(string $payload, string $signature, string|WebhookService $service): bool
+    public function validate(string $payload, IncomingWebhookSignature $signature, string|WebhookService $service): bool
     {
         $serviceName = $this->resolveServiceName($service);
 
@@ -49,7 +50,7 @@ class Larawebhook
      */
     public function validateAndLog(
         string $payload,
-        string $signature,
+        IncomingWebhookSignature $signature,
         string|WebhookService $service,
         string $event
     ): WebhookLog {
@@ -66,7 +67,7 @@ class Larawebhook
      */
     public function validateWithRetries(
         string $payload,
-        string $signature,
+        IncomingWebhookSignature $signature,
         string|WebhookService $service,
         string $event
     ): WebhookLog {

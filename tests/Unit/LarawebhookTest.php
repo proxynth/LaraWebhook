@@ -33,7 +33,7 @@ describe('Larawebhook validation', function () {
         $timestamp = time();
         $signedPayload = "{$timestamp}.{$payload}";
         $signature = hash_hmac('sha256', $signedPayload, 'stripe_test_secret');
-        $signatureHeader = "t={$timestamp},v1={$signature}";
+        $signatureHeader = incomingSignature("t={$timestamp},v1={$signature}");
 
         $result = $this->larawebhook->validate($payload, $signatureHeader, 'stripe');
 
@@ -42,7 +42,7 @@ describe('Larawebhook validation', function () {
 
     it('validates a correct GitHub webhook', function () {
         $payload = '{"action": "opened"}';
-        $signature = 'sha256='.hash_hmac('sha256', $payload, 'github_test_secret');
+        $signature = incomingSignature('sha256='.hash_hmac('sha256', $payload, 'github_test_secret'));
 
         $result = $this->larawebhook->validate($payload, $signature, 'github');
 
@@ -51,21 +51,21 @@ describe('Larawebhook validation', function () {
 
     it('throws exception for invalid signature', function () {
         $payload = '{"type": "test"}';
-        $signatureHeader = 'sha256=invalid_signature';
+        $signatureHeader = incomingSignature('sha256=invalid_signature');
 
         expect(fn () => $this->larawebhook->validate($payload, $signatureHeader, 'github'))
             ->toThrow(InvalidSignatureException::class);
     });
 
     it('throws exception for unsupported service', function () {
-        expect(fn () => $this->larawebhook->validate('{}', 'sig', 'unknown'))
+        expect(fn () => $this->larawebhook->validate('{}', incomingSignature('sig'), 'unknown'))
             ->toThrow(WebhookException::class, "Webhook service 'unknown' is not supported");
     });
 
     it('throws exception when secret is not configured', function () {
         config(['larawebhook.services.stripe.webhook_secret' => null]);
 
-        expect(fn () => $this->larawebhook->validate('{}', 'sig', 'stripe'))
+        expect(fn () => $this->larawebhook->validate('{}', incomingSignature('sig'), 'stripe'))
             ->toThrow(WebhookException::class, 'No secret configured for service: stripe');
     });
 });
@@ -73,7 +73,7 @@ describe('Larawebhook validation', function () {
 describe('Larawebhook validateAndLog', function () {
     it('validates and logs successful webhook', function () {
         $payload = '{"action": "opened"}';
-        $signature = 'sha256='.hash_hmac('sha256', $payload, 'github_test_secret');
+        $signature = incomingSignature('sha256='.hash_hmac('sha256', $payload, 'github_test_secret'));
 
         $log = $this->larawebhook->validateAndLog($payload, $signature, 'github', 'pull_request.opened');
 
@@ -85,7 +85,7 @@ describe('Larawebhook validateAndLog', function () {
 
     it('validates and logs failed webhook', function () {
         $payload = '{"action": "opened"}';
-        $signature = 'sha256=invalid';
+        $signature = incomingSignature('sha256=invalid');
 
         $log = $this->larawebhook->validateAndLog($payload, $signature, 'github', 'pull_request.opened');
 
@@ -98,7 +98,7 @@ describe('Larawebhook validateAndLog', function () {
 describe('Larawebhook validateWithRetries', function () {
     it('succeeds on first attempt with valid signature', function () {
         $payload = '{"action": "opened"}';
-        $signature = 'sha256='.hash_hmac('sha256', $payload, 'github_test_secret');
+        $signature = incomingSignature('sha256='.hash_hmac('sha256', $payload, 'github_test_secret'));
 
         $log = $this->larawebhook->validateWithRetries($payload, $signature, 'github', 'test.event');
 
@@ -108,7 +108,7 @@ describe('Larawebhook validateWithRetries', function () {
 
     it('throws exception after all retries fail', function () {
         $payload = '{"action": "opened"}';
-        $signature = 'sha256=invalid';
+        $signature = incomingSignature('sha256=invalid');
 
         expect(fn () => $this->larawebhook->validateWithRetries($payload, $signature, 'github', 'test.event'))
             ->toThrow(InvalidSignatureException::class);
@@ -294,7 +294,7 @@ describe('Larawebhook facade usage', function () {
 
     it('facade provides same functionality', function () {
         $payload = '{"action": "opened"}';
-        $signature = 'sha256='.hash_hmac('sha256', $payload, 'github_test_secret');
+        $signature = incomingSignature('sha256='.hash_hmac('sha256', $payload, 'github_test_secret'));
 
         $result = Proxynth\Larawebhook\Shared\Infrastructure\Laravel\Facades\Larawebhook::validate($payload, $signature, 'github');
 
@@ -305,7 +305,7 @@ describe('Larawebhook facade usage', function () {
 describe('Larawebhook with WebhookService enum', function () {
     it('validates using enum instead of string', function () {
         $payload = '{"action": "opened"}';
-        $signature = 'sha256='.hash_hmac('sha256', $payload, 'github_test_secret');
+        $signature = incomingSignature('sha256='.hash_hmac('sha256', $payload, 'github_test_secret'));
 
         $result = $this->larawebhook->validate($payload, $signature, WebhookService::Github);
 
@@ -317,7 +317,7 @@ describe('Larawebhook with WebhookService enum', function () {
         $timestamp = time();
         $signedPayload = "{$timestamp}.{$payload}";
         $signature = hash_hmac('sha256', $signedPayload, 'stripe_test_secret');
-        $signatureHeader = "t={$timestamp},v1={$signature}";
+        $signatureHeader = incomingSignature("t={$timestamp},v1={$signature}");
 
         $result = $this->larawebhook->validate($payload, $signatureHeader, WebhookService::Stripe);
 
@@ -326,7 +326,7 @@ describe('Larawebhook with WebhookService enum', function () {
 
     it('validateAndLog works with enum', function () {
         $payload = '{"action": "opened"}';
-        $signature = 'sha256='.hash_hmac('sha256', $payload, 'github_test_secret');
+        $signature = incomingSignature('sha256='.hash_hmac('sha256', $payload, 'github_test_secret'));
 
         $log = $this->larawebhook->validateAndLog($payload, $signature, WebhookService::Github, 'push');
 
@@ -337,7 +337,7 @@ describe('Larawebhook with WebhookService enum', function () {
 
     it('validateWithRetries works with enum', function () {
         $payload = '{"action": "opened"}';
-        $signature = 'sha256='.hash_hmac('sha256', $payload, 'github_test_secret');
+        $signature = incomingSignature('sha256='.hash_hmac('sha256', $payload, 'github_test_secret'));
 
         $log = $this->larawebhook->validateWithRetries($payload, $signature, WebhookService::Github, 'test.event');
 
@@ -387,7 +387,7 @@ describe('Larawebhook with WebhookService enum', function () {
 describe('Larawebhook facade with WebhookService enum', function () {
     it('facade validate works with enum', function () {
         $payload = '{"action": "opened"}';
-        $signature = 'sha256='.hash_hmac('sha256', $payload, 'github_test_secret');
+        $signature = incomingSignature('sha256='.hash_hmac('sha256', $payload, 'github_test_secret'));
 
         $result = Proxynth\Larawebhook\Shared\Infrastructure\Laravel\Facades\Larawebhook::validate($payload, $signature, WebhookService::Github);
 
