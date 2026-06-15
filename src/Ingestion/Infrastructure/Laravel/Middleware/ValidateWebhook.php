@@ -9,8 +9,8 @@ use Exception;
 use Illuminate\Http\Request;
 use Proxynth\Larawebhook\Enums\WebhookService;
 use Proxynth\Larawebhook\Ingestion\Application\Commands\ReceiveWebhookCommand;
-use Proxynth\Larawebhook\Ingestion\Application\Data\IncomingWebhookSignature;
 use Proxynth\Larawebhook\Ingestion\Application\UseCases\ReceiveWebhook;
+use Proxynth\Larawebhook\Ingestion\Domain\ValueObjects\Signature;
 use Proxynth\Larawebhook\Processing\Infrastructure\Laravel\Jobs\RetryWebhookJob;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -70,7 +70,7 @@ class ValidateWebhook
             }
         }
 
-        $signature = new IncomingWebhookSignature(
+        $signature = Signature::fromString(
             value: $signatureValue,
             timestamp: $timestampValue,
         );
@@ -140,7 +140,7 @@ class ValidateWebhook
 
     private function dispatchRetryJob(
         string $payload,
-        IncomingWebhookSignature $signature,
+        Signature $signature,
         string $service,
         string $event,
         string $secret,

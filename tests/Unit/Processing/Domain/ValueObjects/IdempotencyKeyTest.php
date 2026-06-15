@@ -17,10 +17,10 @@ it('trims the value', function () {
     expect($key->value())->toBe('evt_123');
 });
 
-it('returns null from nullable when value is null or empty', function () {
-    expect(IdempotencyKey::nullable(null))->toBeNull()
-        ->and(IdempotencyKey::nullable(''))->toBeNull()
-        ->and(IdempotencyKey::nullable('    '))->toBeNull();
+it('returns null from optional when value is null or empty', function () {
+    expect(IdempotencyKey::optional(null))->toBeNull()
+        ->and(IdempotencyKey::optional(''))->toBeNull()
+        ->and(IdempotencyKey::optional('    '))->toBeNull();
 });
 
 it('throws when created from an empty string', function () {

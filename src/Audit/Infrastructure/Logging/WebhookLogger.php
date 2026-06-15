@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Proxynth\Larawebhook\Audit\Infrastructure\Logging;
 
 use Illuminate\Support\Facades\Log;
-use Proxynth\Larawebhook\Audit\Domain\Enum\PayloadStorageMode;
+use Proxynth\Larawebhook\Audit\Domain\ValueObjects\PayloadStorageMode;
 use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Notifications\NotificationSender;
 use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Persistence\Models\WebhookLog;
 use Proxynth\Larawebhook\Audit\Infrastructure\Payload\PayloadStorageResolver;

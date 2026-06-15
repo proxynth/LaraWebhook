@@ -42,7 +42,7 @@ describe('ShopifySignatureValidator validate', function () {
         $payload = '{"id": 123}';
 
         expect(fn () => $this->validator->validate($payload, incomingSignature(''), $this->secret))
-            ->toThrow(InvalidSignatureException::class, 'Missing Shopify signature.');
+            ->toThrow(InvalidArgumentException::class, 'Signature cannot be empty.');
     });
 
     it('throws exception for invalid signature', function () {

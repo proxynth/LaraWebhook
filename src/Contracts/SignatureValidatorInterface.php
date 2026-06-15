@@ -6,7 +6,7 @@ namespace Proxynth\Larawebhook\Contracts;
 
 use Proxynth\Larawebhook\Exceptions\InvalidSignatureException;
 use Proxynth\Larawebhook\Exceptions\WebhookException;
-use Proxynth\Larawebhook\Ingestion\Application\Data\IncomingWebhookSignature;
+use Proxynth\Larawebhook\Ingestion\Domain\ValueObjects\Signature;
 
 /**
  * Interface for validating webhook signatures.
@@ -20,7 +20,7 @@ interface SignatureValidatorInterface
      * Validate the webhook signature.
      *
      * @param  string  $payload  The raw webhook payload
-     * @param  IncomingWebhookSignature  $signature  The signature header value
+     * @param  Signature  $signature  The signature header value
      * @param  string  $secret  The webhook secret
      * @param  int  $tolerance  Timestamp tolerance in seconds (for services that use timestamps)
      * @return bool True if valid
@@ -28,7 +28,7 @@ interface SignatureValidatorInterface
      * @throws InvalidSignatureException If the signature is invalid
      * @throws WebhookException If there's a validation error (format, expired, etc.)
      */
-    public function validate(string $payload, IncomingWebhookSignature $signature, string $secret, int $tolerance = 300): bool;
+    public function validate(string $payload, Signature $signature, string $secret, int $tolerance = 300): bool;
 
     /**
      * Get the service name this validator handles.

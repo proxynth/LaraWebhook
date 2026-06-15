@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Proxynth\Larawebhook\Processing\Domain\ValueObjects;
 
+use InvalidArgumentException;
 use Stringable;
 
 final readonly class WebhookStatus implements Stringable
@@ -11,6 +12,11 @@ final readonly class WebhookStatus implements Stringable
     public const SUCCESS = 'success';
 
     public const FAILED = 'failed';
+
+    private const ALLOWED = [
+        self::SUCCESS,
+        self::FAILED,
+    ];
 
     public function __construct(
         private string $value,
@@ -28,11 +34,11 @@ final readonly class WebhookStatus implements Stringable
 
     public static function fromString(string $value): self
     {
-        return match ($value) {
-            self::SUCCESS => self::success(),
-            self::FAILED => self::failed(),
-            default => throw new \InvalidArgumentException("Invalid webhook status: [$value]."),
-        };
+        if (! in_array($value, self::ALLOWED, true)) {
+            throw new InvalidArgumentException("Invalid webhook status [{$value}].");
+        }
+
+        return new self($value);
     }
 
     public function isSuccess(): bool

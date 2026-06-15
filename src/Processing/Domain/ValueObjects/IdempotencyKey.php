@@ -20,7 +20,7 @@ final readonly class IdempotencyKey implements Stringable
         return $value === '' ? throw new InvalidArgumentException('Idempotency key cannot be empty.') : new self($value);
     }
 
-    public static function nullable(?string $value): ?self
+    public static function optional(?string $value): ?self
     {
         if ($value === null || trim($value) === '') {
             return null;

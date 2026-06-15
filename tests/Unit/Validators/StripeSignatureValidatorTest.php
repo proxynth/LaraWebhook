@@ -60,7 +60,7 @@ describe('StripeSignatureValidator validate', function () {
         $payload = '{"type": "test"}';
 
         expect(fn () => $this->validator->validate($payload, incomingSignature(''), $this->secret))
-            ->toThrow(WebhookException::class, 'Invalid Stripe signature format.');
+            ->toThrow(InvalidArgumentException::class, 'Signature cannot be empty.');
     });
 
     it('throws exception for expired timestamp', function () {
