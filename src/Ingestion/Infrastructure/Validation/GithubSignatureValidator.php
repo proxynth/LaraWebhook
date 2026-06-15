@@ -6,7 +6,7 @@ namespace Proxynth\Larawebhook\Ingestion\Infrastructure\Validation;
 
 use Proxynth\Larawebhook\Contracts\SignatureValidatorInterface;
 use Proxynth\Larawebhook\Exceptions\InvalidSignatureException;
-use Proxynth\Larawebhook\Ingestion\Application\Data\IncomingWebhookSignature;
+use Proxynth\Larawebhook\Ingestion\Domain\ValueObjects\Signature;
 
 /**
  * Validator for GitHub webhook signatures.
@@ -22,14 +22,14 @@ class GithubSignatureValidator implements SignatureValidatorInterface
      *
      * @throws InvalidSignatureException If the signature is invalid or format is wrong
      */
-    public function validate(string $payload, IncomingWebhookSignature $signature, string $secret, int $tolerance = 300): bool
+    public function validate(string $payload, Signature $signature, string $secret, int $tolerance = 300): bool
     {
         // GitHub format: sha256=hash
-        if (! str_starts_with($signature->value, 'sha256=')) {
+        if (! str_starts_with($signature->value(), 'sha256=')) {
             throw new InvalidSignatureException('Invalid GitHub signature format.');
         }
 
-        $providedSignature = substr($signature->value, 7); // Remove 'sha256=' prefix
+        $providedSignature = substr($signature->value(), 7); // Remove 'sha256=' prefix
         $expectedSignature = hash_hmac('sha256', $payload, $secret);
 
         if (! hash_equals($expectedSignature, $providedSignature)) {

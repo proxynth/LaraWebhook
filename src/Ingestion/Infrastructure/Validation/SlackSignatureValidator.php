@@ -7,7 +7,7 @@ namespace Proxynth\Larawebhook\Ingestion\Infrastructure\Validation;
 use Proxynth\Larawebhook\Contracts\SignatureValidatorInterface;
 use Proxynth\Larawebhook\Exceptions\InvalidSignatureException;
 use Proxynth\Larawebhook\Exceptions\WebhookException;
-use Proxynth\Larawebhook\Ingestion\Application\Data\IncomingWebhookSignature;
+use Proxynth\Larawebhook\Ingestion\Domain\ValueObjects\Signature;
 
 /**
  * Validator for Slack webhook signatures.
@@ -30,7 +30,7 @@ class SlackSignatureValidator implements SignatureValidatorInterface
      * signature = 'v0=' + HMAC-SHA256(signing_secret, 'v0:' + timestamp + ':' + body)
      *
      * @param  string  $payload  The raw request body
-     * @param  IncomingWebhookSignature  $signature  The incoming Slack signature data
+     * @param  Signature  $signature  The incoming Slack signature data
      * @param  string  $secret  The Slack signing secret
      * @param  int  $tolerance  Timestamp tolerance in seconds
      *
@@ -39,20 +39,20 @@ class SlackSignatureValidator implements SignatureValidatorInterface
      */
     public function validate(
         string $payload,
-        IncomingWebhookSignature $signature,
+        Signature $signature,
         string $secret,
         int $tolerance = 300,
     ): bool {
-        if ($signature->timestamp === null || $signature->timestamp === '') {
+        if ($signature->timestamp() === null || $signature->timestamp() === '') {
             throw new WebhookException('Missing Slack request timestamp.');
         }
 
-        if (! is_numeric($signature->timestamp)) {
+        if (! is_numeric($signature->timestamp())) {
             throw new WebhookException('Invalid Slack request timestamp.');
         }
 
-        $timestamp = (int) $signature->timestamp;
-        $providedSignature = $signature->value;
+        $timestamp = (int) $signature->timestamp();
+        $providedSignature = $signature->value();
 
         if ($this->isExpired($timestamp, $tolerance)) {
             throw new WebhookException("Webhook is expired (tolerance: {$tolerance}s).");

@@ -6,7 +6,7 @@ namespace Proxynth\Larawebhook\Ingestion\Infrastructure\Validation;
 
 use Proxynth\Larawebhook\Contracts\SignatureValidatorInterface;
 use Proxynth\Larawebhook\Exceptions\InvalidSignatureException;
-use Proxynth\Larawebhook\Ingestion\Application\Data\IncomingWebhookSignature;
+use Proxynth\Larawebhook\Ingestion\Domain\ValueObjects\Signature;
 
 /**
  * Validator for Shopify webhook signatures.
@@ -25,15 +25,15 @@ class ShopifySignatureValidator implements SignatureValidatorInterface
      * signature = Base64(HMAC-SHA256(shared_secret, body))
      *
      * @param  string  $payload  The raw request body
-     * @param  IncomingWebhookSignature  $signature  The X-Shopify-Hmac-Sha256 header (Base64 encoded)
+     * @param  Signature  $signature  The X-Shopify-Hmac-Sha256 header (Base64 encoded)
      * @param  string  $secret  The Shopify webhook secret
      * @param  int  $tolerance  Not used for Shopify (no timestamp validation)
      *
      * @throws InvalidSignatureException If the signature doesn't match
      */
-    public function validate(string $payload, IncomingWebhookSignature $signature, string $secret, int $tolerance = 300): bool
+    public function validate(string $payload, Signature $signature, string $secret, int $tolerance = 300): bool
     {
-        if (empty($signature->value)) {
+        if (empty($signature->value())) {
             throw new InvalidSignatureException('Missing Shopify signature.');
         }
 
@@ -42,7 +42,7 @@ class ShopifySignatureValidator implements SignatureValidatorInterface
             hash_hmac('sha256', $payload, $secret, true)
         );
 
-        if (! hash_equals($expectedSignature, $signature->value)) {
+        if (! hash_equals($expectedSignature, $signature->value())) {
             throw new InvalidSignatureException('Invalid Shopify webhook signature.');
         }
 

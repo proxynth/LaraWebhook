@@ -64,7 +64,7 @@ describe('GithubSignatureValidator validate', function () {
         $payload = '{"action": "opened"}';
 
         expect(fn () => $this->validator->validate($payload, incomingSignature(''), $this->secret))
-            ->toThrow(InvalidSignatureException::class, 'Invalid GitHub signature format.');
+            ->toThrow(InvalidArgumentException::class, 'Signature cannot be empty.');
     });
 
     it('throws exception for signature with wrong secret', function () {

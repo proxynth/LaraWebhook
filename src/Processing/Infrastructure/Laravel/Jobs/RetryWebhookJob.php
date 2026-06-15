@@ -15,7 +15,7 @@ use Proxynth\Larawebhook\Audit\Infrastructure\Logging\WebhookLogger;
 use Proxynth\Larawebhook\Audit\Infrastructure\Payload\PayloadStorageResolver;
 use Proxynth\Larawebhook\Exceptions\InvalidSignatureException;
 use Proxynth\Larawebhook\Exceptions\WebhookException;
-use Proxynth\Larawebhook\Ingestion\Application\Data\IncomingWebhookSignature;
+use Proxynth\Larawebhook\Ingestion\Domain\ValueObjects\Signature;
 use Proxynth\Larawebhook\Ingestion\Infrastructure\Validation\WebhookValidator;
 
 class RetryWebhookJob implements ShouldQueue
@@ -32,7 +32,7 @@ class RetryWebhookJob implements ShouldQueue
      */
     public function __construct(
         private readonly string $payload,
-        private readonly IncomingWebhookSignature $signature,
+        private readonly Signature $signature,
         private readonly string $service,
         private readonly string $event,
         private readonly string $secret,
@@ -125,6 +125,6 @@ class RetryWebhookJob implements ShouldQueue
      */
     public function uniqueId(): string
     {
-        return md5($this->payload.$this->signature->value.$this->service.$this->event.$this->attempt);
+        return md5($this->payload.$this->signature->value().$this->service.$this->event.$this->attempt);
     }
 }

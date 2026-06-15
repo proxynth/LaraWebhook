@@ -1,18 +1,18 @@
 <?php
 
-use Proxynth\Larawebhook\Ingestion\Application\Data\IncomingWebhookSignature;
+use Proxynth\Larawebhook\Ingestion\Domain\ValueObjects\Signature;
 
-function incomingSignature(string $value, ?string $timestamp = null): IncomingWebhookSignature
+function incomingSignature(string $value, ?string $timestamp = null): Signature
 {
-    return new IncomingWebhookSignature(
+    return Signature::fromString(
         value: $value,
         timestamp: $timestamp,
     );
 }
 
-function slackIncomingSignature(string $value, int|string $timestamp): IncomingWebhookSignature
+function slackIncomingSignature(string $value, int|string $timestamp): Signature
 {
-    return new IncomingWebhookSignature(
+    return Signature::fromString(
         value: $value,
         timestamp: (string) $timestamp,
     );

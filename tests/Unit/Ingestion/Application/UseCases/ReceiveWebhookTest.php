@@ -6,9 +6,9 @@ use Illuminate\Support\Facades\Queue;
 use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Persistence\Models\WebhookLog;
 use Proxynth\Larawebhook\Enums\WebhookService;
 use Proxynth\Larawebhook\Ingestion\Application\Commands\ReceiveWebhookCommand;
-use Proxynth\Larawebhook\Ingestion\Application\Data\IncomingWebhookSignature;
 use Proxynth\Larawebhook\Ingestion\Application\Results\ReceiveWebhookResult;
 use Proxynth\Larawebhook\Ingestion\Application\UseCases\ReceiveWebhook;
+use Proxynth\Larawebhook\Ingestion\Domain\ValueObjects\Signature;
 
 function githubPayload(string $deliveryId = 'delivery_123'): string
 {
@@ -22,7 +22,7 @@ function githubPayload(string $deliveryId = 'delivery_123'): string
     ], JSON_THROW_ON_ERROR);
 }
 
-function githubSignature(string $payload, string $secret = 'secret'): IncomingWebhookSignature
+function githubSignature(string $payload, string $secret = 'secret'): Signature
 {
     return incomingSignature(
         'sha256='.hash_hmac('sha256', $payload, $secret)

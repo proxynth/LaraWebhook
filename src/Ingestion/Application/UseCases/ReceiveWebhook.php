@@ -10,14 +10,17 @@ use Proxynth\Larawebhook\Enums\WebhookService;
 use Proxynth\Larawebhook\Exceptions\WebhookException;
 use Proxynth\Larawebhook\Ingestion\Application\Commands\ReceiveWebhookCommand;
 use Proxynth\Larawebhook\Ingestion\Application\Results\ReceiveWebhookResult;
+use Proxynth\Larawebhook\Ingestion\Domain\ValueObjects\Provider;
+use Proxynth\Larawebhook\Ingestion\Domain\ValueObjects\RawPayload;
 use Proxynth\Larawebhook\Ingestion\Infrastructure\Validation\WebhookValidatorFactory;
 use Proxynth\Larawebhook\Processing\Application\Ports\IdempotencyResolver;
+use Proxynth\Larawebhook\Processing\Domain\ValueObjects\DeliveryAttempt;
+use Proxynth\Larawebhook\Processing\Domain\ValueObjects\IdempotencyKey;
+use Proxynth\Larawebhook\Processing\Domain\ValueObjects\WebhookStatus;
 use Symfony\Component\HttpFoundation\Response;
 
 final readonly class ReceiveWebhook
 {
-    private const INITIAL_ATTEMPT = 0;
-
     public function __construct(
         private WebhookValidatorFactory $validatorFactory,
         private IdempotencyResolver $idempotencyResolver,
@@ -29,7 +32,9 @@ final readonly class ReceiveWebhook
      */
     public function handle(ReceiveWebhookCommand $command): ReceiveWebhookResult
     {
-        $decodedPayload = json_decode($command->payload, true);
+        $provider = Provider::fromString($command->service->value);
+        $rawPayload = RawPayload::fromString($command->payload);
+        $decodedPayload = $rawPayload->decoded();
 
         $event = $this->extractEventType($decodedPayload, $command->service);
 
@@ -39,41 +44,40 @@ final readonly class ReceiveWebhook
             externalIdHeaderValue: $command->externalIdHeaderValue,
         );
 
-        $serviceName = $command->service->value;
-
-        $payloadForIdempotency = is_array($decodedPayload) ? $decodedPayload : [];
-
-        $idempotencyKey = $this->idempotencyResolver->resolve(
-            service: $serviceName,
-            payload: $payloadForIdempotency,
+        $idempotencyKeyValue = $this->idempotencyResolver->resolve(
+            service: $provider->value(),
+            payload: $decodedPayload,
             externalId: $externalId,
             event: $event,
         );
 
-        if ($idempotencyKey !== null && WebhookLog::existsForExternalId($serviceName, $idempotencyKey)) {
+        $idempotencyKey = IdempotencyKey::optional($idempotencyKeyValue);
+
+        if ($idempotencyKey !== null && WebhookLog::existsForExternalId($provider->value(), $idempotencyKey->value())) {
             return ReceiveWebhookResult::alreadyProcessed(
                 externalId: $externalId,
-                idempotencyKey: $idempotencyKey,
+                idempotencyKey: $idempotencyKey->value(),
             );
         }
 
         $secret = $command->service->secret();
 
         if (empty($secret)) {
-            return ReceiveWebhookResult::secretNotConfigured($serviceName);
+            return ReceiveWebhookResult::secretNotConfigured($provider->value());
         }
 
         $log = $this->validatorFactory->forService($command->service)
             ->validateAndLog(
-                payload: $command->payload,
+                payload: $rawPayload->value(),
                 signature: $command->signature,
-                service: $serviceName,
+                service: $provider->value(),
                 event: $event,
-                attempt: self::INITIAL_ATTEMPT,
-                externalId: $idempotencyKey,
+                attempt: DeliveryAttempt::initial()->value(),
+                externalId: $idempotencyKey?->value(),
             );
 
-        if ($log->status !== 'failed') {
+        $status = WebhookStatus::fromString($log->status);
+        if (! $status->isFailed()) {
             return ReceiveWebhookResult::success($log);
         }
 
@@ -82,7 +86,7 @@ final readonly class ReceiveWebhook
                 log: $log,
                 event: $event,
                 secret: $secret,
-                idempotencyKey: $idempotencyKey,
+                idempotencyKey: $idempotencyKey?->value(),
             );
         }
 
