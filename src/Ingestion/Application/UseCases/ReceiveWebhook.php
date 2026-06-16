@@ -5,29 +5,29 @@ declare(strict_types=1);
 namespace Proxynth\Larawebhook\Ingestion\Application\UseCases;
 
 use Exception;
+use Proxynth\Larawebhook\Audit\Application\Commands\RecordWebhookLogCommand;
+use Proxynth\Larawebhook\Audit\Application\UseCases\RecordWebhookLog;
 use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Persistence\Models\WebhookLog;
 use Proxynth\Larawebhook\Enums\WebhookService;
-use Proxynth\Larawebhook\Exceptions\WebhookException;
 use Proxynth\Larawebhook\Ingestion\Application\Commands\ReceiveWebhookCommand;
+use Proxynth\Larawebhook\Ingestion\Application\Commands\ValidateWebhookCommand;
 use Proxynth\Larawebhook\Ingestion\Application\Results\ReceiveWebhookResult;
 use Proxynth\Larawebhook\Ingestion\Domain\ValueObjects\Provider;
 use Proxynth\Larawebhook\Ingestion\Domain\ValueObjects\RawPayload;
-use Proxynth\Larawebhook\Ingestion\Infrastructure\Validation\WebhookValidatorFactory;
 use Proxynth\Larawebhook\Processing\Application\Ports\IdempotencyResolver;
 use Proxynth\Larawebhook\Processing\Domain\ValueObjects\DeliveryAttempt;
 use Proxynth\Larawebhook\Processing\Domain\ValueObjects\IdempotencyKey;
-use Proxynth\Larawebhook\Processing\Domain\ValueObjects\WebhookStatus;
 use Symfony\Component\HttpFoundation\Response;
 
 final readonly class ReceiveWebhook
 {
     public function __construct(
-        private WebhookValidatorFactory $validatorFactory,
         private IdempotencyResolver $idempotencyResolver,
+        private ValidateWebhook $validateWebhook,
+        private RecordWebhookLog $recordWebhookLog,
     ) {}
 
     /**
-     * @throws WebhookException
      * @throws Exception
      */
     public function handle(ReceiveWebhookCommand $command): ReceiveWebhookResult
@@ -66,18 +66,26 @@ final readonly class ReceiveWebhook
             return ReceiveWebhookResult::secretNotConfigured($provider->value());
         }
 
-        $log = $this->validatorFactory->forService($command->service)
-            ->validateAndLog(
-                payload: $rawPayload->value(),
-                signature: $command->signature,
-                service: $provider->value(),
-                event: $event,
-                attempt: DeliveryAttempt::initial()->value(),
-                externalId: $idempotencyKey?->value(),
-            );
+        $validation = $this->validateWebhook->handle(new ValidateWebhookCommand(
+            service: $command->service,
+            payload: $rawPayload,
+            signature: $command->signature,
+            event: $event,
+            externalId: $externalId,
+            secret: $secret,
+        ));
 
-        $status = WebhookStatus::fromString($log->status);
-        if (! $status->isFailed()) {
+        $log = $this->recordWebhookLog->handle(new RecordWebhookLogCommand(
+            service: $validation->service,
+            event: $validation->event,
+            valid: $validation->isValid(),
+            payload: $validation->payload,
+            attempt: DeliveryAttempt::initial()->value(),
+            externalId: $idempotencyKey?->value(),
+            errorMessage: $validation->errorMessage,
+        ));
+
+        if ($validation->isValid()) {
             return ReceiveWebhookResult::success($log);
         }
 

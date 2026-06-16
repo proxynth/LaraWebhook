@@ -8,11 +8,12 @@ use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Facade;
 use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Persistence\Models\WebhookLog;
 use Proxynth\Larawebhook\Enums\WebhookService;
+use Proxynth\Larawebhook\Ingestion\Domain\ValueObjects\Signature;
 
 /**
- * @method static bool validate(string $payload, string $signature, string|WebhookService $service)
- * @method static WebhookLog validateAndLog(string $payload, string $signature, string|WebhookService $service, string $event)
- * @method static WebhookLog validateWithRetries(string $payload, string $signature, string|WebhookService $service, string $event)
+ * @method static bool validate(string $payload, Signature $signature, string|WebhookService $service)
+ * @method static WebhookLog validateAndLog(string $payload, Signature $signature, string|WebhookService $service, string $event)
+ * @method static WebhookLog validateWithRetries(string $payload, Signature $signature, string|WebhookService $service, string $event)
  * @method static WebhookLog logSuccess(string $service, string $event, array $payload, int $attempt = 0)
  * @method static WebhookLog logFailure(string $service, string $event, array $payload, string $errorMessage, int $attempt = 0)
  * @method static Collection logs()

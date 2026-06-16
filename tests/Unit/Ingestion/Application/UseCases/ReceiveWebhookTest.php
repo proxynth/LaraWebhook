@@ -177,3 +177,24 @@ it('handles invalid json payload without crashing', function () {
     expect($result->isSuccess() || $result->isFailed() || $result->isAcceptedForRetry())->toBeTrue()
         ->and($result->idempotencyKey)->toBe('delivery_invalid_json');
 });
+
+it('records the idempotency key as log external id while keeping provider external id null', function () {
+    $payload = json_encode([
+        'type' => 'custom.event',
+        'data' => ['foo' => 'bar'],
+    ], JSON_THROW_ON_ERROR);
+
+    $signature = githubSignature($payload);
+
+    $result = app(ReceiveWebhook::class)->handle(new ReceiveWebhookCommand(
+        service: WebhookService::Github,
+        payload: $payload,
+        signature: $signature,
+        externalIdHeaderValue: null,
+    ));
+
+    expect($result->isSuccess())->toBeTrue()
+        ->and($result->externalId)->toBeNull()
+        ->and($result->idempotencyKey)->toStartWith('payload_hash:')
+        ->and($result->log?->external_id)->toBe($result->idempotencyKey);
+});

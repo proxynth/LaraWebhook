@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Proxynth\Larawebhook\Ingestion\Domain\ValueObjects;
 
+use JsonException;
 use Stringable;
 
 class RawPayload implements Stringable
@@ -17,6 +18,14 @@ class RawPayload implements Stringable
         return $value === '' ? throw new \InvalidArgumentException('Raw payload cannot be empty.') : new self($value);
     }
 
+    /**
+     * @throws JsonException
+     */
+    public static function fromArray(array $payload): self
+    {
+        return new self(json_encode($payload, JSON_THROW_ON_ERROR));
+    }
+
     public function value(): string
     {
         return $this->value;
@@ -26,7 +35,9 @@ class RawPayload implements Stringable
     {
         $decoded = json_decode($this->value, true);
 
-        return is_array($decoded) ? $decoded : [];
+        return is_array($decoded)
+            ? $decoded
+            : ['raw' => $this->value];
     }
 
     /**

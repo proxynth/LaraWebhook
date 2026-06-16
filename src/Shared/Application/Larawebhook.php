@@ -5,16 +5,19 @@ declare(strict_types=1);
 namespace Proxynth\Larawebhook\Shared\Application;
 
 use Illuminate\Database\Eloquent\Collection;
+use Proxynth\Larawebhook\Audit\Application\Commands\RecordWebhookLogCommand;
+use Proxynth\Larawebhook\Audit\Application\UseCases\RecordWebhookLog;
 use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Notifications\FailureDetector;
 use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Notifications\NotificationSender;
 use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Persistence\Models\WebhookLog;
-use Proxynth\Larawebhook\Audit\Infrastructure\Logging\WebhookLogger;
 use Proxynth\Larawebhook\Enums\WebhookService;
 use Proxynth\Larawebhook\Exceptions\InvalidSignatureException;
 use Proxynth\Larawebhook\Exceptions\WebhookException;
+use Proxynth\Larawebhook\Ingestion\Application\Commands\ValidateWebhookCommand;
+use Proxynth\Larawebhook\Ingestion\Application\UseCases\ValidateWebhook;
+use Proxynth\Larawebhook\Ingestion\Domain\ValueObjects\RawPayload;
 use Proxynth\Larawebhook\Ingestion\Domain\ValueObjects\Signature;
-use Proxynth\Larawebhook\Ingestion\Infrastructure\Validation\WebhookValidator;
-use Proxynth\Larawebhook\Ingestion\Infrastructure\Validation\WebhookValidatorFactory;
+use Proxynth\Larawebhook\Processing\Domain\ValueObjects\DeliveryAttempt;
 
 /**
  * Main entry point for the Larawebhook package.
@@ -23,9 +26,9 @@ use Proxynth\Larawebhook\Ingestion\Infrastructure\Validation\WebhookValidatorFac
  */
 class Larawebhook
 {
-    private ?WebhookValidatorFactory $validatorFactory = null;
+    private ?ValidateWebhook $validateWebhook = null;
 
-    private ?WebhookLogger $logger = null;
+    private ?RecordWebhookLog $recordWebhookLog = null;
 
     private ?NotificationSender $notificationSender = null;
 
@@ -34,19 +37,40 @@ class Larawebhook
     /**
      * Validate a webhook signature.
      *
-     *
      * @throws InvalidSignatureException
      * @throws WebhookException
      */
     public function validate(string $payload, Signature $signature, string|WebhookService $service): bool
     {
-        $serviceName = $this->resolveServiceName($service);
+        $webhookService = $this->resolveService($service);
+        $rawPayload = RawPayload::fromString($payload);
 
-        return $this->getValidator(WebhookService::fromString($serviceName))->validate($payload, $signature, $service);
+        $secret = $webhookService->secret();
+
+        if ($secret === null || $secret === '') {
+            throw new WebhookException("No secret configured for service: {$webhookService->value}");
+        }
+
+        $result = $this->getValidateWebhook()->handle(new ValidateWebhookCommand(
+            service: $webhookService,
+            payload: $rawPayload,
+            signature: $signature,
+            event: $this->extractEvent($webhookService, $rawPayload),
+            externalId: $this->extractExternalId($webhookService, $rawPayload),
+            secret: $secret,
+        ));
+
+        if ($result->isInvalid()) {
+            throw new InvalidSignatureException($result->errorMessage ?? 'Invalid webhook signature.');
+        }
+
+        return true;
     }
 
     /**
      * Validate a webhook and log the result.
+     *
+     * @throws WebhookException
      */
     public function validateAndLog(
         string $payload,
@@ -54,9 +78,13 @@ class Larawebhook
         string|WebhookService $service,
         string $event
     ): WebhookLog {
-        $serviceName = $this->resolveServiceName($service);
-
-        return $this->getValidator(WebhookService::fromString($serviceName))->validateAndLog($payload, $signature, $service, $event);
+        return $this->validateAndRecord(
+            payload: $payload,
+            signature: $signature,
+            service: $service,
+            event: $event,
+            attempt: DeliveryAttempt::initial()->value(),
+        );
     }
 
     /**
@@ -71,9 +99,44 @@ class Larawebhook
         string|WebhookService $service,
         string $event
     ): WebhookLog {
-        $serviceName = $this->resolveServiceName($service);
+        $webhookService = $this->resolveService($service);
+        $maxAttempts = (int) config('larawebhook.retries.max_attempts', 3);
 
-        return $this->getValidator(WebhookService::fromString($serviceName))->validateWithRetries($payload, $signature, $service, $event);
+        if ($maxAttempts <= 0) {
+            throw new WebhookException('Validation failed with no recorded exception.');
+        }
+
+        $delays = config('larawebhook.retries.delays', [1, 5, 10]);
+        $lastLog = null;
+
+        for ($attempt = 0; $attempt < $maxAttempts; $attempt++) {
+            $lastLog = $this->validateAndRecord(
+                payload: $payload,
+                signature: $signature,
+                service: $webhookService,
+                event: $event,
+                attempt: $attempt,
+                externalId: $this->extractExternalId($webhookService, RawPayload::fromString($payload)),
+            );
+
+            if ($lastLog->status !== 'failed') {
+                return $lastLog;
+            }
+
+            if ($attempt < $maxAttempts - 1) {
+                $delay = is_array($delays) && isset($delays[$attempt])
+                    ? (int) $delays[$attempt]
+                    : 0;
+
+                if ($delay > 0) {
+                    sleep($delay);
+                }
+            }
+        }
+
+        throw new InvalidSignatureException(
+            $lastLog->error_message ?? 'Webhook validation failed after all retries.'
+        );
     }
 
     /**
@@ -81,7 +144,13 @@ class Larawebhook
      */
     public function logSuccess(string $service, string $event, array $payload, int $attempt = 0): WebhookLog
     {
-        return $this->getLogger()->logSuccess($service, $event, $payload, $attempt);
+        return $this->getRecordWebhookLog()->handle(new RecordWebhookLogCommand(
+            service: $service,
+            event: $event,
+            valid: true,
+            payload: $payload,
+            attempt: $attempt,
+        ));
     }
 
     /**
@@ -94,7 +163,14 @@ class Larawebhook
         string $errorMessage,
         int $attempt = 0
     ): WebhookLog {
-        return $this->getLogger()->logFailure($service, $event, $payload, $errorMessage, $attempt);
+        return $this->getRecordWebhookLog()->handle(new RecordWebhookLogCommand(
+            service: $service,
+            event: $event,
+            valid: false,
+            payload: $payload,
+            attempt: $attempt,
+            errorMessage: $errorMessage,
+        ));
     }
 
     /**
@@ -111,12 +187,14 @@ class Larawebhook
      * Get webhook logs for a specific service.
      *
      * @return Collection<int, WebhookLog>
+     *
+     * @throws WebhookException
      */
     public function logsForService(string|WebhookService $service): Collection
     {
-        $serviceName = $this->resolveServiceName($service);
+        $service = $this->resolveService($service);
 
-        return WebhookLog::service($serviceName)->latest()->get();
+        return WebhookLog::service($service->value)->latest()->get();
     }
 
     /**
@@ -240,43 +318,21 @@ class Larawebhook
     }
 
     /**
-     * Resolve service name from string or enum.
+     * Resolve service from string or enum.
      *
      * @throws WebhookException
      */
-    private function resolveServiceName(string|WebhookService $service): string
+    private function resolveService(string|WebhookService $service): WebhookService
     {
-        if (is_string($service) && ! WebhookService::isSupported($service)) {
-            throw new WebhookException("Webhook service '$service' is not supported");
+        if ($service instanceof WebhookService) {
+            return $service;
         }
 
-        return $service instanceof WebhookService ? $service->value : $service;
-    }
-
-    /**
-     * Get a validator instance for a service.
-     *
-     * @throws WebhookException
-     */
-    private function getValidator(WebhookService $service): WebhookValidator
-    {
-        if ($this->validatorFactory === null) {
-            $this->validatorFactory = app(WebhookValidatorFactory::class);
+        if (! WebhookService::isSupported($service)) {
+            throw new WebhookException("Webhook service '{$service}' is not supported");
         }
 
-        return $this->validatorFactory->forService($service);
-    }
-
-    /**
-     * Get the logger instance.
-     */
-    private function getLogger(): WebhookLogger
-    {
-        if ($this->logger === null) {
-            $this->logger = app(WebhookLogger::class);
-        }
-
-        return $this->logger;
+        return WebhookService::fromString($service);
     }
 
     /**
@@ -301,5 +357,74 @@ class Larawebhook
         }
 
         return $this->failureDetector;
+    }
+
+    private function getValidateWebhook(): ValidateWebhook
+    {
+        if ($this->validateWebhook === null) {
+            $this->validateWebhook = app(ValidateWebhook::class);
+        }
+
+        return $this->validateWebhook;
+    }
+
+    private function getRecordWebhookLog(): RecordWebhookLog
+    {
+        if ($this->recordWebhookLog === null) {
+            $this->recordWebhookLog = app(RecordWebhookLog::class);
+        }
+
+        return $this->recordWebhookLog;
+    }
+
+    private function extractEvent(WebhookService $service, RawPayload $payload): string
+    {
+        return $service->parser()->extractEventType($payload->decoded());
+    }
+
+    private function extractExternalId(WebhookService $service, RawPayload $payload): ?string
+    {
+        return $service->parser()->extractExternalId($payload->decoded());
+    }
+
+    /**
+     * @throws WebhookException
+     */
+    private function validateAndRecord(
+        string $payload,
+        Signature $signature,
+        string|WebhookService $service,
+        string $event,
+        int $attempt,
+        ?string $externalId = null,
+    ): WebhookLog {
+        $webhookService = $this->resolveService($service);
+        $rawPayload = RawPayload::fromString($payload);
+        $secret = $webhookService->secret();
+
+        if ($secret === null || $secret === '') {
+            throw new WebhookException("No secret configured for service: {$webhookService->value}");
+        }
+
+        $resolvedExternalId = $externalId ?? $this->extractExternalId($webhookService, $rawPayload);
+
+        $validation = $this->getValidateWebhook()->handle(new ValidateWebhookCommand(
+            service: $webhookService,
+            payload: $rawPayload,
+            signature: $signature,
+            event: $event,
+            externalId: $resolvedExternalId,
+            secret: $secret,
+        ));
+
+        return $this->getRecordWebhookLog()->handle(new RecordWebhookLogCommand(
+            service: $validation->service,
+            event: $validation->event,
+            valid: $validation->isValid(),
+            payload: $validation->payload,
+            attempt: $attempt,
+            externalId: $validation->externalId,
+            errorMessage: $validation->errorMessage,
+        ));
     }
 }

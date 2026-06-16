@@ -100,7 +100,7 @@ describe('Larawebhook validateWithRetries', function () {
         $payload = '{"action": "opened"}';
         $signature = incomingSignature('sha256='.hash_hmac('sha256', $payload, 'github_test_secret'));
 
-        $log = $this->larawebhook->validateWithRetries($payload, $signature, 'github', 'test.event');
+        $log = $this->larawebhook->validateWithRetries($payload, $signature, WebhookService::Github, 'test.event');
 
         expect($log->status)->toBe('success')
             ->and($log->attempt)->toBe(0);
@@ -110,11 +110,15 @@ describe('Larawebhook validateWithRetries', function () {
         $payload = '{"action": "opened"}';
         $signature = incomingSignature('sha256=invalid');
 
-        expect(fn () => $this->larawebhook->validateWithRetries($payload, $signature, 'github', 'test.event'))
-            ->toThrow(InvalidSignatureException::class);
+        expect(fn () => $this->larawebhook->validateWithRetries(
+            $payload,
+            $signature,
+            WebhookService::Github,
+            'test.event'
+        ))->toThrow(InvalidSignatureException::class)
+            ->and(WebhookLog::count())->toBe(3)
+            ->and(WebhookLog::failed()->count())->toBe(3);
 
-        // Should have 3 failed logs
-        expect(WebhookLog::count())->toBe(3);
     });
 });
 

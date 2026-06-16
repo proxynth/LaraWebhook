@@ -5,6 +5,7 @@ declare(strict_types=1);
 use Proxynth\Larawebhook\Contracts\PayloadParserInterface;
 use Proxynth\Larawebhook\Contracts\SignatureValidatorInterface;
 use Proxynth\Larawebhook\Enums\WebhookService;
+use Proxynth\Larawebhook\Exceptions\WebhookException;
 use Proxynth\Larawebhook\Ingestion\Infrastructure\Parsing\GithubPayloadParser;
 use Proxynth\Larawebhook\Ingestion\Infrastructure\Parsing\ShopifyPayloadParser;
 use Proxynth\Larawebhook\Ingestion\Infrastructure\Parsing\SlackPayloadParser;
@@ -179,7 +180,7 @@ describe('WebhookService fromString', function () {
 
     it('throws ValueError for invalid service', function () {
         expect(fn () => WebhookService::fromString('invalid'))
-            ->toThrow(ValueError::class);
+            ->toThrow(WebhookException::class, "Webhook service 'invalid' is not supported.");
     });
 });
 
