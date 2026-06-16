@@ -8,10 +8,12 @@ use Illuminate\Http\Client\Factory as HttpClient;
 use Illuminate\Notifications\ChannelManager;
 use Illuminate\Routing\Router;
 use Illuminate\Support\Facades\Notification;
+use Proxynth\Larawebhook\Audit\Application\Ports\WebhookLogRepository;
 use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Console\PruneWebhookLogsConsoleCommand;
 use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Notifications\Channels\SlackWebhookChannel;
 use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Notifications\FailureDetector;
 use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Notifications\NotificationSender;
+use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Persistence\EloquentWebhookLogRepository;
 use Proxynth\Larawebhook\Audit\Infrastructure\Logging\WebhookLogger;
 use Proxynth\Larawebhook\Audit\Infrastructure\Payload\PayloadStorageResolver;
 use Proxynth\Larawebhook\Ingestion\Infrastructure\Laravel\Middleware\ValidateWebhook;
@@ -117,6 +119,12 @@ class LarawebhookServiceProvider extends PackageServiceProvider
 
         // Register ReplayWebhook use case
         $this->app->singleton(ReplayWebhook::class);
+
+        // Register WebhookLogRepository persistence repository
+        $this->app->singleton(
+            WebhookLogRepository::class,
+            EloquentWebhookLogRepository::class
+        );
     }
 
     /**
