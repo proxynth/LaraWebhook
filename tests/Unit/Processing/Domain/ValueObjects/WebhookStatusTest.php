@@ -28,3 +28,23 @@ it('can be created from a valid string', function () {
 it('throws when created from an invalid string', function () {
     WebhookStatus::fromString('pending');
 })->throws(InvalidArgumentException::class);
+
+it('can represent processing lifecycle statuses', function () {
+    expect(WebhookStatus::received()->isReceived())->toBeTrue()
+        ->and(WebhookStatus::validated()->isValidated())->toBeTrue()
+        ->and(WebhookStatus::processing()->isProcessing())->toBeTrue()
+        ->and(WebhookStatus::processed()->isProcessed())->toBeTrue()
+        ->and(WebhookStatus::replayed()->isReplayed())->toBeTrue();
+});
+
+it('knows terminal statuses', function () {
+    expect(WebhookStatus::processed()->isTerminal())->toBeTrue()
+        ->and(WebhookStatus::failed()->isTerminal())->toBeTrue()
+        ->and(WebhookStatus::processing()->isTerminal())->toBeFalse();
+});
+
+it('knows replayable statuses', function () {
+    expect(WebhookStatus::processed()->canBeReplayed())->toBeTrue()
+        ->and(WebhookStatus::failed()->canBeReplayed())->toBeTrue()
+        ->and(WebhookStatus::received()->canBeReplayed())->toBeFalse();
+});
