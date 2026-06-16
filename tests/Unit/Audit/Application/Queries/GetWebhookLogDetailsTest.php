@@ -3,7 +3,7 @@
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Proxynth\Larawebhook\Audit\Application\Queries\GetWebhookLogDetails;
 use Proxynth\Larawebhook\Audit\Application\Queries\GetWebhookLogDetailsQuery;
-use Proxynth\Larawebhook\Audit\Application\ReadModels\WebhookLogReadModel;
+use Proxynth\Larawebhook\Audit\Application\ReadModels\WebhookLogDetails;
 use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Persistence\Models\WebhookLog;
 
 it('gets webhook log details', function () {
@@ -16,7 +16,7 @@ it('gets webhook log details', function () {
         new GetWebhookLogDetailsQuery($log->id)
     );
 
-    expect($result)->toBeInstanceOf(WebhookLogReadModel::class)
+    expect($result)->toBeInstanceOf(WebhookLogDetails::class)
         ->and($result->id)->toBe($log->id)
         ->and($result->service)->toBe('stripe')
         ->and($result->event)->toBe('invoice.paid');
