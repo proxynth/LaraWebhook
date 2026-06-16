@@ -415,20 +415,22 @@ For more control, you can manually validate webhooks:
 
 ```php
 // app/Http/Controllers/WebhookController.php
-use Proxynth\Larawebhook\Services\WebhookValidator;
+use Proxynth\Larawebhook\Facades\Larawebhook;
+use Proxynth\Larawebhook\Ingestion\Domain\ValueObjects\Signature;
 use Illuminate\Http\Request;
 
 public function handleWebhook(Request $request)
 {
     $payload = $request->getContent();
-    $signature = $request->header('Stripe-Signature');
+    $signature = Signature::fromString(
+        $request->header('Stripe-Signature')
+    );
+  
     $secret = config('larawebhook.services.stripe.webhook_secret');
-
-    $validator = new WebhookValidator($secret);
 
     try {
         // Validate and log in one call
-        $log = $validator->validateAndLog(
+        $log = Larawebhook::validateAndLog(
             $payload,
             $signature,
             'stripe',

@@ -9,6 +9,7 @@ use Illuminate\Notifications\ChannelManager;
 use Illuminate\Routing\Router;
 use Illuminate\Support\Facades\Notification;
 use Proxynth\Larawebhook\Audit\Application\Ports\WebhookLogRepository;
+use Proxynth\Larawebhook\Audit\Application\UseCases\RecordWebhookLog;
 use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Console\PruneWebhookLogsConsoleCommand;
 use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Notifications\Channels\SlackWebhookChannel;
 use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Notifications\FailureDetector;
@@ -16,7 +17,9 @@ use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Notifications\Notification
 use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Persistence\EloquentWebhookLogRepository;
 use Proxynth\Larawebhook\Audit\Infrastructure\Logging\WebhookLogger;
 use Proxynth\Larawebhook\Audit\Infrastructure\Payload\PayloadStorageResolver;
-use Proxynth\Larawebhook\Ingestion\Infrastructure\Laravel\Middleware\ValidateWebhook;
+use Proxynth\Larawebhook\Ingestion\Application\UseCases\ReceiveWebhook;
+use Proxynth\Larawebhook\Ingestion\Application\UseCases\ValidateWebhook as ValidateWebhookUseCase;
+use Proxynth\Larawebhook\Ingestion\Infrastructure\Laravel\Middleware\ValidateWebhook as ValidateWebhookMiddleware;
 use Proxynth\Larawebhook\Ingestion\Infrastructure\Validation\WebhookValidatorFactory;
 use Proxynth\Larawebhook\Processing\Application\Ports\IdempotencyResolver;
 use Proxynth\Larawebhook\Processing\Application\UseCases\ReplayWebhook;
@@ -51,7 +54,7 @@ class LarawebhookServiceProvider extends PackageServiceProvider
 
         // Register middleware alias
         $router = $this->app->make(Router::class);
-        $router->aliasMiddleware('validate-webhook', ValidateWebhook::class);
+        $router->aliasMiddleware('validate-webhook', ValidateWebhookMiddleware::class);
 
         // Register custom Slack channel
         $this->registerSlackChannel();
@@ -125,6 +128,10 @@ class LarawebhookServiceProvider extends PackageServiceProvider
             WebhookLogRepository::class,
             EloquentWebhookLogRepository::class
         );
+
+        $this->app->singleton(ValidateWebhookUseCase::class);
+        $this->app->singleton(RecordWebhookLog::class);
+        $this->app->singleton(ReceiveWebhook::class);
     }
 
     /**

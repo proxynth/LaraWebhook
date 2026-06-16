@@ -155,7 +155,7 @@ describe('Larawebhook Facade methods - Validation', function () {
         $payload = '{"action": "opened"}';
         $signature = incomingSignature('sha256='.hash_hmac('sha256', $payload, 'test_github_secret'));
 
-        $log = Larawebhook::validateWithRetries($payload, $signature, 'github', 'push');
+        $log = Larawebhook::validateWithRetries($payload, $signature, WebhookService::Github, 'push');
 
         expect($log)->toBeInstanceOf(WebhookLog::class)
             ->and($log->status)->toBe('success');

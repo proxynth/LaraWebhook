@@ -6,6 +6,7 @@ namespace Proxynth\Larawebhook\Enums;
 
 use Proxynth\Larawebhook\Contracts\PayloadParserInterface;
 use Proxynth\Larawebhook\Contracts\SignatureValidatorInterface;
+use Proxynth\Larawebhook\Exceptions\WebhookException;
 use Proxynth\Larawebhook\Ingestion\Infrastructure\Parsing\GithubPayloadParser;
 use Proxynth\Larawebhook\Ingestion\Infrastructure\Parsing\ShopifyPayloadParser;
 use Proxynth\Larawebhook\Ingestion\Infrastructure\Parsing\SlackPayloadParser;
@@ -127,17 +128,18 @@ enum WebhookService: string
      */
     public static function isSupported(string $service): bool
     {
-        return self::tryFrom($service) !== null;
+        return self::tryFromString($service) !== null;
     }
 
     /**
      * Get a service from string or throw an exception.
      *
-     * @throws \ValueError
+     * @throws WebhookException
      */
     public static function fromString(string $service): self
     {
-        return self::from($service);
+        return self::tryFromString($service)
+            ?? throw new WebhookException("Webhook service '{$service}' is not supported.");
     }
 
     /**

@@ -10,13 +10,14 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
-use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Notifications\NotificationSender;
-use Proxynth\Larawebhook\Audit\Infrastructure\Logging\WebhookLogger;
-use Proxynth\Larawebhook\Audit\Infrastructure\Payload\PayloadStorageResolver;
-use Proxynth\Larawebhook\Exceptions\InvalidSignatureException;
+use Proxynth\Larawebhook\Audit\Application\Commands\RecordWebhookLogCommand;
+use Proxynth\Larawebhook\Audit\Application\UseCases\RecordWebhookLog;
+use Proxynth\Larawebhook\Enums\WebhookService;
 use Proxynth\Larawebhook\Exceptions\WebhookException;
+use Proxynth\Larawebhook\Ingestion\Application\Commands\ValidateWebhookCommand;
+use Proxynth\Larawebhook\Ingestion\Application\UseCases\ValidateWebhook;
+use Proxynth\Larawebhook\Ingestion\Domain\ValueObjects\RawPayload;
 use Proxynth\Larawebhook\Ingestion\Domain\ValueObjects\Signature;
-use Proxynth\Larawebhook\Ingestion\Infrastructure\Validation\WebhookValidator;
 
 class RetryWebhookJob implements ShouldQueue
 {
@@ -43,14 +44,18 @@ class RetryWebhookJob implements ShouldQueue
     /**
      * Execute the job.
      */
-    public function handle(): void
+    public function handle(ValidateWebhook $validateWebhook, RecordWebhookLog $recordWebhookLog): void
     {
-        $validator = new WebhookValidator($this->secret);
-        $logger = new WebhookLogger(app()->make(PayloadStorageResolver::class), app()->make(NotificationSender::class));
-        $decodedPayload = json_decode($this->payload, true) ?? ['raw' => $this->payload];
-
-        $maxAttempts = config('larawebhook.retries.max_attempts', 3);
+        $maxAttempts = (int) config('larawebhook.retries.max_attempts', 3);
         $delays = config('larawebhook.retries.delays', [1, 5, 10]);
+        $delays = is_array($delays) ? $delays : [1, 5, 10];
+
+        $webhookService = WebhookService::tryFromString($this->service);
+        if ($webhookService === null) {
+            throw new WebhookException("Webhook service '{$this->service}' is not supported.");
+        }
+
+        $rawPayload = RawPayload::fromString($this->payload);
 
         Log::info('RetryWebhookJob: Attempting webhook validation', [
             'service' => $this->service,
@@ -59,65 +64,56 @@ class RetryWebhookJob implements ShouldQueue
             'external_id' => $this->externalId,
         ]);
 
-        try {
-            // Try to validate
-            $validator->validate($this->payload, $this->signature, $this->service);
+        // Try to validate
+        $validation = $validateWebhook->handle(new ValidateWebhookCommand(
+            service: $webhookService,
+            payload: $rawPayload,
+            signature: $this->signature,
+            event: $this->event,
+            externalId: $this->externalId,
+            secret: $this->secret,
+        ));
 
-            // Success - log it
-            $logger->logSuccess(
-                $this->service,
-                $this->event,
-                $decodedPayload,
-                $this->attempt,
-                $this->externalId
-            );
+        $recordWebhookLog->handle(new RecordWebhookLogCommand(
+            service: $validation->service,
+            event: $validation->event,
+            valid: $validation->isValid(),
+            payload: $validation->payload,
+            attempt: $this->attempt,
+            externalId: null,
+            errorMessage: $validation->errorMessage,
+        ));
 
+        if ($validation->isValid()) {
             Log::info('RetryWebhookJob: Webhook validation succeeded on retry', [
                 'service' => $this->service,
                 'event' => $this->event,
                 'attempt' => $this->attempt,
             ]);
-        } catch (WebhookException|InvalidSignatureException $e) {
-            // Log the failure
-            $logger->logFailure(
-                $this->service,
-                $this->event,
-                $decodedPayload,
-                $e->getMessage(),
-                $this->attempt,
-                $this->externalId
-            );
 
-            // If not the last attempt, dispatch a new retry job with delay
-            if ($this->attempt < $maxAttempts - 1) {
-                $nextDelay = $delays[$this->attempt] ?? $delays[count($delays) - 1] ?? 10;
-
-                Log::info('RetryWebhookJob: Scheduling next retry', [
-                    'service' => $this->service,
-                    'next_attempt' => $this->attempt + 1,
-                    'delay_seconds' => $nextDelay,
-                ]);
-
-                // Don't pass external_id to subsequent retries to avoid unique constraint violation
-                // The initial log entry already has the external_id
-                self::dispatch(
-                    $this->payload,
-                    $this->signature,
-                    $this->service,
-                    $this->event,
-                    $this->secret,
-                    $this->attempt + 1,
-                    null
-                )->delay(now()->addSeconds($nextDelay));
-            } else {
-                Log::warning('RetryWebhookJob: All retry attempts exhausted', [
-                    'service' => $this->service,
-                    'event' => $this->event,
-                    'total_attempts' => $this->attempt + 1,
-                    'error' => $e->getMessage(),
-                ]);
-            }
+            return;
         }
+
+        if ($this->attempt < $maxAttempts - 1) {
+            $nextDelay = $delays[$this->attempt] ?? $delays[count($delays) - 1] ?? 10;
+
+            Log::info('RetryWebhookJob: Scheduling next retry', [
+                'service' => $this->service,
+                'next_attempt' => $this->attempt + 1,
+                'delay_seconds' => $nextDelay,
+            ]);
+
+            self::dispatch(
+                payload: $this->payload,
+                signature: $this->signature,
+                service: $this->service,
+                event: $this->event,
+                secret: $this->secret,
+                attempt: $this->attempt + 1,
+                externalId: $this->externalId,
+            )->delay(now()->addSeconds($nextDelay));
+        }
+
     }
 
     /**
@@ -126,5 +122,30 @@ class RetryWebhookJob implements ShouldQueue
     public function uniqueId(): string
     {
         return md5($this->payload.$this->signature->value().$this->service.$this->event.$this->attempt);
+    }
+
+    public function attempt(): int
+    {
+        return $this->attempt;
+    }
+
+    public function externalId(): ?string
+    {
+        return $this->externalId;
+    }
+
+    public function service(): string
+    {
+        return $this->service;
+    }
+
+    public function event(): string
+    {
+        return $this->event;
+    }
+
+    public function payload(): string
+    {
+        return $this->payload;
     }
 }

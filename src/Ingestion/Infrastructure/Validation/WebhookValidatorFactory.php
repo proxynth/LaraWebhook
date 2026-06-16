@@ -16,17 +16,26 @@ class WebhookValidatorFactory
     /**
      * @throws WebhookException
      */
-    public function forService(string|WebhookService $service): WebhookValidator
+    public function forService(string|WebhookService $service, ?string $secret = null): WebhookValidator
     {
         $service = $this->resolveService($service);
 
-        if (! isset($this->validators[$service->value])) {
-            if ($service->secret() === null) {
-                throw new WebhookException("No secret configured for service: $service->value");
-            }
+        $resolvedSecret = $secret ?? $service->secret();
 
+        if ($resolvedSecret === null || $resolvedSecret === '') {
+            throw new WebhookException("No secret configured for service: {$service->value}");
+        }
+
+        if ($secret !== null) {
+            return new WebhookValidator(
+                secret: $resolvedSecret,
+                tolerance: $this->toleranceForService($service->value),
+            );
+        }
+
+        if (! isset($this->validators[$service->value])) {
             $this->validators[$service->value] = new WebhookValidator(
-                secret: $service->secret(),
+                secret: $resolvedSecret,
                 tolerance: $this->toleranceForService($service->value),
             );
         }

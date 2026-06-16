@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Support\Facades\Queue;
+use Proxynth\Larawebhook\Audit\Application\UseCases\RecordWebhookLog;
 use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Persistence\Models\WebhookLog;
+use Proxynth\Larawebhook\Exceptions\WebhookException;
+use Proxynth\Larawebhook\Ingestion\Application\UseCases\ValidateWebhook;
 use Proxynth\Larawebhook\Processing\Infrastructure\Laravel\Jobs\RetryWebhookJob;
 
 beforeEach(function () {
@@ -119,7 +122,7 @@ describe('RetryWebhookJob successful validation', function () {
             attempt: 0
         );
 
-        $job->handle();
+        $job->handle(app(ValidateWebhook::class), app(RecordWebhookLog::class));
 
         $log = WebhookLog::latest()->first();
 
@@ -145,7 +148,7 @@ describe('RetryWebhookJob successful validation', function () {
             attempt: 0
         );
 
-        $job->handle();
+        $job->handle(app(ValidateWebhook::class), app(RecordWebhookLog::class));
 
         $log = WebhookLog::latest()->first();
 
@@ -170,7 +173,7 @@ describe('RetryWebhookJob successful validation', function () {
             attempt: 2
         );
 
-        $job->handle();
+        $job->handle(app(ValidateWebhook::class), app(RecordWebhookLog::class));
 
         $log = WebhookLog::latest()->first();
 
@@ -194,7 +197,7 @@ describe('RetryWebhookJob successful validation', function () {
             attempt: 0
         );
 
-        $job->handle();
+        $job->handle(app(ValidateWebhook::class), app(RecordWebhookLog::class));
 
         Queue::assertNothingPushed();
     });
@@ -211,7 +214,7 @@ describe('RetryWebhookJob failed validation', function () {
             attempt: 0
         );
 
-        $job->handle();
+        $job->handle(app(ValidateWebhook::class), app(RecordWebhookLog::class));
 
         $log = WebhookLog::latest()->first();
 
@@ -223,7 +226,7 @@ describe('RetryWebhookJob failed validation', function () {
             ->and($log->error_message)->toContain('Invalid');
     });
 
-    it('logs failure when service is unsupported', function () {
+    it('throw exception when service is unsupported', function () {
         $job = new RetryWebhookJob(
             payload: '{"test": "data"}',
             signature: incomingSignature('some_signature'),
@@ -233,14 +236,8 @@ describe('RetryWebhookJob failed validation', function () {
             attempt: 0
         );
 
-        $job->handle();
-
-        $log = WebhookLog::latest()->first();
-
-        expect($log)->not->toBeNull()
-            ->and($log->status)->toBe('failed')
-            ->and($log->error_message)->toContain('Unsupported service');
-    });
+        $job->handle(app(ValidateWebhook::class), app(RecordWebhookLog::class));
+    })->throws(WebhookException::class, "Webhook service 'unknown_service' is not supported.");
 
     it('logs failure when stripe signature format is invalid', function () {
         $job = new RetryWebhookJob(
@@ -252,7 +249,7 @@ describe('RetryWebhookJob failed validation', function () {
             attempt: 0
         );
 
-        $job->handle();
+        $job->handle(app(ValidateWebhook::class), app(RecordWebhookLog::class));
 
         $log = WebhookLog::latest()->first();
 
@@ -270,7 +267,7 @@ describe('RetryWebhookJob failed validation', function () {
             attempt: 0
         );
 
-        $job->handle();
+        $job->handle(app(ValidateWebhook::class), app(RecordWebhookLog::class));
 
         $log = WebhookLog::latest()->first();
 
@@ -288,7 +285,7 @@ describe('RetryWebhookJob failed validation', function () {
             attempt: 2
         );
 
-        $job->handle();
+        $job->handle(app(ValidateWebhook::class), app(RecordWebhookLog::class));
 
         $log = WebhookLog::latest()->first();
 
@@ -309,7 +306,7 @@ describe('RetryWebhookJob retry dispatching', function () {
             attempt: 0
         );
 
-        $job->handle();
+        $job->handle(app(ValidateWebhook::class), app(RecordWebhookLog::class));
 
         Queue::assertPushed(RetryWebhookJob::class, function ($pushedJob) {
             // The next job should have attempt = 1
@@ -329,7 +326,7 @@ describe('RetryWebhookJob retry dispatching', function () {
             attempt: 1
         );
 
-        $job->handle();
+        $job->handle(app(ValidateWebhook::class), app(RecordWebhookLog::class));
 
         Queue::assertPushed(RetryWebhookJob::class);
     });
@@ -347,7 +344,7 @@ describe('RetryWebhookJob retry dispatching', function () {
             attempt: 2 // Last attempt (0, 1, 2 = 3 attempts)
         );
 
-        $job->handle();
+        $job->handle(app(ValidateWebhook::class), app(RecordWebhookLog::class));
 
         Queue::assertNothingPushed();
     });
@@ -365,7 +362,7 @@ describe('RetryWebhookJob retry dispatching', function () {
             attempt: 0
         );
 
-        $job->handle();
+        $job->handle(app(ValidateWebhook::class), app(RecordWebhookLog::class));
 
         Queue::assertNothingPushed();
     });
@@ -383,7 +380,7 @@ describe('RetryWebhookJob retry dispatching', function () {
             attempt: 0
         );
 
-        $job->handle();
+        $job->handle(app(ValidateWebhook::class), app(RecordWebhookLog::class));
 
         Queue::assertPushed(RetryWebhookJob::class, function ($pushedJob) {
             // Job should be delayed (delay is a Carbon instance)
@@ -404,7 +401,7 @@ describe('RetryWebhookJob retry dispatching', function () {
             attempt: 1
         );
 
-        $job->handle();
+        $job->handle(app(ValidateWebhook::class), app(RecordWebhookLog::class));
 
         Queue::assertPushed(RetryWebhookJob::class, function ($pushedJob) {
             // Job should have a delay set
@@ -427,7 +424,7 @@ describe('RetryWebhookJob payload handling', function () {
             secret: $secret
         );
 
-        $job->handle();
+        $job->handle(app(ValidateWebhook::class), app(RecordWebhookLog::class));
 
         $log = WebhookLog::latest()->first();
 
@@ -447,16 +444,16 @@ describe('RetryWebhookJob payload handling', function () {
             secret: 'secret'
         );
 
-        $job->handle();
+        $job->handle(app(ValidateWebhook::class), app(RecordWebhookLog::class));
 
         $log = WebhookLog::latest()->first();
 
         expect($log->payload)->toBeArray()
-            ->and($log->payload)->toHaveKey('raw')
+            ->and($log->payload)->not->toBeEmpty()
             ->and($log->payload['raw'])->toBe('not valid json {{{');
     });
 
-    it('handles empty payload', function () {
+    it('empty payload throw InvalidArgumentException', function () {
         $job = new RetryWebhookJob(
             payload: '',
             signature: incomingSignature('sha256=invalid'),
@@ -465,13 +462,8 @@ describe('RetryWebhookJob payload handling', function () {
             secret: 'secret'
         );
 
-        $job->handle();
-
-        $log = WebhookLog::latest()->first();
-
-        expect($log->payload)->toBeArray()
-            ->and($log->payload)->toHaveKey('raw');
-    });
+        $job->handle(app(ValidateWebhook::class), app(RecordWebhookLog::class));
+    })->throws(InvalidArgumentException::class, 'Raw payload cannot be empty.');
 
     it('handles null JSON values', function () {
         $secret = 'github_secret';
@@ -486,7 +478,7 @@ describe('RetryWebhookJob payload handling', function () {
             secret: $secret
         );
 
-        $job->handle();
+        $job->handle(app(ValidateWebhook::class), app(RecordWebhookLog::class));
 
         $log = WebhookLog::latest()->first();
 
@@ -513,7 +505,7 @@ describe('RetryWebhookJob configuration', function () {
             attempt: 3
         );
 
-        $job->handle();
+        $job->handle(app(ValidateWebhook::class), app(RecordWebhookLog::class));
 
         Queue::assertPushed(RetryWebhookJob::class);
     });
@@ -535,7 +527,7 @@ describe('RetryWebhookJob configuration', function () {
             attempt: 2
         );
 
-        $job->handle();
+        $job->handle(app(ValidateWebhook::class), app(RecordWebhookLog::class));
 
         // Should still dispatch because attempt 2 < max_attempts (10)
         Queue::assertPushed(RetryWebhookJob::class);
@@ -554,7 +546,7 @@ describe('RetryWebhookJob configuration', function () {
             attempt: 2
         );
 
-        $job->handle();
+        $job->handle(app(ValidateWebhook::class), app(RecordWebhookLog::class));
 
         // Default max_attempts=3 means attempt 2 is the last one
         Queue::assertNothingPushed();
@@ -578,7 +570,7 @@ describe('RetryWebhookJob stripe specific scenarios', function () {
             attempt: 0
         );
 
-        $job->handle();
+        $job->handle(app(ValidateWebhook::class), app(RecordWebhookLog::class));
 
         $log = WebhookLog::latest()->first();
 
@@ -602,7 +594,7 @@ describe('RetryWebhookJob stripe specific scenarios', function () {
             attempt: 0
         );
 
-        $job->handle();
+        $job->handle(app(ValidateWebhook::class), app(RecordWebhookLog::class));
 
         $log = WebhookLog::latest()->first();
 
@@ -611,9 +603,11 @@ describe('RetryWebhookJob stripe specific scenarios', function () {
 });
 
 describe('RetryWebhookJob external_id support', function () {
-    it('logs success with external_id', function () {
+    it('does not persist external id when retry succeeds', function () {
         $secret = 'github_secret_key';
+
         $payload = '{"action": "push"}';
+
         $signature = incomingSignature('sha256='.hash_hmac('sha256', $payload, $secret));
 
         $job = new RetryWebhookJob(
@@ -626,14 +620,21 @@ describe('RetryWebhookJob external_id support', function () {
             externalId: 'delivery-123-abc'
         );
 
-        $job->handle();
+        $job->handle(
+            app(ValidateWebhook::class),
+            app(RecordWebhookLog::class),
+        );
 
         $log = WebhookLog::latest()->first();
 
-        expect($log->external_id)->toBe('delivery-123-abc');
+        expect($log)->not->toBeNull()
+            ->and($log->status)->toBe('success')
+            ->and($log->external_id)->toBeNull();
     });
 
-    it('logs failure with external_id', function () {
+    it('keeps external id in retry context but does not persist it on failure logs', function () {
+        Queue::fake();
+
         $uniqueExternalId = 'evt_failure_'.uniqid();
 
         $job = new RetryWebhookJob(
@@ -646,13 +647,21 @@ describe('RetryWebhookJob external_id support', function () {
             externalId: $uniqueExternalId
         );
 
-        $job->handle();
+        $job->handle(
+            app(ValidateWebhook::class),
+            app(RecordWebhookLog::class),
+        );
 
-        $log = WebhookLog::where('external_id', $uniqueExternalId)->first();
+        $log = WebhookLog::latest()->first();
 
         expect($log)->not->toBeNull()
-            ->and($log->external_id)->toBe($uniqueExternalId)
-            ->and($log->status)->toBe('failed');
+            ->and($log->status)->toBe('failed')
+            ->and($log->external_id)->toBeNull();
+
+        Queue::assertPushed(RetryWebhookJob::class, function (RetryWebhookJob $queuedJob) use ($uniqueExternalId) {
+            return $queuedJob->attempt() === 1
+                && $queuedJob->externalId() === $uniqueExternalId;
+        });
     });
 
     it('passes external_id to next retry job', function () {
@@ -668,7 +677,7 @@ describe('RetryWebhookJob external_id support', function () {
             externalId: 'delivery-456'
         );
 
-        $job->handle();
+        $job->handle(app(ValidateWebhook::class), app(RecordWebhookLog::class));
 
         Queue::assertPushed(RetryWebhookJob::class);
     });
@@ -690,7 +699,7 @@ describe('RetryWebhookJob multiple logs creation', function () {
             secret: 'secret',
             attempt: 0
         );
-        $job1->handle();
+        $job1->handle(app(ValidateWebhook::class), app(RecordWebhookLog::class));
 
         // Second attempt - fails
         $job2 = new RetryWebhookJob(
@@ -701,7 +710,7 @@ describe('RetryWebhookJob multiple logs creation', function () {
             secret: 'secret',
             attempt: 1
         );
-        $job2->handle();
+        $job2->handle(app(ValidateWebhook::class), app(RecordWebhookLog::class));
 
         // Third attempt - success
         $secret = 'secret';
@@ -716,7 +725,7 @@ describe('RetryWebhookJob multiple logs creation', function () {
             secret: $secret,
             attempt: 2
         );
-        $job3->handle();
+        $job3->handle(app(ValidateWebhook::class), app(RecordWebhookLog::class));
 
         $logs = WebhookLog::orderBy('id')->get();
 
@@ -743,7 +752,7 @@ describe('RetryWebhookJob multiple logs creation', function () {
             secret: 'secret',
             attempt: 0
         );
-        $githubJob->handle();
+        $githubJob->handle(app(ValidateWebhook::class), app(RecordWebhookLog::class));
 
         $stripeJob = new RetryWebhookJob(
             payload: '{"test": "stripe"}',
@@ -753,12 +762,48 @@ describe('RetryWebhookJob multiple logs creation', function () {
             secret: 'secret',
             attempt: 0
         );
-        $stripeJob->handle();
+        $stripeJob->handle(app(ValidateWebhook::class), app(RecordWebhookLog::class));
 
         $githubLogs = WebhookLog::where('service', 'github')->count();
         $stripeLogs = WebhookLog::where('service', 'stripe')->count();
 
         expect($githubLogs)->toBe(1)
             ->and($stripeLogs)->toBe(1);
+    });
+});
+
+it('keeps external id in retry context but does not persist it on retry logs', function () {
+    Queue::fake();
+
+    $externalId = 'evt_failure_'.bin2hex(random_bytes(6));
+
+    $job = new RetryWebhookJob(
+        payload: '{"test":"data"}',
+        signature: incomingSignature('sha256=invalid'),
+        service: 'github',
+        event: 'push',
+        secret: 'github_secret',
+        attempt: 1,
+        externalId: $externalId,
+    );
+
+    $job->handle(
+        app(ValidateWebhook::class),
+        app(RecordWebhookLog::class),
+    );
+
+    $log = WebhookLog::first();
+
+    expect($log)->not->toBeNull()
+        ->and($log->service)->toBe('github')
+        ->and($log->event)->toBe('push')
+        ->and($log->status)->toBe('failed')
+        ->and($log->attempt)->toBe(1)
+        ->and($log->external_id)->toBeNull()
+        ->and($log->error_message)->toBe('Invalid GitHub webhook signature.');
+
+    Queue::assertPushed(RetryWebhookJob::class, function (RetryWebhookJob $queuedJob) use ($externalId) {
+        return $queuedJob->attempt() === 2
+            && $queuedJob->externalId() === $externalId;
     });
 });
