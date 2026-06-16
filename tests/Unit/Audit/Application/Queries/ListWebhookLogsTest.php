@@ -2,7 +2,7 @@
 
 use Proxynth\Larawebhook\Audit\Application\Queries\ListWebhookLogs;
 use Proxynth\Larawebhook\Audit\Application\Queries\ListWebhookLogsQuery;
-use Proxynth\Larawebhook\Audit\Application\ReadModels\WebhookLogReadModel;
+use Proxynth\Larawebhook\Audit\Application\ReadModels\WebhookLogSummary;
 use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Persistence\Models\WebhookLog;
 
 it('lists webhook logs ordered by latest first', function () {
@@ -20,7 +20,7 @@ it('lists webhook logs ordered by latest first', function () {
         perPage: 25,
     ));
 
-    expect($result->items())->each->toBeInstanceOf(WebhookLogReadModel::class)
+    expect($result->items())->each->toBeInstanceOf(WebhookLogSummary::class)
         ->and($result->items()[0]->id)->toBe($newer->id)
         ->and($result->items()[1]->id)->toBe($older->id);
 });

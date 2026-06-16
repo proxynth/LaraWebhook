@@ -23,7 +23,7 @@ it('returns paginated webhook logs', function () {
     $response->assertOk()
         ->assertJsonStructure([
             'data' => [
-                '*' => ['id', 'service', 'event', 'status', 'payload', 'created_at'],
+                '*' => ['id', 'service', 'event', 'status', 'attempt', 'external_id', 'created_at'],
             ],
             'meta' => ['current_page', 'last_page', 'per_page', 'total'],
             'links' => ['first', 'last', 'prev', 'next'],

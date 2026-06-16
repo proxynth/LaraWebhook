@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Proxynth\Larawebhook\Audit\Application\Queries;
 
 use Illuminate\Pagination\LengthAwarePaginator;
-use Proxynth\Larawebhook\Audit\Application\ReadModels\WebhookLogReadModel;
+use Proxynth\Larawebhook\Audit\Application\ReadModels\WebhookLogSummary;
 use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Persistence\Models\WebhookLog;
 
 final readonly class ListWebhookLogs
@@ -21,7 +21,7 @@ final readonly class ListWebhookLogs
             ->paginate($query->perPage);
 
         return $logs->through(
-            fn (WebhookLog $log): WebhookLogReadModel => WebhookLogReadModel::fromModel($log)
+            fn (WebhookLog $log): WebhookLogSummary => WebhookLogSummary::fromModel($log)
         );
     }
 }

@@ -7,7 +7,10 @@ namespace Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Http\Resources;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Carbon;
-use Proxynth\Larawebhook\Audit\Application\ReadModels\WebhookLogReadModel;
+use InvalidArgumentException;
+use Proxynth\Larawebhook\Audit\Application\ReadModels\WebhookFailureDetails;
+use Proxynth\Larawebhook\Audit\Application\ReadModels\WebhookLogDetails;
+use Proxynth\Larawebhook\Audit\Application\ReadModels\WebhookLogSummary;
 use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Persistence\Models\WebhookLog;
 
 /**
@@ -25,15 +28,40 @@ use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Persistence\Models\Webhook
  */
 class WebhookLogResource extends JsonResource
 {
-    /**
-     * Transform the resource into an array.
-     *
-     * @return array<string, mixed>
-     */
     public function toArray(Request $request): array
     {
-        $log = $this->toReadModel();
+        return match (true) {
+            $this->resource instanceof WebhookLogSummary => $this->summary($this->resource),
+            $this->resource instanceof WebhookLogDetails => $this->details($this->resource),
+            $this->resource instanceof WebhookFailureDetails => $this->failureDetails($this->resource),
+            $this->resource instanceof WebhookLog => $this->details(WebhookLogDetails::fromModel($this->resource)),
+            default => throw new InvalidArgumentException(sprintf(
+                'WebhookLogResource expects [%s], [%s], [%s] or [%s], [%s] given.',
+                WebhookLogSummary::class,
+                WebhookLogDetails::class,
+                WebhookFailureDetails::class,
+                WebhookLog::class,
+                get_debug_type($this->resource),
+            )),
+        };
+    }
 
+    private function summary(WebhookLogSummary $log): array
+    {
+        return [
+            'id' => $log->id,
+            'service' => $log->service,
+            'event' => $log->event,
+            'status' => $log->status,
+            'attempt' => $log->attempt,
+            'external_id' => $log->externalId,
+            'created_at' => $log->createdAt,
+        ];
+
+    }
+
+    private function details(WebhookLogDetails $log): array
+    {
         return [
             'id' => $log->id,
             'service' => $log->service,
@@ -42,26 +70,23 @@ class WebhookLogResource extends JsonResource
             'payload' => $log->payload,
             'error_message' => $log->errorMessage,
             'attempt' => $log->attempt,
-            'created_at' => $log->createdAt?->toISOString(),
-            'updated_at' => $log->updatedAt?->toISOString(),
+            'external_id' => $log->externalId,
+            'created_at' => $log->createdAt,
+            'updated_at' => $log->updatedAt,
         ];
     }
 
-    private function toReadModel(): WebhookLogReadModel
+    private function failureDetails(WebhookFailureDetails $log): array
     {
-        if ($this->resource instanceof WebhookLogReadModel) {
-            return $this->resource;
-        }
-
-        if ($this->resource instanceof WebhookLog) {
-            return WebhookLogReadModel::fromModel($this->resource);
-        }
-
-        throw new \InvalidArgumentException(sprintf(
-            'WebhookLogResource expects [%s] or [%s], [%s] given.',
-            WebhookLogReadModel::class,
-            WebhookLog::class,
-            get_debug_type($this->resource)
-        ));
+        return [
+            'id' => $log->id,
+            'service' => $log->service,
+            'event' => $log->event,
+            'status' => $log->status,
+            'error_message' => $log->errorMessage,
+            'attempt' => $log->attempt,
+            'external_id' => $log->externalId,
+            'created_at' => $log->createdAt,
+        ];
     }
 }
