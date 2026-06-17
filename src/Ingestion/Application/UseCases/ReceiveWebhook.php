@@ -15,7 +15,9 @@ use Proxynth\Larawebhook\Ingestion\Application\Results\ReceiveWebhookResult;
 use Proxynth\Larawebhook\Ingestion\Domain\ValueObjects\Provider;
 use Proxynth\Larawebhook\Ingestion\Domain\ValueObjects\RawPayload;
 use Proxynth\Larawebhook\Processing\Application\Ports\IdempotencyResolver;
+use Proxynth\Larawebhook\Processing\Domain\Entities\WebhookEvent;
 use Proxynth\Larawebhook\Processing\Domain\ValueObjects\DeliveryAttempt;
+use Proxynth\Larawebhook\Processing\Domain\ValueObjects\EventType;
 use Proxynth\Larawebhook\Processing\Domain\ValueObjects\IdempotencyKey;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -60,6 +62,12 @@ final readonly class ReceiveWebhook
             );
         }
 
+        $webhookEvent = WebhookEvent::received(
+            provider: $provider,
+            eventType: EventType::fromString($event),
+            idempotencyKey: $idempotencyKey,
+        );
+
         $secret = $command->service->secret();
 
         if (empty($secret)) {
@@ -75,19 +83,38 @@ final readonly class ReceiveWebhook
             secret: $secret,
         ));
 
+        if ($validation->isValid()) {
+            $webhookEvent->markValidated();
+            $webhookEvent->markProcessing();
+
+            $log = $this->recordWebhookLog->handle(new RecordWebhookLogCommand(
+                service: $validation->service,
+                event: $validation->event,
+                valid: $validation->isValid(),
+                payload: $validation->payload,
+                attempt: DeliveryAttempt::initial()->value(),
+                externalId: $idempotencyKey?->value(),
+                errorMessage: $validation->errorMessage,
+            ));
+
+            $webhookEvent->markProcessed();
+
+            return ReceiveWebhookResult::success($log);
+        }
+
+        $webhookEvent->markFailed(
+            $validation->errorMessage ?? 'Webhook validation failed.'
+        );
+
         $log = $this->recordWebhookLog->handle(new RecordWebhookLogCommand(
             service: $validation->service,
             event: $validation->event,
-            valid: $validation->isValid(),
+            valid: false,
             payload: $validation->payload,
             attempt: DeliveryAttempt::initial()->value(),
             externalId: $idempotencyKey?->value(),
             errorMessage: $validation->errorMessage,
         ));
-
-        if ($validation->isValid()) {
-            return ReceiveWebhookResult::success($log);
-        }
 
         if ($this->shouldRetryAsync()) {
             return ReceiveWebhookResult::acceptedForRetry(

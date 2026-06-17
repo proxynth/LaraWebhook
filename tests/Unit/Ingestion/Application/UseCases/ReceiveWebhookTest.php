@@ -198,3 +198,40 @@ it('records the idempotency key as log external id while keeping provider extern
         ->and($result->idempotencyKey)->toStartWith('payload_hash:')
         ->and($result->log?->external_id)->toBe($result->idempotencyKey);
 });
+
+it('processes valid webhook through domain event lifecycle', function () {
+    $payload = githubPayload();
+    $signature = githubSignature($payload);
+
+    $result = app(ReceiveWebhook::class)->handle(new ReceiveWebhookCommand(
+        service: WebhookService::Github,
+        payload: $payload,
+        signature: $signature,
+        externalIdHeaderValue: 'delivery_123',
+    ));
+
+    expect($result->isSuccess())->toBeTrue()
+        ->and($result->log)->toBeInstanceOf(WebhookLog::class)
+        ->and($result->log?->status)->toBe('success')
+        ->and($result->log?->external_id)->toBe('delivery_123')
+        ->and($result->idempotencyKey)->toBe('delivery_123');
+});
+
+it('marks webhook as failed when validation fails and async retries are disabled', function () {
+    config()->set('larawebhook.retries.enabled', true);
+    config()->set('larawebhook.retries.async', false);
+
+    $payload = githubPayload();
+
+    $result = app(ReceiveWebhook::class)->handle(new ReceiveWebhookCommand(
+        service: WebhookService::Github,
+        payload: $payload,
+        signature: Signature::fromString('sha256=invalid'),
+        externalIdHeaderValue: 'delivery_invalid',
+    ));
+
+    expect($result->isFailed())->toBeTrue()
+        ->and($result->log)->toBeInstanceOf(WebhookLog::class)
+        ->and($result->log?->status)->toBe('failed')
+        ->and($result->errorMessage)->not->toBeNull();
+});
