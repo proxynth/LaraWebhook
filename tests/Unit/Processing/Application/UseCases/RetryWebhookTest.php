@@ -2,11 +2,13 @@
 
 declare(strict_types=1);
 
+use Proxynth\Larawebhook\Audit\Domain\Events\WebhookLogged;
 use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Persistence\Models\WebhookLog;
 use Proxynth\Larawebhook\Enums\WebhookService;
 use Proxynth\Larawebhook\Exceptions\WebhookException;
 use Proxynth\Larawebhook\Processing\Application\Commands\RetryWebhookCommand;
 use Proxynth\Larawebhook\Processing\Application\UseCases\RetryWebhook;
+use Proxynth\Larawebhook\Processing\Domain\Events\WebhookProcessingFailed;
 
 beforeEach(function () {
     config([
@@ -35,7 +37,9 @@ it('records a successful retry and stops retrying', function () {
     expect($result->isSuccess())->toBeTrue()
         ->and($result->shouldRetry)->toBeFalse()
         ->and($result->nextAttempt)->toBeNull()
-        ->and($result->delaySeconds)->toBeNull();
+        ->and($result->delaySeconds)->toBeNull()
+        ->and($result->events)->toHaveCount(1)
+        ->and($result->events[0])->toBeInstanceOf(WebhookLogged::class);
 
     $log = WebhookLog::latest()->first();
 
@@ -67,7 +71,10 @@ it('records a failed retry and schedules the next attempt when attempts remain',
     expect($result->isFailed())->toBeTrue()
         ->and($result->shouldRetry)->toBeTrue()
         ->and($result->nextAttempt)->toBe(1)
-        ->and($result->delaySeconds)->toBe(1);
+        ->and($result->delaySeconds)->toBe(1)
+        ->and($result->events)->toHaveCount(2)
+        ->and($result->events[0])->toBeInstanceOf(WebhookProcessingFailed::class)
+        ->and($result->events[1])->toBeInstanceOf(WebhookLogged::class);
 
     $log = WebhookLog::latest()->first();
 

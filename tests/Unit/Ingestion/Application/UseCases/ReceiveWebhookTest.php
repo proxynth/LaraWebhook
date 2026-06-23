@@ -3,11 +3,15 @@
 declare(strict_types=1);
 
 use Illuminate\Support\Facades\Queue;
+use Proxynth\Larawebhook\Audit\Domain\Events\WebhookLogged;
 use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Persistence\Models\WebhookLog;
 use Proxynth\Larawebhook\Enums\WebhookService;
 use Proxynth\Larawebhook\Ingestion\Application\Commands\ReceiveWebhookCommand;
 use Proxynth\Larawebhook\Ingestion\Application\Results\ReceiveWebhookResult;
 use Proxynth\Larawebhook\Ingestion\Application\UseCases\ReceiveWebhook;
+use Proxynth\Larawebhook\Ingestion\Domain\Events\WebhookReceived;
+use Proxynth\Larawebhook\Ingestion\Domain\Events\WebhookRejected;
+use Proxynth\Larawebhook\Ingestion\Domain\Events\WebhookValidated;
 use Proxynth\Larawebhook\Ingestion\Domain\ValueObjects\Signature;
 use Proxynth\Larawebhook\Processing\Application\Ports\WebhookDuplicateDetector;
 use Proxynth\Larawebhook\Tests\Fakes\Processing\FakeWebhookDuplicateDetector;
@@ -60,6 +64,10 @@ it('receives a valid webhook and logs it successfully', function () {
         ->and($result->log->status)->toBe('success')
         ->and($result->log->external_id)->toBe('delivery_123')
         ->and($result->idempotencyKey)->toBe('delivery_123')
+        ->and($result->events)->toHaveCount(3)
+        ->and($result->events[0])->toBeInstanceOf(WebhookReceived::class)
+        ->and($result->events[1])->toBeInstanceOf(WebhookValidated::class)
+        ->and($result->events[2])->toBeInstanceOf(WebhookLogged::class)
         ->and(WebhookLog::query()->count())->toBe(1);
 });
 
@@ -141,6 +149,10 @@ it('returns failed when signature is invalid and async retries are disabled', fu
         ->and($result->log?->status)->toBe('failed')
         ->and($result->failureStatusCode)->toBeInt()
         ->and($result->errorMessage)->not->toBeNull()
+        ->and($result->events)->toHaveCount(3)
+        ->and($result->events[0])->toBeInstanceOf(WebhookReceived::class)
+        ->and($result->events[1])->toBeInstanceOf(WebhookRejected::class)
+        ->and($result->events[2])->toBeInstanceOf(WebhookLogged::class)
         ->and(WebhookLog::query()->count())->toBe(1);
 });
 

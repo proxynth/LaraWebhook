@@ -5,6 +5,7 @@ declare(strict_types=1);
 use Proxynth\Larawebhook\Audit\Application\Commands\RecordWebhookLogCommand;
 use Proxynth\Larawebhook\Audit\Application\Ports\WebhookAuditLogWriter;
 use Proxynth\Larawebhook\Audit\Application\ReadModels\WebhookLogSummary;
+use Proxynth\Larawebhook\Audit\Domain\Events\WebhookLogged;
 use Proxynth\Larawebhook\Audit\Domain\Exceptions\PayloadNotAvailable;
 use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Persistence\Models\WebhookLog;
 use Proxynth\Larawebhook\Enums\WebhookService;
@@ -19,6 +20,7 @@ use Proxynth\Larawebhook\Processing\Application\Exceptions\ReplayWebhookNotAllow
 use Proxynth\Larawebhook\Processing\Application\Ports\ReplayableWebhookRepository;
 use Proxynth\Larawebhook\Processing\Application\Results\ReplayWebhookResult;
 use Proxynth\Larawebhook\Processing\Application\UseCases\ReplayWebhook;
+use Proxynth\Larawebhook\Processing\Domain\Events\WebhookReplayed;
 use Proxynth\Larawebhook\Shared\Infrastructure\Laravel\Providers\LarawebhookServiceProvider;
 
 beforeEach(function () {
@@ -125,7 +127,10 @@ it('replays a webhook without needing database access', function () {
         ->and($result->log)->toBeInstanceOf(WebhookLogSummary::class)
         ->and($result->log->id)->toBe(999)
         ->and($result->log->status)->toBe('success')
-        ->and($result->errorMessage)->toBeNull();
+        ->and($result->errorMessage)->toBeNull()
+        ->and($result->events)->toHaveCount(2)
+        ->and($result->events[0])->toBeInstanceOf(WebhookReplayed::class)
+        ->and($result->events[1])->toBeInstanceOf(WebhookLogged::class);
 });
 
 it('throws when replaying a log without payload', function () {

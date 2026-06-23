@@ -6,6 +6,7 @@ namespace Proxynth\Larawebhook\Processing\Application\UseCases;
 
 use Proxynth\Larawebhook\Audit\Application\Commands\RecordWebhookLogCommand;
 use Proxynth\Larawebhook\Audit\Application\UseCases\RecordWebhookLog;
+use Proxynth\Larawebhook\Audit\Domain\Events\WebhookLogged;
 use Proxynth\Larawebhook\Enums\WebhookService;
 use Proxynth\Larawebhook\Exceptions\WebhookException;
 use Proxynth\Larawebhook\Ingestion\Application\Commands\ValidateWebhookCommand;
@@ -13,6 +14,7 @@ use Proxynth\Larawebhook\Ingestion\Application\UseCases\ValidateWebhook;
 use Proxynth\Larawebhook\Ingestion\Domain\ValueObjects\RawPayload;
 use Proxynth\Larawebhook\Processing\Application\Commands\RetryWebhookCommand;
 use Proxynth\Larawebhook\Processing\Application\Results\RetryWebhookResult;
+use Proxynth\Larawebhook\Processing\Domain\Events\WebhookProcessingFailed;
 
 final readonly class RetryWebhook
 {
@@ -58,7 +60,14 @@ final readonly class RetryWebhook
         ));
 
         if ($validation->isValid()) {
-            return RetryWebhookResult::success($log);
+            return RetryWebhookResult::success($log, [
+                new WebhookLogged(
+                    webhookLogId: $log->id,
+                    provider: $log->service,
+                    event: $log->event,
+                    status: $log->status,
+                ),
+            ]);
         }
 
         $shouldRetry = $command->attempt < $maxAttempts - 1;
@@ -68,6 +77,21 @@ final readonly class RetryWebhook
             shouldRetry: $shouldRetry,
             nextAttempt: $shouldRetry ? $command->attempt + 1 : null,
             delaySeconds: $shouldRetry ? $this->delayForAttempt($delays, $command->attempt) : null,
+            events: [
+                new WebhookProcessingFailed(
+                    provider: $validation->service,
+                    event: $validation->event,
+                    externalId: $validation->externalId,
+                    attempt: $command->attempt,
+                    reason: $validation->errorMessage ?? 'Webhook validation failed.',
+                ),
+                new WebhookLogged(
+                    webhookLogId: $log->id,
+                    provider: $log->service,
+                    event: $log->event,
+                    status: $log->status,
+                ),
+            ],
         );
     }
 
