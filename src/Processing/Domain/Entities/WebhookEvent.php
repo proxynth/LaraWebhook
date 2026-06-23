@@ -125,6 +125,21 @@ final class WebhookEvent
         );
     }
 
+    public static function replayable(
+        Provider $provider,
+        EventType $eventType,
+        ?IdempotencyKey $idempotencyKey,
+        WebhookStatus $status,
+    ): self {
+        return new self(
+            provider: $provider,
+            eventType: $eventType,
+            idempotencyKey: $idempotencyKey,
+            status: $status,
+            valid: true,
+        );
+    }
+
     public function provider(): Provider
     {
         return $this->provider;
