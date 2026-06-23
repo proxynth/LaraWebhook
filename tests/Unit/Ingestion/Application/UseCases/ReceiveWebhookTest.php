@@ -9,6 +9,8 @@ use Proxynth\Larawebhook\Ingestion\Application\Commands\ReceiveWebhookCommand;
 use Proxynth\Larawebhook\Ingestion\Application\Results\ReceiveWebhookResult;
 use Proxynth\Larawebhook\Ingestion\Application\UseCases\ReceiveWebhook;
 use Proxynth\Larawebhook\Ingestion\Domain\ValueObjects\Signature;
+use Proxynth\Larawebhook\Processing\Application\Ports\WebhookDuplicateDetector;
+use Proxynth\Larawebhook\Tests\Fakes\Processing\FakeWebhookDuplicateDetector;
 
 function githubPayload(string $deliveryId = 'delivery_123'): string
 {
@@ -31,6 +33,9 @@ function githubSignature(string $payload, string $secret = 'secret'): Signature
 
 beforeEach(function () {
     Queue::fake();
+
+    $this->duplicateDetector = new FakeWebhookDuplicateDetector;
+    app()->instance(WebhookDuplicateDetector::class, $this->duplicateDetector);
 
     config()->set('larawebhook.services.github.webhook_secret', 'secret');
     config()->set('larawebhook.retries.enabled', true);
@@ -59,15 +64,9 @@ it('receives a valid webhook and logs it successfully', function () {
 });
 
 it('returns already processed when the idempotency key already exists', function () {
-    WebhookLog::factory()->create([
-        'service' => 'github',
-        'external_id' => 'delivery_123',
-        'idempotency_key' => 'delivery_123',
-        'status' => 'success',
-    ]);
-
     $payload = githubPayload();
     $signature = githubSignature($payload);
+    $this->duplicateDetector->shouldAlreadyProcessed('github', 'delivery_123');
 
     $result = app(ReceiveWebhook::class)->handle(new ReceiveWebhookCommand(
         service: WebhookService::Github,
@@ -79,7 +78,8 @@ it('returns already processed when the idempotency key already exists', function
     expect($result->isAlreadyProcessed())->toBeTrue()
         ->and($result->externalId)->toBe('delivery_123')
         ->and($result->idempotencyKey)->toBe('delivery_123')
-        ->and(WebhookLog::query()->count())->toBe(1);
+        ->and($result->log)->toBeNull()
+        ->and(WebhookLog::query()->count())->toBe(0);
 });
 
 it('uses payload hash idempotency fallback when no external id is available', function () {

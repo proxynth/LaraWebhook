@@ -22,7 +22,9 @@ use Proxynth\Larawebhook\Ingestion\Application\UseCases\ValidateWebhook as Valid
 use Proxynth\Larawebhook\Ingestion\Infrastructure\Laravel\Middleware\ValidateWebhook as ValidateWebhookMiddleware;
 use Proxynth\Larawebhook\Ingestion\Infrastructure\Validation\WebhookValidatorFactory;
 use Proxynth\Larawebhook\Processing\Application\Ports\IdempotencyResolver;
+use Proxynth\Larawebhook\Processing\Application\Ports\WebhookDuplicateDetector;
 use Proxynth\Larawebhook\Processing\Application\UseCases\ReplayWebhook;
+use Proxynth\Larawebhook\Processing\Infrastructure\Deduplication\EloquentWebhookDuplicateDetector;
 use Proxynth\Larawebhook\Processing\Infrastructure\Idempotency\DefaultIdempotencyResolver;
 use Proxynth\Larawebhook\Shared\Application\Larawebhook;
 use Spatie\LaravelPackageTools\Package;
@@ -116,6 +118,9 @@ class LarawebhookServiceProvider extends PackageServiceProvider
 
         // Register IdempotencyResolver as singleton with default implementation
         $this->app->singleton(IdempotencyResolver::class, DefaultIdempotencyResolver::class);
+
+        // Register duplicate detector as singleton with default implementation
+        $this->app->singleton(WebhookDuplicateDetector::class, EloquentWebhookDuplicateDetector::class);
 
         // Register WebhookValidatorFactory as singleton
         $this->app->singleton(WebhookValidatorFactory::class);
