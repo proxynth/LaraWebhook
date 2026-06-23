@@ -1,62 +1,73 @@
 <?php
 
+use Illuminate\Pagination\LengthAwarePaginator;
+use Proxynth\Larawebhook\Audit\Application\Ports\WebhookLogReadRepository;
 use Proxynth\Larawebhook\Audit\Application\Queries\ListWebhookLogs;
 use Proxynth\Larawebhook\Audit\Application\Queries\ListWebhookLogsQuery;
+use Proxynth\Larawebhook\Audit\Application\ReadModels\WebhookFailureDetails;
+use Proxynth\Larawebhook\Audit\Application\ReadModels\WebhookLogDetails;
 use Proxynth\Larawebhook\Audit\Application\ReadModels\WebhookLogSummary;
-use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Persistence\Models\WebhookLog;
 
-it('lists webhook logs ordered by latest first', function () {
-    $older = WebhookLog::factory()->create([
-        'service' => 'stripe',
-        'created_at' => now()->subDays(2),
-    ]);
+it('delegates pagination to the read repository', function () {
+    $repository = new class implements WebhookLogReadRepository
+    {
+        public ?ListWebhookLogsQuery $query = null;
 
-    $newer = WebhookLog::factory()->create([
-        'service' => 'github',
-        'created_at' => now(),
-    ]);
+        public function paginateSummaries(ListWebhookLogsQuery $query): LengthAwarePaginator
+        {
+            $this->query = $query;
 
-    $result = app(ListWebhookLogs::class)->handle(new ListWebhookLogsQuery(
-        perPage: 25,
-    ));
+            return new LengthAwarePaginator([
+                new WebhookLogSummary(
+                    id: 2,
+                    service: 'github',
+                    event: 'push',
+                    status: 'success',
+                    attempt: 0,
+                    externalId: 'delivery_2',
+                    idempotencyKey: 'delivery_2',
+                    createdAt: '2026-06-16T12:01:00+00:00',
+                ),
+                new WebhookLogSummary(
+                    id: 1,
+                    service: 'stripe',
+                    event: 'invoice.paid',
+                    status: 'failed',
+                    attempt: 1,
+                    externalId: 'delivery_1',
+                    idempotencyKey: 'delivery_1',
+                    createdAt: '2026-06-16T12:00:00+00:00',
+                ),
+            ], 2, $query->perPage);
+        }
 
-    expect($result->items())->each->toBeInstanceOf(WebhookLogSummary::class)
-        ->and($result->items()[0]->id)->toBe($newer->id)
-        ->and($result->items()[1]->id)->toBe($older->id);
-});
+        public function findDetails(int|string $id): WebhookLogDetails
+        {
+            throw new LogicException('Not expected.');
+        }
 
-it('filters webhook logs by service', function () {
-    WebhookLog::factory()->create([
-        'service' => 'stripe',
-    ]);
+        public function findFailureDetails(int|string $id): WebhookFailureDetails
+        {
+            throw new LogicException('Not expected.');
+        }
+    };
 
-    WebhookLog::factory()->create([
-        'service' => 'github',
-    ]);
+    app()->instance(WebhookLogReadRepository::class, $repository);
 
     $result = app(ListWebhookLogs::class)->handle(new ListWebhookLogsQuery(
         service: 'stripe',
-        perPage: 25,
-    ));
-
-    expect($result->total())->toBe(1)
-        ->and($result->items()[0]->service)->toBe('stripe');
-});
-
-it('filters webhook logs by status', function () {
-    WebhookLog::factory()->create([
-        'status' => 'success',
-    ]);
-
-    WebhookLog::factory()->create([
-        'status' => 'failed',
-    ]);
-
-    $result = app(ListWebhookLogs::class)->handle(new ListWebhookLogsQuery(
         status: 'failed',
+        event: 'invoice.paid',
+        date: '2026-06-16',
         perPage: 25,
     ));
 
-    expect($result->total())->toBe(1)
-        ->and($result->items()[0]->status)->toBe('failed');
+    expect($repository->query)->toBeInstanceOf(ListWebhookLogsQuery::class)
+        ->and($repository->query?->service)->toBe('stripe')
+        ->and($repository->query?->status)->toBe('failed')
+        ->and($repository->query?->event)->toBe('invoice.paid')
+        ->and($repository->query?->date)->toBe('2026-06-16')
+        ->and($result->total())->toBe(2)
+        ->and($result->items()[0])->toBeInstanceOf(WebhookLogSummary::class)
+        ->and($result->items()[0]->id)->toBe(2);
 });

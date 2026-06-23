@@ -9,12 +9,14 @@ use Illuminate\Notifications\ChannelManager;
 use Illuminate\Routing\Router;
 use Illuminate\Support\Facades\Notification;
 use Proxynth\Larawebhook\Audit\Application\Ports\WebhookAuditLogWriter;
+use Proxynth\Larawebhook\Audit\Application\Ports\WebhookLogReadRepository;
 use Proxynth\Larawebhook\Audit\Application\Ports\WebhookLogRepository;
 use Proxynth\Larawebhook\Audit\Application\UseCases\RecordWebhookLog;
 use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Console\PruneWebhookLogsConsoleCommand;
 use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Notifications\Channels\SlackWebhookChannel;
 use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Notifications\FailureDetector;
 use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Notifications\NotificationSender;
+use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Persistence\EloquentWebhookLogReadRepository;
 use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Persistence\EloquentWebhookLogRepository;
 use Proxynth\Larawebhook\Audit\Infrastructure\Logging\WebhookLogger;
 use Proxynth\Larawebhook\Audit\Infrastructure\Logging\WebhookLoggerAuditLogWriter;
@@ -141,6 +143,11 @@ class LarawebhookServiceProvider extends PackageServiceProvider
         $this->app->singleton(
             WebhookLogRepository::class,
             EloquentWebhookLogRepository::class
+        );
+
+        $this->app->singleton(
+            WebhookLogReadRepository::class,
+            EloquentWebhookLogReadRepository::class
         );
 
         $this->app->singleton(ValidateWebhookUseCase::class);
