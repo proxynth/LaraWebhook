@@ -61,12 +61,14 @@ final readonly class ReceiveWebhookResult implements Result
         WebhookLog $log,
         string $event,
         string $secret,
+        ?string $externalId,
         ?string $idempotencyKey,
     ): self {
         return new self(
             status: self::STATUS_ACCEPTED_FOR_RETRY,
             log: $log,
             event: $event,
+            externalId: $externalId,
             idempotencyKey: $idempotencyKey,
             errorMessage: 'Webhook validation failed, queued for retry',
             secret: $secret,
