@@ -15,6 +15,7 @@ final readonly class RecordWebhookLogCommand implements Command
         public array $payload,
         public int $attempt = 0,
         public ?string $externalId = null,
+        public ?string $idempotencyKey = null,
         public ?string $errorMessage = null,
     ) {}
 }
