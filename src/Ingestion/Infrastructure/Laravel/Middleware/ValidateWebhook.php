@@ -87,6 +87,7 @@ class ValidateWebhook
                 ->json([
                     'status' => 'already_processed',
                     'external_id' => $result->externalId,
+                    'idempotency_key' => $result->idempotencyKey,
                 ], Response::HTTP_OK);
         }
 
@@ -104,14 +105,16 @@ class ValidateWebhook
                 service: $webhookService->value,
                 event: $result->event ?? 'unknown',
                 secret: $result->secret ?? '',
-                externalId: $result->idempotencyKey,
+                externalId: $result->externalId,
+                idempotencyKey: $result->idempotencyKey
             );
 
             return response()
                 ->json([
                     'status' => 'accepted_for_retry',
                     'message' => $result->errorMessage ?? 'Webhook validation failed, queued for retry',
-                    'external_id' => $result->idempotencyKey,
+                    'external_id' => $result->externalId,
+                    'idempotency_key' => $result->idempotencyKey,
                 ], Response::HTTP_ACCEPTED);
         }
 
@@ -144,7 +147,8 @@ class ValidateWebhook
         string $service,
         string $event,
         string $secret,
-        ?string $externalId
+        ?string $externalId,
+        ?string $idempotencyKey
     ): void {
         $delays = config('larawebhook.retries.delays', [1, 5, 10]);
 
@@ -159,7 +163,8 @@ class ValidateWebhook
             $event,
             $secret,
             1,
-            $externalId
+            $externalId,
+            $idempotencyKey
         )->delay(now()->addSeconds($firstDelay));
     }
 

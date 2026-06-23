@@ -771,6 +771,7 @@ describe('ValidateWebhook middleware async retry', function () {
             ->assertJson([
                 'status' => 'accepted_for_retry',
                 'external_id' => 'evt_test_retry',
+                'idempotency_key' => 'evt_test_retry',
             ]);
     });
 
@@ -843,6 +844,7 @@ describe('ValidateWebhook middleware idempotency', function () {
             ->assertJson([
                 'status' => 'already_processed',
                 'external_id' => 'evt_test_duplicate',
+                'idempotency_key' => 'evt_test_duplicate',
             ]);
 
         // No new log should be created
@@ -891,6 +893,7 @@ describe('ValidateWebhook middleware idempotency', function () {
             ->assertJson([
                 'status' => 'already_processed',
                 'external_id' => $deliveryId,
+                'idempotency_key' => $deliveryId,
             ]);
 
         expect(WebhookLog::count())->toBe(1);
@@ -956,7 +959,19 @@ describe('ValidateWebhook middleware idempotency', function () {
             $payload
         );
 
-        $response1->assertOk();
+        $response1->assertOk()
+            ->assertJson([
+                'status' => 'success',
+            ]);
+
+        expect(WebhookLog::count())->toBe(1);
+
+        $log = WebhookLog::first();
+
+        expect($log)->not->toBeNull()
+            ->and($log->external_id)->toBeNull()
+            ->and($log->idempotency_key)->not->toBeNull()
+            ->and($log->idempotency_key)->toStartWith('payload_hash:');
 
         // Second request - should be already processed (no external_id to check, but same payload, service and signature)
         $response2 = $this->call(
@@ -969,9 +984,41 @@ describe('ValidateWebhook middleware idempotency', function () {
             $payload
         );
 
-        $response2->assertOk()->assertJson(['status' => 'already_processed', 'external_id' => null]);
+        $response2->assertOk()->assertJson([
+            'status' => 'already_processed',
+            'external_id' => null,
+            'idempotency_key' => 'payload_hash:'.hash('sha256', json_encode(['type' => 'unknown_event'], JSON_THROW_ON_ERROR)),
+        ]);
 
         // Only first should be logged
         expect(WebhookLog::count())->toBe(1);
     });
+});
+
+it('stores provider external id and idempotency key separately', function () {
+    $payload = '{"zen":"Keep it logically awesome."}';
+    $signature = 'sha256='.hash_hmac('sha256', $payload, 'test_github_secret');
+
+    $response = $this->call(
+        'POST',
+        'test-github-webhook',
+        [],
+        [],
+        [],
+        [
+            'HTTP_X_HUB_SIGNATURE_256' => $signature,
+            'HTTP_X_GITHUB_EVENT' => 'ping',
+            'HTTP_X_GITHUB_DELIVERY' => 'delivery_123',
+            'CONTENT_TYPE' => 'application/json',
+        ],
+        $payload
+    );
+
+    $response->assertOk();
+
+    $log = WebhookLog::first();
+
+    expect($log)->not->toBeNull()
+        ->and($log->external_id)->toBe('delivery_123')
+        ->and($log->idempotency_key)->toBe('delivery_123');
 });

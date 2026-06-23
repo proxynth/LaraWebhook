@@ -23,7 +23,7 @@ it('returns paginated webhook logs', function () {
     $response->assertOk()
         ->assertJsonStructure([
             'data' => [
-                '*' => ['id', 'service', 'event', 'status', 'attempt', 'external_id', 'created_at'],
+                '*' => ['id', 'service', 'event', 'status', 'attempt', 'external_id', 'idempotency_key', 'created_at'],
             ],
             'meta' => ['current_page', 'last_page', 'per_page', 'total'],
             'links' => ['first', 'last', 'prev', 'next'],
@@ -146,7 +146,7 @@ it('successfully replays a webhook', function () {
             'message' => 'Webhook replayed successfully.',
         ])
         ->assertJsonStructure([
-            'log' => ['id', 'service', 'event', 'status', 'attempt'],
+            'log' => ['id', 'service', 'event', 'status', 'attempt', 'idempotency_key'],
         ]);
 
     // Verify a new log entry was created
@@ -193,6 +193,7 @@ it('does not replay webhook when payload is not available', function () {
     $log = WebhookLog::create([
         'service' => 'stripe',
         'external_id' => 'evt_123',
+        'idempotency_key' => null,
         'event' => 'invoice.paid',
         'status' => 'success',
         'payload' => null,

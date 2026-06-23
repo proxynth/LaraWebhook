@@ -14,6 +14,7 @@ it('can be created from webhook log model', function () {
         'error_message' => 'Invalid signature.',
         'attempt' => 2,
         'external_id' => 'evt_123',
+        'idempotency_key' => 'evt_123',
     ]);
 
     $readModel = WebhookLogDetails::fromModel($log);
@@ -23,5 +24,6 @@ it('can be created from webhook log model', function () {
         ->and($readModel->payload)->toBe(['invoice' => 'in_123'])
         ->and($readModel->errorMessage)->toBe('Invalid signature.')
         ->and($readModel->externalId)->toBe('evt_123')
+        ->and($readModel->idempotencyKey)->toBe('evt_123')
         ->and($readModel->updatedAt)->toBe($log->updated_at->toISOString());
 });

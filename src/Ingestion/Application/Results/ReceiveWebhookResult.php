@@ -36,6 +36,7 @@ final readonly class ReceiveWebhookResult implements Result
             status: self::STATUS_SUCCESS,
             log: $log,
             event: $log->event,
+            externalId: $log->external_id,
             idempotencyKey: $log->idempotency_key,
         );
     }
@@ -81,7 +82,8 @@ final readonly class ReceiveWebhookResult implements Result
             status: self::STATUS_FAILED,
             log: $log,
             event: $log->event,
-            idempotencyKey: $log->external_id,
+            externalId: $log->external_id,
+            idempotencyKey: $log->idempotency_key,
             errorMessage: $log->error_message,
             failureStatusCode: $statusCode,
         );

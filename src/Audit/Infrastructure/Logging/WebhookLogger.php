@@ -26,7 +26,8 @@ class WebhookLogger
      * @param  array  $payload  Webhook payload
      * @param  string|null  $errorMessage  Error message if failed
      * @param  int  $attempt  Retry attempt number (0 = first try, 1 = first retry, etc.)
-     * @param  string|null  $externalId  External ID for idempotency (provider's event/delivery ID)
+     * @param  string|null  $externalId  Provider event/delivery ID
+     * @param  string|null  $idempotencyKey  Effective deduplication key
      */
     public function log(
         string $service,
@@ -35,11 +36,13 @@ class WebhookLogger
         array $payload,
         ?string $errorMessage = null,
         int $attempt = 0,
-        ?string $externalId = null
+        ?string $externalId = null,
+        ?string $idempotencyKey = null,
     ): WebhookLog {
         $log = WebhookLog::create([
             'service' => $service,
             'external_id' => $externalId,
+            'idempotency_key' => $idempotencyKey,
             'event' => $event,
             'status' => $status,
             'payload' => $this->resolvePayloadForStorage($payload),
@@ -52,6 +55,7 @@ class WebhookLogger
             'service' => $service,
             'event' => $event,
             'external_id' => $externalId,
+            'idempotency_key' => $idempotencyKey,
             'attempt' => $attempt,
         ];
 
@@ -73,9 +77,10 @@ class WebhookLogger
         string $event,
         array $payload,
         int $attempt = 0,
-        ?string $externalId = null
+        ?string $externalId = null,
+        ?string $idempotencyKey = null,
     ): WebhookLog {
-        return $this->log($service, $event, 'success', $payload, null, $attempt, $externalId);
+        return $this->log($service, $event, 'success', $payload, null, $attempt, $externalId, $idempotencyKey);
     }
 
     /**
@@ -87,9 +92,10 @@ class WebhookLogger
         array $payload,
         string $errorMessage,
         int $attempt = 0,
-        ?string $externalId = null
+        ?string $externalId = null,
+        ?string $idempotencyKey = null,
     ): WebhookLog {
-        return $this->log($service, $event, 'failed', $payload, $errorMessage, $attempt, $externalId);
+        return $this->log($service, $event, 'failed', $payload, $errorMessage, $attempt, $externalId, $idempotencyKey);
     }
 
     /**

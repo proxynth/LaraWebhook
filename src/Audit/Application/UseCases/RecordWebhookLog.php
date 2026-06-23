@@ -23,6 +23,7 @@ final readonly class RecordWebhookLog
                 payload: $command->payload,
                 attempt: $command->attempt,
                 externalId: $command->externalId,
+                idempotencyKey: $command->idempotencyKey,
             );
         }
 
@@ -33,6 +34,7 @@ final readonly class RecordWebhookLog
             errorMessage: $command->errorMessage ?? 'Webhook validation failed.',
             attempt: $command->attempt,
             externalId: $command->externalId,
+            idempotencyKey: $command->idempotencyKey,
         );
     }
 }

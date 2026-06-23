@@ -142,14 +142,20 @@ class Larawebhook
     /**
      * Log a successful webhook.
      */
-    public function logSuccess(string $service, string $event, array $payload, int $attempt = 0): WebhookLog
-    {
+    public function logSuccess(
+        string $service,
+        string $event,
+        array $payload,
+        int $attempt = 0,
+        ?string $idempotencyKey = null
+    ): WebhookLog {
         return $this->getRecordWebhookLog()->handle(new RecordWebhookLogCommand(
             service: $service,
             event: $event,
             valid: true,
             payload: $payload,
             attempt: $attempt,
+            idempotencyKey: $idempotencyKey,
         ));
     }
 
@@ -161,7 +167,8 @@ class Larawebhook
         string $event,
         array $payload,
         string $errorMessage,
-        int $attempt = 0
+        int $attempt = 0,
+        ?string $idempotencyKey = null
     ): WebhookLog {
         return $this->getRecordWebhookLog()->handle(new RecordWebhookLogCommand(
             service: $service,
@@ -169,6 +176,7 @@ class Larawebhook
             valid: false,
             payload: $payload,
             attempt: $attempt,
+            idempotencyKey: $idempotencyKey,
             errorMessage: $errorMessage,
         ));
     }

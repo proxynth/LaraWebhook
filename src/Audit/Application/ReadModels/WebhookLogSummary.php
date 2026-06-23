@@ -15,6 +15,7 @@ final readonly class WebhookLogSummary
         public string $status,
         public int $attempt,
         public ?string $externalId,
+        public ?string $idempotencyKey,
         public string $createdAt,
     ) {}
 
@@ -27,6 +28,7 @@ final readonly class WebhookLogSummary
             status: $log->status,
             attempt: $log->attempt,
             externalId: $log->external_id,
+            idempotencyKey: $log->idempotency_key,
             createdAt: $log->created_at->toISOString() ?? '',
         );
     }

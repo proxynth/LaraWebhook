@@ -55,7 +55,7 @@ final readonly class ReceiveWebhook
 
         $idempotencyKey = IdempotencyKey::optional($idempotencyKeyValue);
 
-        if ($idempotencyKey !== null && WebhookLog::existsForExternalId($provider->value(), $idempotencyKey->value())) {
+        if ($idempotencyKey !== null && WebhookLog::existsForIdempotencyKey($provider->value(), $idempotencyKey->value())) {
             return ReceiveWebhookResult::alreadyProcessed(
                 externalId: $externalId,
                 idempotencyKey: $idempotencyKey->value(),
@@ -93,7 +93,8 @@ final readonly class ReceiveWebhook
                 valid: $validation->isValid(),
                 payload: $validation->payload,
                 attempt: DeliveryAttempt::initial()->value(),
-                externalId: $idempotencyKey?->value(),
+                externalId: $externalId,
+                idempotencyKey: $idempotencyKey?->value(),
                 errorMessage: $validation->errorMessage,
             ));
 
@@ -112,7 +113,8 @@ final readonly class ReceiveWebhook
             valid: false,
             payload: $validation->payload,
             attempt: DeliveryAttempt::initial()->value(),
-            externalId: $idempotencyKey?->value(),
+            externalId: $externalId,
+            idempotencyKey: $idempotencyKey?->value(),
             errorMessage: $validation->errorMessage,
         ));
 
@@ -121,6 +123,7 @@ final readonly class ReceiveWebhook
                 log: $log,
                 event: $event,
                 secret: $secret,
+                externalId: $externalId,
                 idempotencyKey: $idempotencyKey?->value(),
             );
         }

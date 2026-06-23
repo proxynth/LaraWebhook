@@ -16,6 +16,7 @@ final readonly class WebhookFailureDetails
         public string $errorMessage,
         public int $attempt,
         public ?string $externalId,
+        public ?string $idempotencyKey,
         public string $createdAt,
     ) {}
 
@@ -29,6 +30,7 @@ final readonly class WebhookFailureDetails
             errorMessage: $log->error_message ?? 'Unknown webhook failure.',
             attempt: $log->attempt,
             externalId: $log->external_id,
+            idempotencyKey: $log->idempotency_key,
             createdAt: $log->created_at->toISOString() ?? '',
         );
     }

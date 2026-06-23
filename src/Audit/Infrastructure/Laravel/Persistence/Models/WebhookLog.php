@@ -13,6 +13,7 @@ use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Persistence\Factories\Webh
  * @property int $id
  * @property string $service
  * @property string|null $external_id
+ * @property string|null $idempotency_key
  * @property string $event
  * @property string $status
  * @property array|null $payload
@@ -28,6 +29,7 @@ class WebhookLog extends Model
     protected $fillable = [
         'service',
         'external_id',
+        'idempotency_key',
         'event',
         'status',
         'payload',
@@ -57,6 +59,14 @@ class WebhookLog extends Model
     }
 
     /**
+     * Scope to filter by idempotency key.
+     */
+    public function scopeIdempotencyKey($query, string $idempotencyKey)
+    {
+        return $query->where('idempotency_key', $idempotencyKey);
+    }
+
+    /**
      * Check if a webhook with this external ID already exists for the given service.
      */
     public static function existsForExternalId(string $service, string $externalId): bool
@@ -77,6 +87,14 @@ class WebhookLog extends Model
         return static::where('service', $service)
             ->where('external_id', $externalId)
             ->first();
+    }
+
+    public static function existsForIdempotencyKey(string $service, string $idempotencyKey): bool
+    {
+        return self::query()
+            ->where('service', $service)
+            ->where('idempotency_key', $idempotencyKey)
+            ->exists();
     }
 
     /**

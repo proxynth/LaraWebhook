@@ -13,6 +13,7 @@ it('serializes webhook log summary without payload', function () {
         status: 'success',
         attempt: 0,
         externalId: 'delivery_123',
+        idempotencyKey: 'delivery_123',
         createdAt: '2026-06-16T12:00:00+00:00',
     ));
 
@@ -25,6 +26,7 @@ it('serializes webhook log summary without payload', function () {
         'status',
         'attempt',
         'external_id',
+        'idempotency_key',
         'created_at',
     ])->not->toHaveKey('payload');
 });
@@ -39,6 +41,7 @@ it('serializes webhook log details with payload', function () {
         errorMessage: 'Invalid signature.',
         attempt: 1,
         externalId: 'delivery_123',
+        idempotencyKey: 'delivery_123',
         createdAt: '2026-06-16T12:00:00+00:00',
         updatedAt: '2026-06-16T12:01:00+00:00',
     ));
@@ -47,5 +50,6 @@ it('serializes webhook log details with payload', function () {
 
     expect($data)->toHaveKey('payload')
         ->and($data['payload'])->toBe(['ref' => 'main'])
-        ->and($data['error_message'])->toBe('Invalid signature.');
+        ->and($data['error_message'])->toBe('Invalid signature.')
+        ->and($data)->toHaveKey('idempotency_key');
 });
