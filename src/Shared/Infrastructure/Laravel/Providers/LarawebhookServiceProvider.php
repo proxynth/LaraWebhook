@@ -28,11 +28,13 @@ use Proxynth\Larawebhook\Ingestion\Infrastructure\Laravel\Middleware\ValidateWeb
 use Proxynth\Larawebhook\Ingestion\Infrastructure\Validation\ProviderSignatureValidator;
 use Proxynth\Larawebhook\Ingestion\Infrastructure\Validation\WebhookValidatorFactory;
 use Proxynth\Larawebhook\Processing\Application\Ports\IdempotencyResolver;
+use Proxynth\Larawebhook\Processing\Application\Ports\ReplayableWebhookRepository;
 use Proxynth\Larawebhook\Processing\Application\Ports\WebhookDuplicateDetector;
 use Proxynth\Larawebhook\Processing\Application\UseCases\ReplayWebhook;
 use Proxynth\Larawebhook\Processing\Application\UseCases\RetryWebhook;
 use Proxynth\Larawebhook\Processing\Infrastructure\Deduplication\EloquentWebhookDuplicateDetector;
 use Proxynth\Larawebhook\Processing\Infrastructure\Idempotency\DefaultIdempotencyResolver;
+use Proxynth\Larawebhook\Processing\Infrastructure\Persistence\EloquentReplayableWebhookRepository;
 use Proxynth\Larawebhook\Shared\Application\Larawebhook;
 use Spatie\LaravelPackageTools\Package;
 use Spatie\LaravelPackageTools\PackageServiceProvider;
@@ -138,6 +140,11 @@ class LarawebhookServiceProvider extends PackageServiceProvider
         // Register ReplayWebhook use case
         $this->app->singleton(ReplayWebhook::class);
         $this->app->singleton(RetryWebhook::class);
+
+        $this->app->singleton(
+            ReplayableWebhookRepository::class,
+            EloquentReplayableWebhookRepository::class
+        );
 
         // Register WebhookLogRepository persistence repository
         $this->app->singleton(

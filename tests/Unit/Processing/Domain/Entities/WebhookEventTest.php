@@ -6,6 +6,7 @@ use Proxynth\Larawebhook\Processing\Domain\Exceptions\DuplicateWebhookEvent;
 use Proxynth\Larawebhook\Processing\Domain\Exceptions\InvalidWebhookState;
 use Proxynth\Larawebhook\Processing\Domain\ValueObjects\EventType;
 use Proxynth\Larawebhook\Processing\Domain\ValueObjects\IdempotencyKey;
+use Proxynth\Larawebhook\Processing\Domain\ValueObjects\WebhookStatus;
 
 function webhookEvent(
     bool $valid = true,
@@ -111,6 +112,21 @@ it('can replay failed event', function () {
     $replayed = $event->replay();
 
     expect($replayed->status()->isReplayed())->toBeTrue();
+});
+
+it('can be built in a replayable state before replaying', function () {
+    $event = WebhookEvent::replayable(
+        provider: Provider::fromString('github'),
+        eventType: EventType::fromString('push'),
+        idempotencyKey: IdempotencyKey::fromString('delivery_123'),
+        status: WebhookStatus::failed(),
+    );
+
+    $replayed = $event->replay();
+
+    expect($replayed->status()->isReplayed())->toBeTrue()
+        ->and($replayed->provider()->equals($event->provider()))->toBeTrue()
+        ->and($replayed->eventType()->equals($event->eventType()))->toBeTrue();
 });
 
 it('can replay only when replayable', function () {

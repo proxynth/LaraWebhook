@@ -1,42 +1,243 @@
 <?php
 
+declare(strict_types=1);
+
+use Proxynth\Larawebhook\Audit\Application\Commands\RecordWebhookLogCommand;
+use Proxynth\Larawebhook\Audit\Application\Ports\WebhookAuditLogWriter;
+use Proxynth\Larawebhook\Audit\Application\ReadModels\WebhookLogSummary;
 use Proxynth\Larawebhook\Audit\Domain\Exceptions\PayloadNotAvailable;
 use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Persistence\Models\WebhookLog;
+use Proxynth\Larawebhook\Enums\WebhookService;
+use Proxynth\Larawebhook\Exceptions\WebhookException;
+use Proxynth\Larawebhook\Ingestion\Application\Commands\ValidateWebhookCommand;
+use Proxynth\Larawebhook\Ingestion\Application\Ports\SignatureValidator;
+use Proxynth\Larawebhook\Ingestion\Domain\ValueObjects\RawPayload;
+use Proxynth\Larawebhook\Ingestion\Domain\ValueObjects\Signature;
 use Proxynth\Larawebhook\Processing\Application\Commands\ReplayWebhookCommand;
+use Proxynth\Larawebhook\Processing\Application\DTOs\ReplayableWebhook;
+use Proxynth\Larawebhook\Processing\Application\Exceptions\ReplayWebhookNotAllowed;
+use Proxynth\Larawebhook\Processing\Application\Ports\ReplayableWebhookRepository;
+use Proxynth\Larawebhook\Processing\Application\Results\ReplayWebhookResult;
 use Proxynth\Larawebhook\Processing\Application\UseCases\ReplayWebhook;
+use Proxynth\Larawebhook\Shared\Infrastructure\Laravel\Providers\LarawebhookServiceProvider;
+
+beforeEach(function () {
+    app()->register(LarawebhookServiceProvider::class, true);
+});
+
+function replayableWebhook(
+    int|string $id = 123,
+    string $status = 'failed',
+    ?array $payload = ['action' => 'opened'],
+): ReplayableWebhook {
+    return new ReplayableWebhook(
+        id: $id,
+        service: WebhookService::Github->value,
+        event: 'pull_request.opened',
+        payload: $payload,
+        attempt: 1,
+        externalId: 'delivery_123',
+        idempotencyKey: 'dedupe_123',
+        status: $status,
+    );
+}
+
+it('replays a webhook without needing database access', function () {
+    $repository = new class implements ReplayableWebhookRepository
+    {
+        public int|string|null $id = null;
+
+        public function findReplayableById(int|string $id): ReplayableWebhook
+        {
+            $this->id = $id;
+
+            return replayableWebhook($id);
+        }
+    };
+
+    $signatureValidator = new class implements SignatureValidator
+    {
+        public ?ValidateWebhookCommand $command = null;
+
+        public function validate(
+            WebhookService $service,
+            RawPayload $payload,
+            Signature $signature,
+            string $secret,
+        ): bool {
+            $this->command = new ValidateWebhookCommand(
+                service: $service,
+                payload: $payload,
+                signature: $signature,
+                event: 'pull_request.opened',
+                externalId: 'delivery_123',
+                secret: $secret,
+            );
+
+            return true;
+        }
+    };
+
+    $auditWriter = new class implements WebhookAuditLogWriter
+    {
+        public ?RecordWebhookLogCommand $command = null;
+
+        public function record(RecordWebhookLogCommand $command): WebhookLog
+        {
+            $this->command = $command;
+
+            $log = new WebhookLog([
+                'service' => $command->service,
+                'event' => $command->event,
+                'status' => $command->valid ? 'success' : 'failed',
+                'payload' => $command->payload,
+                'attempt' => $command->attempt,
+                'external_id' => $command->externalId,
+                'idempotency_key' => $command->idempotencyKey,
+                'error_message' => $command->errorMessage,
+            ]);
+
+            $log->id = 999;
+            $log->created_at = now();
+            $log->updated_at = now();
+
+            return $log;
+        }
+    };
+
+    app()->instance(ReplayableWebhookRepository::class, $repository);
+    app()->instance(SignatureValidator::class, $signatureValidator);
+    app()->instance(WebhookAuditLogWriter::class, $auditWriter);
+
+    $result = app(ReplayWebhook::class)->handle(new ReplayWebhookCommand(
+        webhookLogId: 123,
+        signature: incomingSignature('signature'),
+    ));
+
+    expect($repository->id)->toBe(123)
+        ->and($signatureValidator->command)->toBeInstanceOf(ValidateWebhookCommand::class)
+        ->and($signatureValidator->command?->payload->decoded())->toBe(['action' => 'opened'])
+        ->and($auditWriter->command)->toBeInstanceOf(RecordWebhookLogCommand::class)
+        ->and($auditWriter->command?->attempt)->toBe(2)
+        ->and($auditWriter->command?->externalId)->toBe('delivery_123')
+        ->and($auditWriter->command?->idempotencyKey)->toBe('dedupe_123')
+        ->and($result)->toBeInstanceOf(ReplayWebhookResult::class)
+        ->and($result->log)->toBeInstanceOf(WebhookLogSummary::class)
+        ->and($result->log->id)->toBe(999)
+        ->and($result->log->status)->toBe('success')
+        ->and($result->errorMessage)->toBeNull();
+});
 
 it('throws when replaying a log without payload', function () {
-    $log = new WebhookLog([
-        'service' => 'stripe',
-        'event' => 'invoice.paid',
-        'payload' => null,
-        'attempt' => 1,
-    ]);
+    app()->instance(ReplayableWebhookRepository::class, new class implements ReplayableWebhookRepository
+    {
+        public function findReplayableById(int|string $id): ReplayableWebhook
+        {
+            return replayableWebhook($id, payload: null);
+        }
+    });
 
-    $log->id = 123;
+    app()->instance(SignatureValidator::class, new class implements SignatureValidator
+    {
+        public function validate(
+            WebhookService $service,
+            RawPayload $payload,
+            Signature $signature,
+            string $secret,
+        ): bool {
+            throw new LogicException('Not expected.');
+        }
+    });
 
-    $useCase = app(ReplayWebhook::class);
+    app()->instance(WebhookAuditLogWriter::class, new class implements WebhookAuditLogWriter
+    {
+        public function record(RecordWebhookLogCommand $command): WebhookLog
+        {
+            throw new LogicException('Not expected.');
+        }
+    });
 
-    $useCase->handle(new ReplayWebhookCommand(
-        log: $log,
-        signature: incomingSignature('signature')
-    ));
-})->throws(PayloadNotAvailable::class);
-
-it('throws when replaying a log with an empty payload', function () {
-    $log = new WebhookLog([
-        'service' => 'stripe',
-        'event' => 'invoice.paid',
-        'payload' => [],
-        'attempt' => 1,
-    ]);
-
-    $log->id = 123;
-
-    $useCase = app(ReplayWebhook::class);
-
-    $useCase->handle(new ReplayWebhookCommand(
-        log: $log,
+    app(ReplayWebhook::class)->handle(new ReplayWebhookCommand(
+        webhookLogId: 123,
         signature: incomingSignature('signature'),
     ));
 })->throws(PayloadNotAvailable::class);
+
+it('throws a clear exception when replay is not allowed by the domain', function () {
+    app()->instance(ReplayableWebhookRepository::class, new class implements ReplayableWebhookRepository
+    {
+        public function findReplayableById(int|string $id): ReplayableWebhook
+        {
+            return replayableWebhook($id, status: 'received');
+        }
+    });
+
+    app()->instance(SignatureValidator::class, new class implements SignatureValidator
+    {
+        public function validate(
+            WebhookService $service,
+            RawPayload $payload,
+            Signature $signature,
+            string $secret,
+        ): bool {
+            throw new LogicException('Not expected.');
+        }
+    });
+
+    app()->instance(WebhookAuditLogWriter::class, new class implements WebhookAuditLogWriter
+    {
+        public function record(RecordWebhookLogCommand $command): WebhookLog
+        {
+            throw new LogicException('Not expected.');
+        }
+    });
+
+    app(ReplayWebhook::class)->handle(new ReplayWebhookCommand(
+        webhookLogId: 123,
+        signature: incomingSignature('signature'),
+    ));
+})->throws(ReplayWebhookNotAllowed::class, 'Webhook log [123] cannot be replayed from status [received].');
+
+it('throws when the service is unsupported', function () {
+    app()->instance(ReplayableWebhookRepository::class, new class implements ReplayableWebhookRepository
+    {
+        public function findReplayableById(int|string $id): ReplayableWebhook
+        {
+            return new ReplayableWebhook(
+                id: $id,
+                service: 'unsupported',
+                event: 'pull_request.opened',
+                payload: ['action' => 'opened'],
+                attempt: 1,
+                externalId: 'delivery_123',
+                idempotencyKey: 'dedupe_123',
+                status: 'failed',
+            );
+        }
+    });
+
+    app()->instance(SignatureValidator::class, new class implements SignatureValidator
+    {
+        public function validate(
+            WebhookService $service,
+            RawPayload $payload,
+            Signature $signature,
+            string $secret,
+        ): bool {
+            throw new LogicException('Not expected.');
+        }
+    });
+
+    app()->instance(WebhookAuditLogWriter::class, new class implements WebhookAuditLogWriter
+    {
+        public function record(RecordWebhookLogCommand $command): WebhookLog
+        {
+            throw new LogicException('Not expected.');
+        }
+    });
+
+    app(ReplayWebhook::class)->handle(new ReplayWebhookCommand(
+        webhookLogId: 123,
+        signature: incomingSignature('signature'),
+    ));
+})->throws(WebhookException::class, "Webhook service 'unsupported' is not supported.");

@@ -71,17 +71,17 @@ class WebhookLogController extends Controller
     public function replay(WebhookLog $log): JsonResponse
     {
         try {
-            $newLog = $this->replayWebhook->handle(new ReplayWebhookCommand(
-                log: $log,
+            $result = $this->replayWebhook->handle(new ReplayWebhookCommand(
+                webhookLogId: $log->getKey(),
                 signature: $this->extractSignatureFromPayload($log),
             ));
 
             return response()->json([
-                'success' => $newLog->status === 'success',
-                'message' => $newLog->status === 'success'
+                'success' => $result->log->status === 'success',
+                'message' => $result->log->status === 'success'
                     ? 'Webhook replayed successfully.'
-                    : 'Webhook replay failed: '.$newLog->error_message,
-                'log' => new WebhookLogResource($newLog),
+                    : 'Webhook replay failed: '.$result->errorMessage,
+                'log' => new WebhookLogResource($result->log),
             ]);
         } catch (PayloadNotAvailable) {
             return response()->json([

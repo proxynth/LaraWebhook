@@ -14,6 +14,7 @@ use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Notifications\FailureDetec
 use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Notifications\NotificationSender;
 use Proxynth\Larawebhook\Audit\Infrastructure\Logging\WebhookLogger;
 use Proxynth\Larawebhook\Ingestion\Application\Ports\SignatureValidator;
+use Proxynth\Larawebhook\Processing\Application\Ports\ReplayableWebhookRepository;
 use Proxynth\Larawebhook\Processing\Application\UseCases\RetryWebhook;
 use Proxynth\Larawebhook\Shared\Infrastructure\Laravel\Providers\LarawebhookServiceProvider;
 
@@ -71,6 +72,14 @@ describe('LarawebhookServiceProvider service registration', function () {
         $instance2 = app(WebhookLogReadRepository::class);
 
         expect($instance1)->toBeInstanceOf(WebhookLogReadRepository::class)
+            ->and($instance1)->toBe($instance2);
+    });
+
+    it('registers ReplayableWebhookRepository as singleton', function () {
+        $instance1 = app(ReplayableWebhookRepository::class);
+        $instance2 = app(ReplayableWebhookRepository::class);
+
+        expect($instance1)->toBeInstanceOf(ReplayableWebhookRepository::class)
             ->and($instance1)->toBe($instance2);
     });
 
