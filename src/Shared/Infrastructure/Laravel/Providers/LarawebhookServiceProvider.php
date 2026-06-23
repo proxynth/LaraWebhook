@@ -35,7 +35,9 @@ use Proxynth\Larawebhook\Processing\Application\UseCases\RetryWebhook;
 use Proxynth\Larawebhook\Processing\Infrastructure\Deduplication\EloquentWebhookDuplicateDetector;
 use Proxynth\Larawebhook\Processing\Infrastructure\Idempotency\DefaultIdempotencyResolver;
 use Proxynth\Larawebhook\Processing\Infrastructure\Persistence\EloquentReplayableWebhookRepository;
+use Proxynth\Larawebhook\Shared\Application\EventBus;
 use Proxynth\Larawebhook\Shared\Application\Larawebhook;
+use Proxynth\Larawebhook\Shared\Infrastructure\Laravel\EventBus\LaravelEventBus;
 use Spatie\LaravelPackageTools\Package;
 use Spatie\LaravelPackageTools\PackageServiceProvider;
 
@@ -140,6 +142,7 @@ class LarawebhookServiceProvider extends PackageServiceProvider
         // Register ReplayWebhook use case
         $this->app->singleton(ReplayWebhook::class);
         $this->app->singleton(RetryWebhook::class);
+        $this->app->singleton(EventBus::class, LaravelEventBus::class);
 
         $this->app->singleton(
             ReplayableWebhookRepository::class,

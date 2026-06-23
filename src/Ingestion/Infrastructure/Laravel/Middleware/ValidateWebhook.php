@@ -12,12 +12,14 @@ use Proxynth\Larawebhook\Ingestion\Application\Commands\ReceiveWebhookCommand;
 use Proxynth\Larawebhook\Ingestion\Application\UseCases\ReceiveWebhook;
 use Proxynth\Larawebhook\Ingestion\Domain\ValueObjects\Signature;
 use Proxynth\Larawebhook\Processing\Infrastructure\Laravel\Jobs\RetryWebhookJob;
+use Proxynth\Larawebhook\Shared\Application\EventBus;
 use Symfony\Component\HttpFoundation\Response;
 
 class ValidateWebhook
 {
     public function __construct(
         private readonly ReceiveWebhook $receiveWebhook,
+        private readonly EventBus $eventBus,
     ) {}
 
     /**
@@ -81,6 +83,8 @@ class ValidateWebhook
             signature: $signature,
             externalIdHeaderValue: $this->externalIdHeaderValue($request, $webhookService),
         ));
+
+        $this->eventBus->dispatchMany($result->events);
 
         if ($result->isAlreadyProcessed()) {
             return response()
