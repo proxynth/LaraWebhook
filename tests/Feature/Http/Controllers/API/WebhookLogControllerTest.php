@@ -32,6 +32,36 @@ it('returns paginated webhook logs', function () {
     expect($response->json('meta.total'))->toBe(15);
 });
 
+it('returns webhook log details', function () {
+    $log = WebhookLog::factory()->create([
+        'service' => 'stripe',
+        'event' => 'invoice.paid',
+        'external_id' => 'evt_123',
+        'idempotency_key' => 'evt_123',
+        'status' => 'failed',
+        'payload' => ['invoice' => 'in_123'],
+        'error_message' => 'Invalid signature.',
+    ]);
+
+    $response = $this->getJson("/api/larawebhook/logs/{$log->id}");
+
+    $response->assertOk()
+        ->assertJsonPath('data.id', $log->id)
+        ->assertJsonPath('data.service', 'stripe')
+        ->assertJsonPath('data.event', 'invoice.paid')
+        ->assertJsonPath('data.status', 'failed')
+        ->assertJsonPath('data.external_id', 'evt_123')
+        ->assertJsonPath('data.idempotency_key', 'evt_123')
+        ->assertJson([
+            'data' => [
+                'payload' => ['invoice' => 'in_123'],
+            ],
+        ])
+        ->assertJsonStructure([
+            'data' => ['payload', 'created_at', 'updated_at'],
+        ]);
+});
+
 it('filters logs by service', function () {
     WebhookLog::factory()->create(['service' => 'stripe']);
     WebhookLog::factory()->create(['service' => 'github']);

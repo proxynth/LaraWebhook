@@ -8,6 +8,7 @@ use Illuminate\Routing\Router;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Notification;
 use Proxynth\Larawebhook\Audit\Application\Ports\WebhookAuditLogWriter;
+use Proxynth\Larawebhook\Audit\Application\Ports\WebhookLogReadRepository;
 use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Notifications\Channels\SlackWebhookChannel;
 use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Notifications\FailureDetector;
 use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Notifications\NotificationSender;
@@ -62,6 +63,14 @@ describe('LarawebhookServiceProvider service registration', function () {
         $instance2 = app(WebhookAuditLogWriter::class);
 
         expect($instance1)->toBeInstanceOf(WebhookAuditLogWriter::class)
+            ->and($instance1)->toBe($instance2);
+    });
+
+    it('registers WebhookLogReadRepository as singleton', function () {
+        $instance1 = app(WebhookLogReadRepository::class);
+        $instance2 = app(WebhookLogReadRepository::class);
+
+        expect($instance1)->toBeInstanceOf(WebhookLogReadRepository::class)
             ->and($instance1)->toBe($instance2);
     });
 
