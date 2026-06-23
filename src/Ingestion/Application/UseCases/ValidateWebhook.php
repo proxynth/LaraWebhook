@@ -7,13 +7,13 @@ namespace Proxynth\Larawebhook\Ingestion\Application\UseCases;
 use Proxynth\Larawebhook\Exceptions\InvalidSignatureException;
 use Proxynth\Larawebhook\Exceptions\WebhookException;
 use Proxynth\Larawebhook\Ingestion\Application\Commands\ValidateWebhookCommand;
+use Proxynth\Larawebhook\Ingestion\Application\Ports\SignatureValidator;
 use Proxynth\Larawebhook\Ingestion\Application\Results\ValidateWebhookResult;
-use Proxynth\Larawebhook\Ingestion\Infrastructure\Validation\WebhookValidatorFactory;
 
 final readonly class ValidateWebhook
 {
     public function __construct(
-        private WebhookValidatorFactory $validatorFactory,
+        private SignatureValidator $signatureValidator,
     ) {}
 
     public function handle(ValidateWebhookCommand $command): ValidateWebhookResult
@@ -22,19 +22,28 @@ final readonly class ValidateWebhook
         $decodedPayload = $command->payload->decoded();
 
         try {
-            $this->validatorFactory
-                ->forService($command->service, $command->secret)
-                ->validate(
-                    payload: $command->payload->value(),
-                    signature: $command->signature,
-                    service: $command->service,
-                );
+            $isValid = $this->signatureValidator->validate(
+                service: $command->service,
+                payload: $command->payload,
+                signature: $command->signature,
+                secret: $command->secret,
+            );
 
-            return ValidateWebhookResult::valid(
+            if ($isValid) {
+                return ValidateWebhookResult::valid(
+                    service: $serviceName,
+                    event: $command->event,
+                    externalId: $command->externalId,
+                    payload: $decodedPayload,
+                );
+            }
+
+            return ValidateWebhookResult::invalid(
                 service: $serviceName,
                 event: $command->event,
                 externalId: $command->externalId,
                 payload: $decodedPayload,
+                errorMessage: 'Invalid webhook signature.',
             );
         } catch (WebhookException|InvalidSignatureException $exception) {
             return ValidateWebhookResult::invalid(
