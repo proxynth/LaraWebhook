@@ -6,6 +6,7 @@ namespace Proxynth\Larawebhook\Processing\Application\Results;
 
 use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Persistence\Models\WebhookLog;
 use Proxynth\Larawebhook\Shared\Application\Results\Result;
+use Proxynth\Larawebhook\Shared\Domain\Events\DomainEvent;
 
 final readonly class RetryWebhookResult implements Result
 {
@@ -16,15 +17,18 @@ final readonly class RetryWebhookResult implements Result
         public int $attempt,
         public ?int $nextAttempt = null,
         public ?int $delaySeconds = null,
+        /** @var list<DomainEvent> */
+        public array $events = [],
     ) {}
 
-    public static function success(WebhookLog $log): self
+    public static function success(WebhookLog $log, array $events = []): self
     {
         return new self(
             success: true,
             shouldRetry: false,
             log: $log,
             attempt: $log->attempt,
+            events: $events,
         );
     }
 
@@ -33,6 +37,7 @@ final readonly class RetryWebhookResult implements Result
         bool $shouldRetry,
         ?int $nextAttempt = null,
         ?int $delaySeconds = null,
+        array $events = [],
     ): self {
         return new self(
             success: false,
@@ -41,6 +46,7 @@ final readonly class RetryWebhookResult implements Result
             attempt: $log->attempt,
             nextAttempt: $nextAttempt,
             delaySeconds: $delaySeconds,
+            events: $events,
         );
     }
 

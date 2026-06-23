@@ -7,6 +7,7 @@ namespace Proxynth\Larawebhook\Processing\Application\UseCases;
 use Proxynth\Larawebhook\Audit\Application\Commands\RecordWebhookLogCommand;
 use Proxynth\Larawebhook\Audit\Application\ReadModels\WebhookLogSummary;
 use Proxynth\Larawebhook\Audit\Application\UseCases\RecordWebhookLog;
+use Proxynth\Larawebhook\Audit\Domain\Events\WebhookLogged;
 use Proxynth\Larawebhook\Audit\Domain\Exceptions\PayloadNotAvailable;
 use Proxynth\Larawebhook\Enums\WebhookService;
 use Proxynth\Larawebhook\Exceptions\WebhookException;
@@ -17,6 +18,7 @@ use Proxynth\Larawebhook\Processing\Application\Commands\ReplayWebhookCommand;
 use Proxynth\Larawebhook\Processing\Application\Exceptions\ReplayWebhookNotAllowed;
 use Proxynth\Larawebhook\Processing\Application\Ports\ReplayableWebhookRepository;
 use Proxynth\Larawebhook\Processing\Application\Results\ReplayWebhookResult;
+use Proxynth\Larawebhook\Processing\Domain\Events\WebhookReplayed;
 use Proxynth\Larawebhook\Processing\Domain\Exceptions\InvalidWebhookState;
 
 final readonly class ReplayWebhook
@@ -73,7 +75,21 @@ final readonly class ReplayWebhook
 
         return ReplayWebhookResult::fromSummary(
             WebhookLogSummary::fromModel($log),
-            $validation->errorMessage
+            $validation->errorMessage,
+            [
+                new WebhookReplayed(
+                    webhookLogId: $log->id,
+                    provider: $log->service,
+                    event: $log->event,
+                    attempt: $replayableWebhook->attempt + 1,
+                ),
+                new WebhookLogged(
+                    webhookLogId: $log->id,
+                    provider: $log->service,
+                    event: $log->event,
+                    status: $log->status,
+                ),
+            ],
         );
     }
 }

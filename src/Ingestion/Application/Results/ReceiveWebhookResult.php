@@ -6,6 +6,7 @@ namespace Proxynth\Larawebhook\Ingestion\Application\Results;
 
 use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Persistence\Models\WebhookLog;
 use Proxynth\Larawebhook\Shared\Application\Results\Result;
+use Proxynth\Larawebhook\Shared\Domain\Events\DomainEvent;
 
 final readonly class ReceiveWebhookResult implements Result
 {
@@ -28,9 +29,11 @@ final readonly class ReceiveWebhookResult implements Result
         public ?string $errorMessage = null,
         public ?int $failureStatusCode = null,
         public ?string $secret = null,
+        /** @var list<DomainEvent> */
+        public array $events = [],
     ) {}
 
-    public static function success(WebhookLog $log): self
+    public static function success(WebhookLog $log, array $events = []): self
     {
         return new self(
             status: self::STATUS_SUCCESS,
@@ -38,23 +41,26 @@ final readonly class ReceiveWebhookResult implements Result
             event: $log->event,
             externalId: $log->external_id,
             idempotencyKey: $log->idempotency_key,
+            events: $events,
         );
     }
 
-    public static function alreadyProcessed(?string $externalId, string $idempotencyKey): self
+    public static function alreadyProcessed(?string $externalId, string $idempotencyKey, array $events = []): self
     {
         return new self(
             status: self::STATUS_ALREADY_PROCESSED,
             externalId: $externalId,
             idempotencyKey: $idempotencyKey,
+            events: $events,
         );
     }
 
-    public static function secretNotConfigured(string $service): self
+    public static function secretNotConfigured(string $service, array $events = []): self
     {
         return new self(
             status: self::STATUS_SECRET_NOT_CONFIGURED,
             errorMessage: "Webhook secret not configured for {$service}.",
+            events: $events,
         );
     }
 
@@ -64,6 +70,7 @@ final readonly class ReceiveWebhookResult implements Result
         string $secret,
         ?string $externalId,
         ?string $idempotencyKey,
+        array $events = [],
     ): self {
         return new self(
             status: self::STATUS_ACCEPTED_FOR_RETRY,
@@ -73,10 +80,11 @@ final readonly class ReceiveWebhookResult implements Result
             idempotencyKey: $idempotencyKey,
             errorMessage: 'Webhook validation failed, queued for retry',
             secret: $secret,
+            events: $events,
         );
     }
 
-    public static function failed(WebhookLog $log, int $statusCode): self
+    public static function failed(WebhookLog $log, int $statusCode, array $events = []): self
     {
         return new self(
             status: self::STATUS_FAILED,
@@ -86,6 +94,7 @@ final readonly class ReceiveWebhookResult implements Result
             idempotencyKey: $log->idempotency_key,
             errorMessage: $log->error_message,
             failureStatusCode: $statusCode,
+            events: $events,
         );
     }
 
