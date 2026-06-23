@@ -7,7 +7,6 @@ namespace Proxynth\Larawebhook\Ingestion\Application\UseCases;
 use Exception;
 use Proxynth\Larawebhook\Audit\Application\Commands\RecordWebhookLogCommand;
 use Proxynth\Larawebhook\Audit\Application\UseCases\RecordWebhookLog;
-use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Persistence\Models\WebhookLog;
 use Proxynth\Larawebhook\Enums\WebhookService;
 use Proxynth\Larawebhook\Ingestion\Application\Commands\ReceiveWebhookCommand;
 use Proxynth\Larawebhook\Ingestion\Application\Commands\ValidateWebhookCommand;
@@ -15,6 +14,7 @@ use Proxynth\Larawebhook\Ingestion\Application\Results\ReceiveWebhookResult;
 use Proxynth\Larawebhook\Ingestion\Domain\ValueObjects\Provider;
 use Proxynth\Larawebhook\Ingestion\Domain\ValueObjects\RawPayload;
 use Proxynth\Larawebhook\Processing\Application\Ports\IdempotencyResolver;
+use Proxynth\Larawebhook\Processing\Application\Ports\WebhookDuplicateDetector;
 use Proxynth\Larawebhook\Processing\Domain\Entities\WebhookEvent;
 use Proxynth\Larawebhook\Processing\Domain\ValueObjects\DeliveryAttempt;
 use Proxynth\Larawebhook\Processing\Domain\ValueObjects\EventType;
@@ -25,6 +25,7 @@ final readonly class ReceiveWebhook
 {
     public function __construct(
         private IdempotencyResolver $idempotencyResolver,
+        private WebhookDuplicateDetector $duplicateDetector,
         private ValidateWebhook $validateWebhook,
         private RecordWebhookLog $recordWebhookLog,
     ) {}
@@ -55,7 +56,10 @@ final readonly class ReceiveWebhook
 
         $idempotencyKey = IdempotencyKey::optional($idempotencyKeyValue);
 
-        if ($idempotencyKey !== null && WebhookLog::existsForIdempotencyKey($provider->value(), $idempotencyKey->value())) {
+        if ($idempotencyKey !== null && $this->duplicateDetector->alreadyProcessed(
+            $provider->value(),
+            $idempotencyKey->value()
+        )) {
             return ReceiveWebhookResult::alreadyProcessed(
                 externalId: $externalId,
                 idempotencyKey: $idempotencyKey->value(),
@@ -130,7 +134,7 @@ final readonly class ReceiveWebhook
 
         return ReceiveWebhookResult::failed(
             log: $log,
-            statusCode: $this->failureStatusCode($log),
+            statusCode: $this->failureStatusCode($log->error_message),
         );
     }
 
@@ -161,9 +165,9 @@ final readonly class ReceiveWebhook
             && config('larawebhook.retries.async', false);
     }
 
-    private function failureStatusCode(WebhookLog $log): int
+    private function failureStatusCode(?string $errorMessage): int
     {
-        $errorMessage = $log->error_message ?? '';
+        $errorMessage ??= '';
 
         return str_contains($errorMessage, 'format') || str_contains($errorMessage, 'expired')
             ? Response::HTTP_BAD_REQUEST
