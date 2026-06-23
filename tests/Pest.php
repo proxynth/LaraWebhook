@@ -29,6 +29,7 @@ uses(RefreshDatabase::class)->in(
     'Unit/Services/NotificationSenderTest.php',
     'Unit/Notifications/WebhookFailedNotificationTest.php',
     'Unit/Jobs/RetryWebhookJobTest.php',
+    'Unit/Processing/Application/UseCases/RetryWebhookTest.php',
     'Unit/LarawebhookTest.php',
     'Unit/Commands/PruneWebhookLogsCommandTest.php',
     'Unit/Events/WebhookNotificationSentTest.php',

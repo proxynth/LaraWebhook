@@ -24,6 +24,7 @@ use Proxynth\Larawebhook\Ingestion\Infrastructure\Validation\WebhookValidatorFac
 use Proxynth\Larawebhook\Processing\Application\Ports\IdempotencyResolver;
 use Proxynth\Larawebhook\Processing\Application\Ports\WebhookDuplicateDetector;
 use Proxynth\Larawebhook\Processing\Application\UseCases\ReplayWebhook;
+use Proxynth\Larawebhook\Processing\Application\UseCases\RetryWebhook;
 use Proxynth\Larawebhook\Processing\Infrastructure\Deduplication\EloquentWebhookDuplicateDetector;
 use Proxynth\Larawebhook\Processing\Infrastructure\Idempotency\DefaultIdempotencyResolver;
 use Proxynth\Larawebhook\Shared\Application\Larawebhook;
@@ -127,6 +128,7 @@ class LarawebhookServiceProvider extends PackageServiceProvider
 
         // Register ReplayWebhook use case
         $this->app->singleton(ReplayWebhook::class);
+        $this->app->singleton(RetryWebhook::class);
 
         // Register WebhookLogRepository persistence repository
         $this->app->singleton(
