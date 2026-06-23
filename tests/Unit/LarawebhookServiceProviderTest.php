@@ -11,6 +11,7 @@ use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Notifications\Channels\Sla
 use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Notifications\FailureDetector;
 use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Notifications\NotificationSender;
 use Proxynth\Larawebhook\Audit\Infrastructure\Logging\WebhookLogger;
+use Proxynth\Larawebhook\Processing\Application\UseCases\RetryWebhook;
 use Proxynth\Larawebhook\Shared\Infrastructure\Laravel\Providers\LarawebhookServiceProvider;
 
 describe('LarawebhookServiceProvider service registration', function () {
@@ -35,6 +36,14 @@ describe('LarawebhookServiceProvider service registration', function () {
         $instance2 = app(WebhookLogger::class);
 
         expect($instance1)->toBeInstanceOf(WebhookLogger::class)
+            ->and($instance1)->toBe($instance2);
+    });
+
+    it('registers RetryWebhook as singleton', function () {
+        $instance1 = app(RetryWebhook::class);
+        $instance2 = app(RetryWebhook::class);
+
+        expect($instance1)->toBeInstanceOf(RetryWebhook::class)
             ->and($instance1)->toBe($instance2);
     });
 

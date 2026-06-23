@@ -1,0 +1,85 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Proxynth\Larawebhook\Processing\Application\UseCases;
+
+use Proxynth\Larawebhook\Audit\Application\Commands\RecordWebhookLogCommand;
+use Proxynth\Larawebhook\Audit\Application\UseCases\RecordWebhookLog;
+use Proxynth\Larawebhook\Enums\WebhookService;
+use Proxynth\Larawebhook\Exceptions\WebhookException;
+use Proxynth\Larawebhook\Ingestion\Application\Commands\ValidateWebhookCommand;
+use Proxynth\Larawebhook\Ingestion\Application\UseCases\ValidateWebhook;
+use Proxynth\Larawebhook\Ingestion\Domain\ValueObjects\RawPayload;
+use Proxynth\Larawebhook\Processing\Application\Commands\RetryWebhookCommand;
+use Proxynth\Larawebhook\Processing\Application\Results\RetryWebhookResult;
+
+final readonly class RetryWebhook
+{
+    public function __construct(
+        private ValidateWebhook $validateWebhook,
+        private RecordWebhookLog $recordWebhookLog,
+    ) {}
+
+    /**
+     * @throws WebhookException
+     */
+    public function handle(RetryWebhookCommand $command): RetryWebhookResult
+    {
+        $webhookService = WebhookService::tryFromString($command->service);
+
+        if ($webhookService === null) {
+            throw new WebhookException("Webhook service '{$command->service}' is not supported.");
+        }
+
+        $rawPayload = RawPayload::fromString($command->payload);
+        $maxAttempts = (int) config('larawebhook.retries.max_attempts', 3);
+        $delays = config('larawebhook.retries.delays', [1, 5, 10]);
+        $delays = is_array($delays) ? $delays : [1, 5, 10];
+
+        $validation = $this->validateWebhook->handle(new ValidateWebhookCommand(
+            service: $webhookService,
+            payload: $rawPayload,
+            signature: $command->signature,
+            event: $command->event,
+            externalId: $command->externalId,
+            secret: $command->secret,
+        ));
+
+        $log = $this->recordWebhookLog->handle(new RecordWebhookLogCommand(
+            service: $validation->service,
+            event: $validation->event,
+            valid: $validation->isValid(),
+            payload: $validation->payload,
+            attempt: $command->attempt,
+            externalId: $validation->externalId,
+            idempotencyKey: $command->idempotencyKey,
+            errorMessage: $validation->errorMessage,
+        ));
+
+        if ($validation->isValid()) {
+            return RetryWebhookResult::success($log);
+        }
+
+        $shouldRetry = $command->attempt < $maxAttempts - 1;
+
+        return RetryWebhookResult::failed(
+            log: $log,
+            shouldRetry: $shouldRetry,
+            nextAttempt: $shouldRetry ? $command->attempt + 1 : null,
+            delaySeconds: $shouldRetry ? $this->delayForAttempt($delays, $command->attempt) : null,
+        );
+    }
+
+    /**
+     * @param  array<int, int|string>  $delays
+     */
+    private function delayForAttempt(array $delays, int $attempt): int
+    {
+        if (isset($delays[$attempt])) {
+            return (int) $delays[$attempt];
+        }
+
+        return (int) (end($delays) ?: 10);
+    }
+}
