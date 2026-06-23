@@ -12,6 +12,7 @@ it('can be created from webhook log model', function () {
         'status' => 'success',
         'attempt' => 0,
         'external_id' => 'delivery_123',
+        'idempotency_key' => 'delivery_123',
     ]);
 
     $readModel = WebhookLogSummary::fromModel($log);
@@ -23,5 +24,6 @@ it('can be created from webhook log model', function () {
         ->and($readModel->status)->toBe('success')
         ->and($readModel->attempt)->toBe(0)
         ->and($readModel->externalId)->toBe('delivery_123')
+        ->and($readModel->idempotencyKey)->toBe('delivery_123')
         ->and($readModel->createdAt)->toBe($log->created_at->toISOString());
 });

@@ -38,7 +38,8 @@ class RetryWebhookJob implements ShouldQueue
         private readonly string $event,
         private readonly string $secret,
         private readonly int $attempt = 0,
-        private readonly ?string $externalId = null
+        private readonly ?string $externalId = null,
+        private readonly ?string $idempotencyKey = null,
     ) {}
 
     /**
@@ -81,6 +82,7 @@ class RetryWebhookJob implements ShouldQueue
             payload: $validation->payload,
             attempt: $this->attempt,
             externalId: null,
+            idempotencyKey: null,
             errorMessage: $validation->errorMessage,
         ));
 
@@ -111,6 +113,7 @@ class RetryWebhookJob implements ShouldQueue
                 secret: $this->secret,
                 attempt: $this->attempt + 1,
                 externalId: $this->externalId,
+                idempotencyKey: $this->idempotencyKey,
             )->delay(now()->addSeconds($nextDelay));
         }
 
@@ -132,6 +135,11 @@ class RetryWebhookJob implements ShouldQueue
     public function externalId(): ?string
     {
         return $this->externalId;
+    }
+
+    public function idempotencyKey(): ?string
+    {
+        return $this->idempotencyKey;
     }
 
     public function service(): string

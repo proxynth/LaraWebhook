@@ -36,7 +36,8 @@ final readonly class ReceiveWebhookResult implements Result
             status: self::STATUS_SUCCESS,
             log: $log,
             event: $log->event,
-            idempotencyKey: $log->external_id,
+            externalId: $log->external_id,
+            idempotencyKey: $log->idempotency_key,
         );
     }
 
@@ -61,12 +62,14 @@ final readonly class ReceiveWebhookResult implements Result
         WebhookLog $log,
         string $event,
         string $secret,
+        ?string $externalId,
         ?string $idempotencyKey,
     ): self {
         return new self(
             status: self::STATUS_ACCEPTED_FOR_RETRY,
             log: $log,
             event: $event,
+            externalId: $externalId,
             idempotencyKey: $idempotencyKey,
             errorMessage: 'Webhook validation failed, queued for retry',
             secret: $secret,
@@ -79,7 +82,8 @@ final readonly class ReceiveWebhookResult implements Result
             status: self::STATUS_FAILED,
             log: $log,
             event: $log->event,
-            idempotencyKey: $log->external_id,
+            externalId: $log->external_id,
+            idempotencyKey: $log->idempotency_key,
             errorMessage: $log->error_message,
             failureStatusCode: $statusCode,
         );

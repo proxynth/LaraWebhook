@@ -55,6 +55,7 @@ class WebhookLogResource extends JsonResource
             'status' => $log->status,
             'attempt' => $log->attempt,
             'external_id' => $log->externalId,
+            'idempotency_key' => $log->idempotencyKey,
             'created_at' => $log->createdAt,
         ];
 
@@ -71,6 +72,7 @@ class WebhookLogResource extends JsonResource
             'error_message' => $log->errorMessage,
             'attempt' => $log->attempt,
             'external_id' => $log->externalId,
+            'idempotency_key' => $log->idempotencyKey,
             'created_at' => $log->createdAt,
             'updated_at' => $log->updatedAt,
         ];
@@ -86,6 +88,7 @@ class WebhookLogResource extends JsonResource
             'error_message' => $log->errorMessage,
             'attempt' => $log->attempt,
             'external_id' => $log->externalId,
+            'idempotency_key' => $log->idempotencyKey,
             'created_at' => $log->createdAt,
         ];
     }

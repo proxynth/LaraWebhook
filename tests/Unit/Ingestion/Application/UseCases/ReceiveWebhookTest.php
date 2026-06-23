@@ -62,6 +62,7 @@ it('returns already processed when the idempotency key already exists', function
     WebhookLog::factory()->create([
         'service' => 'github',
         'external_id' => 'delivery_123',
+        'idempotency_key' => 'delivery_123',
         'status' => 'success',
     ]);
 
@@ -99,7 +100,8 @@ it('uses payload hash idempotency fallback when no external id is available', fu
     ));
 
     expect($result->isSuccess())->toBeTrue()
-        ->and($result->log?->external_id)->toStartWith('payload_hash:')
+        ->and($result->externalId)->toBeNull()
+        ->and($result->log?->external_id)->toBeNull()
         ->and($result->idempotencyKey)->toStartWith('payload_hash:');
 });
 
@@ -178,7 +180,7 @@ it('handles invalid json payload without crashing', function () {
         ->and($result->idempotencyKey)->toBe('delivery_invalid_json');
 });
 
-it('records the idempotency key as log external id while keeping provider external id null', function () {
+it('records the idempotency key separately from provider external id', function () {
     $payload = json_encode([
         'type' => 'custom.event',
         'data' => ['foo' => 'bar'],
@@ -196,7 +198,8 @@ it('records the idempotency key as log external id while keeping provider extern
     expect($result->isSuccess())->toBeTrue()
         ->and($result->externalId)->toBeNull()
         ->and($result->idempotencyKey)->toStartWith('payload_hash:')
-        ->and($result->log?->external_id)->toBe($result->idempotencyKey);
+        ->and($result->log?->external_id)->toBeNull()
+        ->and($result->log?->idempotency_key)->toBe($result->idempotencyKey);
 });
 
 it('processes valid webhook through domain event lifecycle', function () {

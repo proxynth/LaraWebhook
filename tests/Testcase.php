@@ -34,7 +34,10 @@ class Testcase extends Orchestra
         ]);
 
         // Run migrations
-        $migration = include __DIR__.'/../database/migrations/create_webhook_logs_table.php';
-        $migration->up();
+        $migration1 = include __DIR__.'/../database/migrations/001_create_webhook_logs_table.php';
+        $migration1->up();
+
+        $migration2 = include __DIR__.'/../database/migrations/002_add_idempotency_key_to_webhook_logs_table.php';
+        $migration2->up();
     }
 }
