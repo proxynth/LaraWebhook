@@ -8,6 +8,7 @@ use Illuminate\Http\Client\Factory as HttpClient;
 use Illuminate\Notifications\ChannelManager;
 use Illuminate\Routing\Router;
 use Illuminate\Support\Facades\Notification;
+use Proxynth\Larawebhook\Audit\Application\Ports\WebhookAuditLogWriter;
 use Proxynth\Larawebhook\Audit\Application\Ports\WebhookLogRepository;
 use Proxynth\Larawebhook\Audit\Application\UseCases\RecordWebhookLog;
 use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Console\PruneWebhookLogsConsoleCommand;
@@ -16,6 +17,7 @@ use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Notifications\FailureDetec
 use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Notifications\NotificationSender;
 use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Persistence\EloquentWebhookLogRepository;
 use Proxynth\Larawebhook\Audit\Infrastructure\Logging\WebhookLogger;
+use Proxynth\Larawebhook\Audit\Infrastructure\Logging\WebhookLoggerAuditLogWriter;
 use Proxynth\Larawebhook\Audit\Infrastructure\Payload\PayloadStorageResolver;
 use Proxynth\Larawebhook\Ingestion\Application\Ports\SignatureValidator;
 use Proxynth\Larawebhook\Ingestion\Application\UseCases\ReceiveWebhook;
@@ -118,6 +120,8 @@ class LarawebhookServiceProvider extends PackageServiceProvider
                 $app->make(NotificationSender::class)
             );
         });
+
+        $this->app->singleton(WebhookAuditLogWriter::class, WebhookLoggerAuditLogWriter::class);
 
         // Register IdempotencyResolver as singleton with default implementation
         $this->app->singleton(IdempotencyResolver::class, DefaultIdempotencyResolver::class);

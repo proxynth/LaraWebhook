@@ -3,10 +3,39 @@
 declare(strict_types=1);
 
 use Proxynth\Larawebhook\Audit\Application\Commands\RecordWebhookLogCommand;
+use Proxynth\Larawebhook\Audit\Application\Ports\WebhookAuditLogWriter;
 use Proxynth\Larawebhook\Audit\Application\UseCases\RecordWebhookLog;
 use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Persistence\Models\WebhookLog;
 
-it('records a successful webhook log', function () {
+beforeEach(function () {
+    app()->forgetInstance(WebhookAuditLogWriter::class);
+});
+
+it('delegates successful records to the audit writer', function () {
+    $fakeWriter = new class implements WebhookAuditLogWriter
+    {
+        /** @var list<RecordWebhookLogCommand> */
+        public array $commands = [];
+
+        public function record(RecordWebhookLogCommand $command): WebhookLog
+        {
+            $this->commands[] = $command;
+
+            return WebhookLog::make([
+                'service' => $command->service,
+                'event' => $command->event,
+                'status' => $command->valid ? 'success' : 'failed',
+                'payload' => $command->payload,
+                'attempt' => $command->attempt,
+                'external_id' => $command->externalId,
+                'idempotency_key' => $command->idempotencyKey,
+                'error_message' => $command->errorMessage,
+            ]);
+        }
+    };
+
+    app()->instance(WebhookAuditLogWriter::class, $fakeWriter);
+
     $log = app(RecordWebhookLog::class)->handle(new RecordWebhookLogCommand(
         service: 'github',
         event: 'push',
@@ -18,16 +47,37 @@ it('records a successful webhook log', function () {
     ));
 
     expect($log)->toBeInstanceOf(WebhookLog::class)
-        ->and($log->service)->toBe('github')
-        ->and($log->event)->toBe('push')
         ->and($log->status)->toBe('success')
-        ->and($log->attempt)->toBe(0)
-        ->and($log->external_id)->toBe('delivery_123')
-        ->and($log->idempotency_key)->toBe('delivery_123')
-        ->and($log->error_message)->toBeNull();
+        ->and($fakeWriter->commands)->toHaveCount(1)
+        ->and($fakeWriter->commands[0]->service)->toBe('github')
+        ->and($fakeWriter->commands[0]->valid)->toBeTrue();
 });
 
-it('records a failed webhook log', function () {
+it('delegates failed records to the audit writer', function () {
+    $fakeWriter = new class implements WebhookAuditLogWriter
+    {
+        /** @var list<RecordWebhookLogCommand> */
+        public array $commands = [];
+
+        public function record(RecordWebhookLogCommand $command): WebhookLog
+        {
+            $this->commands[] = $command;
+
+            return WebhookLog::make([
+                'service' => $command->service,
+                'event' => $command->event,
+                'status' => $command->valid ? 'success' : 'failed',
+                'payload' => $command->payload,
+                'attempt' => $command->attempt,
+                'external_id' => $command->externalId,
+                'idempotency_key' => $command->idempotencyKey,
+                'error_message' => $command->errorMessage,
+            ]);
+        }
+    };
+
+    app()->instance(WebhookAuditLogWriter::class, $fakeWriter);
+
     $log = app(RecordWebhookLog::class)->handle(new RecordWebhookLogCommand(
         service: 'github',
         event: 'push',
@@ -40,11 +90,8 @@ it('records a failed webhook log', function () {
     ));
 
     expect($log)->toBeInstanceOf(WebhookLog::class)
-        ->and($log->service)->toBe('github')
-        ->and($log->event)->toBe('push')
         ->and($log->status)->toBe('failed')
-        ->and($log->attempt)->toBe(1)
-        ->and($log->external_id)->toBe('delivery_123')
-        ->and($log->idempotency_key)->toBe('delivery_123')
-        ->and($log->error_message)->toBe('Invalid GitHub webhook signature.');
+        ->and($fakeWriter->commands)->toHaveCount(1)
+        ->and($fakeWriter->commands[0]->valid)->toBeFalse()
+        ->and($fakeWriter->commands[0]->errorMessage)->toBe('Invalid GitHub webhook signature.');
 });
