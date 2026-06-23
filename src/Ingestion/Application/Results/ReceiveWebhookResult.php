@@ -36,7 +36,7 @@ final readonly class ReceiveWebhookResult implements Result
             status: self::STATUS_SUCCESS,
             log: $log,
             event: $log->event,
-            idempotencyKey: $log->external_id,
+            idempotencyKey: $log->idempotency_key,
         );
     }
 
