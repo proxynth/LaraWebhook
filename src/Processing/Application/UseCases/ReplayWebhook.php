@@ -9,7 +9,6 @@ use Proxynth\Larawebhook\Audit\Application\ReadModels\WebhookLogSummary;
 use Proxynth\Larawebhook\Audit\Application\UseCases\RecordWebhookLog;
 use Proxynth\Larawebhook\Audit\Domain\Events\WebhookLogged;
 use Proxynth\Larawebhook\Audit\Domain\Exceptions\PayloadNotAvailable;
-use Proxynth\Larawebhook\Enums\WebhookService;
 use Proxynth\Larawebhook\Exceptions\WebhookException;
 use Proxynth\Larawebhook\Ingestion\Application\Commands\ValidateWebhookCommand;
 use Proxynth\Larawebhook\Ingestion\Application\UseCases\ValidateWebhook;
@@ -20,6 +19,7 @@ use Proxynth\Larawebhook\Processing\Application\Ports\ReplayableWebhookRepositor
 use Proxynth\Larawebhook\Processing\Application\Results\ReplayWebhookResult;
 use Proxynth\Larawebhook\Processing\Domain\Events\WebhookReplayed;
 use Proxynth\Larawebhook\Processing\Domain\Exceptions\InvalidWebhookState;
+use Proxynth\Larawebhook\Shared\Domain\Enums\WebhookService;
 
 final readonly class ReplayWebhook
 {
@@ -52,6 +52,7 @@ final readonly class ReplayWebhook
         }
 
         $webhookService = WebhookService::fromString($replayableWebhook->service);
+        $secret = config("larawebhook.services.{$webhookService->value}.webhook_secret");
 
         $validation = $this->validateWebhook->handle(new ValidateWebhookCommand(
             service: $webhookService,
@@ -59,7 +60,7 @@ final readonly class ReplayWebhook
             signature: $command->signature,
             event: $replayedEvent->eventType()->value(),
             externalId: $replayableWebhook->externalId,
-            secret: $webhookService->secret() ?? '',
+            secret: $secret ?? '',
         ));
 
         $log = $this->recordWebhookLog->handle(new RecordWebhookLogCommand(

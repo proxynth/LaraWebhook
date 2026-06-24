@@ -72,51 +72,17 @@ Larawebhook::supportedServices(); // ['stripe', 'github', 'slack', 'shopify']
 
 ## WebhookService Enum
 
-The `WebhookService` enum centralizes all service-related configuration.
+The `WebhookService` enum centralizes supported service identifiers and string conversion.
 
 ### Available Services
 
 ```php
-use Proxynth\Larawebhook\Enums\WebhookService;
+use Proxynth\Larawebhook\Shared\Domain\Enums\WebhookService;
 
 WebhookService::Stripe;  // 'stripe'
 WebhookService::Github;  // 'github'
 WebhookService::Slack;   // 'slack'
 WebhookService::Shopify; // 'shopify'
-```
-
-### Signature Headers
-
-```php
-WebhookService::Stripe->signatureHeader();  // 'Stripe-Signature'
-WebhookService::Github->signatureHeader();  // 'X-Hub-Signature-256'
-WebhookService::Slack->signatureHeader();   // 'X-Slack-Signature'
-WebhookService::Shopify->signatureHeader(); // 'X-Shopify-Hmac-Sha256'
-```
-
-### Get Secret from Config
-
-```php
-WebhookService::Stripe->secret(); // Returns configured secret
-```
-
-### Payload Parsers
-
-```php
-// Get the parser for extracting event types and metadata
-$parser = WebhookService::Stripe->parser();
-
-$eventType = $parser->extractEventType($payload);
-$metadata = $parser->extractMetadata($payload);
-```
-
-### Signature Validators
-
-```php
-// Get the validator for signature verification
-$validator = WebhookService::Stripe->signatureValidator();
-
-$isValid = $validator->validate($payload, $signature, $secret, $tolerance);
 ```
 
 ### Check Support
@@ -148,13 +114,15 @@ WebhookService::validationRule(); // ['stripe', 'github', 'slack', 'shopify']
 'service' => ['required', 'in:' . implode(',', WebhookService::values())],
 ```
 
+Provider-specific headers, parsers, secrets, and validators are resolved by the package internals rather than through the enum.
+
 ## Using Enum with Facade
 
 All facade methods accept both strings and the enum:
 
 ```php
 use Proxynth\Larawebhook\Shared\Infrastructure\Laravel\Facades\Larawebhook;
-use Proxynth\Larawebhook\Enums\WebhookService;
+use Proxynth\Larawebhook\Shared\Domain\Enums\WebhookService;
 
 // Both are equivalent
 Larawebhook::validate($payload, $signature, 'stripe');

@@ -10,14 +10,15 @@ use Proxynth\Larawebhook\Audit\Application\UseCases\RecordWebhookLog;
 use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Notifications\FailureDetector;
 use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Notifications\NotificationSender;
 use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Persistence\Models\WebhookLog;
-use Proxynth\Larawebhook\Enums\WebhookService;
 use Proxynth\Larawebhook\Exceptions\InvalidSignatureException;
 use Proxynth\Larawebhook\Exceptions\WebhookException;
 use Proxynth\Larawebhook\Ingestion\Application\Commands\ValidateWebhookCommand;
+use Proxynth\Larawebhook\Ingestion\Application\Ports\WebhookPayloadParserResolver;
 use Proxynth\Larawebhook\Ingestion\Application\UseCases\ValidateWebhook;
 use Proxynth\Larawebhook\Ingestion\Domain\ValueObjects\RawPayload;
 use Proxynth\Larawebhook\Ingestion\Domain\ValueObjects\Signature;
 use Proxynth\Larawebhook\Processing\Domain\ValueObjects\DeliveryAttempt;
+use Proxynth\Larawebhook\Shared\Domain\Enums\WebhookService;
 
 /**
  * Main entry point for the Larawebhook package.
@@ -30,6 +31,8 @@ class Larawebhook
     private ?ValidateWebhook $validateWebhook = null;
 
     private ?RecordWebhookLog $recordWebhookLog = null;
+
+    private ?WebhookPayloadParserResolver $payloadParserResolver = null;
 
     private ?NotificationSender $notificationSender = null;
 
@@ -46,7 +49,7 @@ class Larawebhook
         $webhookService = $this->resolveService($service);
         $rawPayload = RawPayload::fromString($payload);
 
-        $secret = $webhookService->secret();
+        $secret = config("larawebhook.services.{$webhookService->value}.webhook_secret");
 
         if ($secret === null || $secret === '') {
             throw new WebhookException("No secret configured for service: {$webhookService->value}");
@@ -285,13 +288,15 @@ class Larawebhook
      */
     public function getSecret(string|WebhookService $service): ?string
     {
-        if ($service instanceof WebhookService) {
-            return $service->secret();
+        $webhookService = $service instanceof WebhookService
+            ? $service
+            : WebhookService::tryFromString($service);
+
+        if ($webhookService === null) {
+            return null;
         }
 
-        $webhookService = WebhookService::tryFromString($service);
-
-        return $webhookService?->secret();
+        return config("larawebhook.services.{$webhookService->value}.webhook_secret");
     }
 
     /**
@@ -390,14 +395,27 @@ class Larawebhook
         return $this->recordWebhookLog;
     }
 
+    private function getPayloadParserResolver(): WebhookPayloadParserResolver
+    {
+        if ($this->payloadParserResolver === null) {
+            $this->payloadParserResolver = app(WebhookPayloadParserResolver::class);
+        }
+
+        return $this->payloadParserResolver;
+    }
+
     private function extractEvent(WebhookService $service, RawPayload $payload): string
     {
-        return $service->parser()->extractEventType($payload->decoded());
+        return $this->getPayloadParserResolver()
+            ->forService($service)
+            ->extractEventType($payload->decoded());
     }
 
     private function extractExternalId(WebhookService $service, RawPayload $payload): ?string
     {
-        return $service->parser()->extractExternalId($payload->decoded());
+        return $this->getPayloadParserResolver()
+            ->forService($service)
+            ->extractExternalId($payload->decoded());
     }
 
     /**
@@ -413,7 +431,7 @@ class Larawebhook
     ): WebhookLog {
         $webhookService = $this->resolveService($service);
         $rawPayload = RawPayload::fromString($payload);
-        $secret = $webhookService->secret();
+        $secret = config("larawebhook.services.{$webhookService->value}.webhook_secret");
 
         if ($secret === null || $secret === '') {
             throw new WebhookException("No secret configured for service: {$webhookService->value}");

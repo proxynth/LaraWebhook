@@ -7,8 +7,8 @@ namespace Proxynth\Larawebhook\Shared\Infrastructure\Laravel\Facades;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Facade;
 use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Persistence\Models\WebhookLog;
-use Proxynth\Larawebhook\Enums\WebhookService;
 use Proxynth\Larawebhook\Ingestion\Domain\ValueObjects\Signature;
+use Proxynth\Larawebhook\Shared\Domain\Enums\WebhookService;
 
 /**
  * @method static bool validate(string $payload, Signature $signature, string|WebhookService $service)

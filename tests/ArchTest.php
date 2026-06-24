@@ -32,7 +32,6 @@ $applicationInfrastructureExceptions = [
     'Proxynth\Larawebhook\Audit\Application\Ports\WebhookAuditLogWriter',
     'Proxynth\Larawebhook\Audit\Application\ReadModels\WebhookFailureDetails',
     'Proxynth\Larawebhook\Audit\Application\ReadModels\WebhookLogDetails',
-    'Proxynth\Larawebhook\Audit\Application\ReadModels\WebhookLogReadModel',
     'Proxynth\Larawebhook\Audit\Application\ReadModels\WebhookLogSummary',
     'Proxynth\Larawebhook\Audit\Application\UseCases\RecordWebhookLog',
     'Proxynth\Larawebhook\Ingestion\Application\Results\ReceiveWebhookResult',

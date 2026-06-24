@@ -8,9 +8,9 @@ use Exception;
 use Proxynth\Larawebhook\Audit\Application\Commands\RecordWebhookLogCommand;
 use Proxynth\Larawebhook\Audit\Application\UseCases\RecordWebhookLog;
 use Proxynth\Larawebhook\Audit\Domain\Events\WebhookLogged;
-use Proxynth\Larawebhook\Enums\WebhookService;
 use Proxynth\Larawebhook\Ingestion\Application\Commands\ReceiveWebhookCommand;
 use Proxynth\Larawebhook\Ingestion\Application\Commands\ValidateWebhookCommand;
+use Proxynth\Larawebhook\Ingestion\Application\Ports\WebhookPayloadParserResolver;
 use Proxynth\Larawebhook\Ingestion\Application\Results\ReceiveWebhookResult;
 use Proxynth\Larawebhook\Ingestion\Domain\Events\WebhookReceived;
 use Proxynth\Larawebhook\Ingestion\Domain\Events\WebhookRejected;
@@ -23,6 +23,7 @@ use Proxynth\Larawebhook\Processing\Domain\Entities\WebhookEvent;
 use Proxynth\Larawebhook\Processing\Domain\ValueObjects\DeliveryAttempt;
 use Proxynth\Larawebhook\Processing\Domain\ValueObjects\EventType;
 use Proxynth\Larawebhook\Processing\Domain\ValueObjects\IdempotencyKey;
+use Proxynth\Larawebhook\Shared\Domain\Enums\WebhookService;
 use Symfony\Component\HttpFoundation\Response;
 
 final readonly class ReceiveWebhook
@@ -30,6 +31,7 @@ final readonly class ReceiveWebhook
     public function __construct(
         private IdempotencyResolver $idempotencyResolver,
         private WebhookDuplicateDetector $duplicateDetector,
+        private WebhookPayloadParserResolver $payloadParserResolver,
         private ValidateWebhook $validateWebhook,
         private RecordWebhookLog $recordWebhookLog,
     ) {}
@@ -81,7 +83,7 @@ final readonly class ReceiveWebhook
             externalId: $externalId,
         );
 
-        $secret = $command->service->secret();
+        $secret = config("larawebhook.services.{$command->service->value}.webhook_secret");
 
         if (empty($secret)) {
             return ReceiveWebhookResult::secretNotConfigured($provider->value());
@@ -193,7 +195,9 @@ final readonly class ReceiveWebhook
             return 'unknown';
         }
 
-        return $service->parser()->extractEventType($decodedPayload);
+        return $this->payloadParserResolver
+            ->forService($service)
+            ->extractEventType($decodedPayload);
     }
 
     private function extractExternalId(
@@ -205,7 +209,9 @@ final readonly class ReceiveWebhook
             return $externalIdHeaderValue;
         }
 
-        return $service->parser()->extractExternalId($decodedPayload, $externalIdHeaderValue);
+        return $this->payloadParserResolver
+            ->forService($service)
+            ->extractExternalId($decodedPayload, $externalIdHeaderValue);
     }
 
     private function shouldRetryAsync(): bool

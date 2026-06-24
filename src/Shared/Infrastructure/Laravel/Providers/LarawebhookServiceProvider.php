@@ -22,9 +22,11 @@ use Proxynth\Larawebhook\Audit\Infrastructure\Logging\WebhookLogger;
 use Proxynth\Larawebhook\Audit\Infrastructure\Logging\WebhookLoggerAuditLogWriter;
 use Proxynth\Larawebhook\Audit\Infrastructure\Payload\PayloadStorageResolver;
 use Proxynth\Larawebhook\Ingestion\Application\Ports\SignatureValidator;
+use Proxynth\Larawebhook\Ingestion\Application\Ports\WebhookPayloadParserResolver;
 use Proxynth\Larawebhook\Ingestion\Application\UseCases\ReceiveWebhook;
 use Proxynth\Larawebhook\Ingestion\Application\UseCases\ValidateWebhook as ValidateWebhookUseCase;
 use Proxynth\Larawebhook\Ingestion\Infrastructure\Laravel\Middleware\ValidateWebhook as ValidateWebhookMiddleware;
+use Proxynth\Larawebhook\Ingestion\Infrastructure\Parsing\ProviderPayloadParserResolver;
 use Proxynth\Larawebhook\Ingestion\Infrastructure\Validation\ProviderSignatureValidator;
 use Proxynth\Larawebhook\Ingestion\Infrastructure\Validation\WebhookValidatorFactory;
 use Proxynth\Larawebhook\Processing\Application\Ports\IdempotencyResolver;
@@ -138,6 +140,7 @@ class LarawebhookServiceProvider extends PackageServiceProvider
         // Register WebhookValidatorFactory as singleton
         $this->app->singleton(WebhookValidatorFactory::class);
         $this->app->singleton(SignatureValidator::class, ProviderSignatureValidator::class);
+        $this->app->singleton(WebhookPayloadParserResolver::class, ProviderPayloadParserResolver::class);
 
         // Register ReplayWebhook use case
         $this->app->singleton(ReplayWebhook::class);
