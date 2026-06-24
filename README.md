@@ -404,7 +404,8 @@ Route::post('/github-webhook', function () {
 
 **What the middleware does:**
 - ✅ Validates the webhook signature
-- ✅ Automatically logs the event to the database
+- ✅ Runs `ReceiveWebhook` to validate, deduplicate, and record the webhook
+- ✅ Dispatches collected domain events through the Laravel adapter
 - ✅ Rejects duplicate webhooks (returns `200 OK` with `already_processed`)
 - ✅ Returns 403 for invalid signatures
 - ✅ Returns 400 for missing headers or malformed payloads
@@ -415,7 +416,7 @@ For more control, you can manually validate webhooks:
 
 ```php
 // app/Http/Controllers/WebhookController.php
-use Proxynth\Larawebhook\Facades\Larawebhook;
+use Proxynth\Larawebhook\Shared\Infrastructure\Laravel\Facades\Larawebhook;
 use Proxynth\Larawebhook\Ingestion\Domain\ValueObjects\Signature;
 use Illuminate\Http\Request;
 
@@ -429,7 +430,7 @@ public function handleWebhook(Request $request)
     $secret = config('larawebhook.services.stripe.webhook_secret');
 
     try {
-        // Validate and log in one call
+        // Validate and log in one call through the application layer
         $log = Larawebhook::validateAndLog(
             $payload,
             $signature,
@@ -1868,6 +1869,8 @@ LaraWebhook **automatically handles idempotency**. The middleware extracts exter
 
 The idempotency resolution logic is now isolated internally so it can evolve without changing the public API.
 
+`external_id` keeps the provider delivery or event identifier. `idempotency_key` keeps the actual deduplication key, which may be the external id or a payload-hash fallback when the provider does not expose a stable identifier.
+
 **Idempotency fallback**
 
 By default, LaraWebhook uses the provider external event ID as the idempotency key.  
@@ -1903,7 +1906,7 @@ $logs = WebhookLog::service('github')
     ->get();
 ```
 
-> **Note:** The `external_id` column has a unique constraint per service, preventing duplicate entries.
+> **Note:** The `idempotency_key` column has a unique constraint per service, preventing duplicate entries. `external_id` remains a provider identifier and may be null.
 
 #### Monitoring
 
@@ -2520,7 +2523,7 @@ LaraWebhook follows a pragmatic architecture inspired by Domain Driven Design, h
 
 The goal is to keep the package readable, testable and explicit without introducing unnecessary abstractions.
 
-See [ARCHITECTURE.md](ARCHITECTURE.md) for details.
+See [docs/architecture.md](docs/architecture.md) for details.
 
 ## 🤝 Contributing
 

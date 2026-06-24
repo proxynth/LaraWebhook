@@ -1,6 +1,7 @@
 # Facade & Enum API
 
 LaraWebhook provides a powerful Facade and an Enum for type-safe service handling.
+For the inbound request flow, see [Architecture](/architecture). For manual validation, always wrap raw signature headers with `Signature::fromString()`.
 
 ## Larawebhook Facade
 

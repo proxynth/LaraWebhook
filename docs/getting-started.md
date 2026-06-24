@@ -68,7 +68,8 @@ Route::post('/github-webhook', function () {
 **What the middleware does:**
 
 - ✅ Validates the webhook signature
-- ✅ Automatically logs the event to the database
+- ✅ Runs `ReceiveWebhook`, which validates the payload, detects duplicates, and records the audit log
+- ✅ Dispatches collected domain events for the HTTP adapter
 - ✅ Rejects duplicate webhooks (returns `200 OK` with `already_processed`)
 - ✅ Returns 403 for invalid signatures
 - ✅ Returns 400 for missing headers or malformed payloads
@@ -78,19 +79,17 @@ Route::post('/github-webhook', function () {
 For more control, you can manually validate webhooks:
 
 ```php
-use Proxynth\Larawebhook\Facades\Larawebhook;
+use Proxynth\Larawebhook\Shared\Infrastructure\Laravel\Facades\Larawebhook;
 use Proxynth\Larawebhook\Ingestion\Domain\ValueObjects\Signature;
 use Illuminate\Http\Request;
 
 public function handleWebhook(Request $request)
 {
     $payload = $request->getContent();
-    $signature = Signature::fromString(
-        $request->header('Stripe-Signature')
-    );
+    $signature = Signature::fromString($request->header('Stripe-Signature'));
 
     try {
-        // Validate and log in one call
+        // Validate and log in one call through the application flow
         $log = Larawebhook::validateAndLog(
             $payload,
             $signature,
@@ -108,6 +107,19 @@ public function handleWebhook(Request $request)
 }
 ```
 
+`Signature::fromString()` wraps the raw signature header in a typed value object so the application can carry the signature safely and, for providers that need it, keep timestamp metadata attached to the same object.
+
+## Architecture Notes
+
+- `ValidateWebhook` validates signatures and normalizes the provider-facing validation result.
+- `RecordWebhookLog` is the application entry point for writing audit logs.
+- `ReceiveWebhook` orchestrates idempotency, validation, audit logging, and retry decisions.
+- `external_id` stores the provider event identifier when one exists.
+- `idempotency_key` stores the actual deduplication key, including payload-hash fallback when a provider does not expose a stable external id.
+- Dashboard and API reads use read models and read repositories, not application write commands.
+- Sync retry happens inline in the request flow; async retry returns `202 Accepted` and queues `RetryWebhookJob`.
+- Payload storage can be `none`, `redacted`, or `full`, depending on how much of the raw webhook you want persisted.
+
 ## Access the Dashboard
 
 Once installed, access the webhook dashboard at:
@@ -121,6 +133,8 @@ The dashboard provides:
 - 🔍 Filter by service, status, and date
 - 👁️ View detailed payloads
 - 🔄 Replay failed webhooks
+
+See [Architecture](/architecture) for the full layer and flow breakdown.
 
 ## Next Steps
 
