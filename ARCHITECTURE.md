@@ -11,6 +11,8 @@ LaraWebhook should make it easy to understand:
 - which responsibilities belong to each part of the system;
 - how webhook consistency, idempotency, replay and auditability are protected.
 
+This file is the internal architecture reference. The public mirror lives in `docs/architecture.md`.
+
 ## Architectural principles
 
 LaraWebhook follows these principles:
@@ -56,6 +58,7 @@ It covers:
 - validating signatures;
 - normalizing incoming webhook data;
 - rejecting invalid webhooks before they enter processing.
+- orchestrating the `ValidateWebhook` and `ReceiveWebhook` application use cases.
 
 Examples of future classes:
 
@@ -74,6 +77,9 @@ It covers:
 - webhook processing state;
 - business-level processing invariants;
 - coordination with handlers when processing is introduced.
+- retry coordination through `RetryWebhook`;
+- replay coordination through `ReplayWebhook`;
+- deduplication through `idempotency_key`.
 
 Examples of future classes:
 
@@ -100,6 +106,7 @@ It covers:
 - replay history;
 - dashboard/API read models;
 - failure details.
+- audit writing through `RecordWebhookLog`.
 
 Examples of future classes:
 
@@ -116,6 +123,7 @@ It may contain:
 - generic domain event interfaces;
 - shared application contracts;
 - generic infrastructure adapters;
+- the application event bus port;
 - small shared value objects only when they are truly generic.
 
 The Shared Context should stay small. It must not become a dumping ground for unrelated services.
@@ -142,6 +150,7 @@ It may contain:
 - invariants.
 
 The Domain layer must not depend on Laravel, Eloquent, HTTP requests, queues, configuration files or service providers.
+It must also not depend on Application or Infrastructure classes from any bounded context.
 
 Domain code should be framework-independent.
 
@@ -165,6 +174,8 @@ It may contain:
 - result objects.
 
 The Application layer defines what the system does, but not the technical details of how persistence, HTTP or Laravel work.
+
+Application use cases may collect domain events and return them in their results. A Laravel adapter can dispatch those events later, but the use case itself should remain free of transport concerns.
 
 Examples:
 
@@ -298,6 +309,8 @@ Events should contain minimal non-sensitive data.
 
 Events must not expose raw payloads, provider secrets or sensitive headers.
 
+Current flows collect events such as `WebhookReceived`, `WebhookValidated`, `WebhookRejected`, `WebhookLogged`, `WebhookProcessingFailed`, and `WebhookReplayed` in application results. Dispatch is handled by the Laravel adapter, not by the domain.
+
 Domain events can be introduced gradually. A custom event bus is not required until it provides clear value.
 
 ## Current migration strategy
@@ -306,18 +319,15 @@ The architecture should be introduced progressively.
 
 Recommended order:
 
-1. Document the architecture.
-2. Create bounded context folders.
-3. Move Laravel infrastructure into context infrastructure folders.
-4. Move technical services into their contexts.
-5. Introduce command/query application structure.
-6. Extract ReplayWebhook use case.
-7. Extract PruneWebhookLogs use case.
-8. Extract read queries for logs.
-9. Extract ReceiveWebhook use case.
-10. Introduce domain value objects where they protect real rules.
-11. Introduce domain events.
-12. Add architecture tests.
+1. Keep the architecture documented.
+2. Keep bounded context folders aligned with the code.
+3. Keep Laravel infrastructure inside Infrastructure.
+4. Keep technical services behind ports when they matter.
+5. Keep command/query application structure explicit.
+6. Keep `ReceiveWebhook`, `RetryWebhook`, `ReplayWebhook`, and `RecordWebhookLog` as the primary flows.
+7. Keep read queries on read models and read repositories.
+8. Keep domain events collected in application results.
+9. Keep architecture tests enforcing the dependency rules.
 
 The package should remain functional after each step.
 
