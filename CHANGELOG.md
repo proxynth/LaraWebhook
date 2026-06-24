@@ -5,6 +5,13 @@ All notable changes to `larawebhook` will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.28.0](https://github.com/proxynth/LaraWebhook/compare/v1.27.0...v1.28.0) (2026-06-24)
+
+
+### Features
+
+* add application event bus ([#114](https://github.com/proxynth/LaraWebhook/issues/114)) ([c9428cd](https://github.com/proxynth/LaraWebhook/commit/c9428cdff54e199ffd169e30be4362fc4c7b6d7e))
+
 ## [1.27.0](https://github.com/proxynth/LaraWebhook/compare/v1.26.0...v1.27.0) (2026-06-23)
 
 
