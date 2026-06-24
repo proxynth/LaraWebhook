@@ -5,6 +5,7 @@ LaraWebhook provides a powerful Facade and an Enum for type-safe service handlin
 ## Larawebhook Facade
 
 The `Larawebhook` facade provides a fluent API for all webhook operations.
+Prefer `validate()`, `validateAndLog()`, `validateWithRetries()`, and the read/query helpers for new code.
 
 ### Validation
 
@@ -19,6 +20,9 @@ $log = Larawebhook::validateAndLog($payload, $signature, 'github', 'push');
 ```
 
 ### Logging
+
+The manual logging helpers remain available for compatibility, but they are deprecated.
+Prefer `validateAndLog()` or the corresponding application use case when you need to persist an audit log.
 
 ```php
 // Log webhooks manually

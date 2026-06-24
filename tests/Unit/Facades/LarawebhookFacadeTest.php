@@ -5,6 +5,9 @@ declare(strict_types=1);
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Facade;
 use Illuminate\Support\Facades\Notification;
+use Proxynth\Larawebhook\Audit\Application\Commands\RecordWebhookLogCommand;
+use Proxynth\Larawebhook\Audit\Application\Ports\WebhookAuditLogWriter;
+use Proxynth\Larawebhook\Audit\Application\UseCases\RecordWebhookLog;
 use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Notifications\FailureDetector;
 use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Persistence\Models\WebhookLog;
 use Proxynth\Larawebhook\Enums\WebhookService;
@@ -165,23 +168,89 @@ describe('Larawebhook Facade methods - Validation', function () {
 describe('Larawebhook Facade methods - Logging', function () {
     beforeEach(function () {
         Larawebhook::clearResolvedInstances();
+        app()->forgetInstance(LarawebhookClass::class);
+        app()->forgetInstance(RecordWebhookLog::class);
         config(['larawebhook.notifications.enabled' => false]);
     });
 
-    it('logSuccess() works via facade', function () {
-        $log = Larawebhook::logSuccess('stripe', 'payment.succeeded', ['amount' => 1000]);
+    it('logSuccess() writes through the applicative flow', function () {
+        $writer = new class implements WebhookAuditLogWriter
+        {
+            public ?RecordWebhookLogCommand $command = null;
+
+            public function record(RecordWebhookLogCommand $command): WebhookLog
+            {
+                $this->command = $command;
+
+                $log = new WebhookLog([
+                    'service' => $command->service,
+                    'event' => $command->event,
+                    'status' => $command->valid ? 'success' : 'failed',
+                    'payload' => $command->payload,
+                    'attempt' => $command->attempt,
+                    'idempotency_key' => $command->idempotencyKey,
+                    'error_message' => $command->errorMessage,
+                ]);
+
+                $log->id = 1001;
+
+                return $log;
+            }
+        };
+
+        app()->instance(WebhookAuditLogWriter::class, $writer);
+
+        $log = Larawebhook::logSuccess('stripe', 'payment.succeeded', ['amount' => 1000], 2, 'idem_123');
 
         expect($log)->toBeInstanceOf(WebhookLog::class)
+            ->and($writer->command)->toBeInstanceOf(RecordWebhookLogCommand::class)
             ->and($log->status)->toBe('success')
-            ->and($log->service)->toBe('stripe');
+            ->and($log->service)->toBe('stripe')
+            ->and($writer->command?->service)->toBe('stripe')
+            ->and($writer->command?->event)->toBe('payment.succeeded')
+            ->and($writer->command?->attempt)->toBe(2)
+            ->and($writer->command?->idempotencyKey)->toBe('idem_123')
+            ->and($writer->command?->valid)->toBeTrue();
     });
 
-    it('logFailure() works via facade', function () {
-        $log = Larawebhook::logFailure('stripe', 'payment.failed', ['id' => '123'], 'Card declined');
+    it('logFailure() writes through the applicative flow', function () {
+        $writer = new class implements WebhookAuditLogWriter
+        {
+            public ?RecordWebhookLogCommand $command = null;
+
+            public function record(RecordWebhookLogCommand $command): WebhookLog
+            {
+                $this->command = $command;
+
+                $log = new WebhookLog([
+                    'service' => $command->service,
+                    'event' => $command->event,
+                    'status' => $command->valid ? 'success' : 'failed',
+                    'payload' => $command->payload,
+                    'attempt' => $command->attempt,
+                    'idempotency_key' => $command->idempotencyKey,
+                    'error_message' => $command->errorMessage,
+                ]);
+
+                $log->id = 1002;
+
+                return $log;
+            }
+        };
+
+        app()->instance(WebhookAuditLogWriter::class, $writer);
+
+        $log = Larawebhook::logFailure('stripe', 'payment.failed', ['id' => '123'], 'Card declined', 1, 'idem_456');
 
         expect($log)->toBeInstanceOf(WebhookLog::class)
+            ->and($writer->command)->toBeInstanceOf(RecordWebhookLogCommand::class)
             ->and($log->status)->toBe('failed')
-            ->and($log->error_message)->toBe('Card declined');
+            ->and($log->error_message)->toBe('Card declined')
+            ->and($writer->command?->service)->toBe('stripe')
+            ->and($writer->command?->event)->toBe('payment.failed')
+            ->and($writer->command?->attempt)->toBe(1)
+            ->and($writer->command?->idempotencyKey)->toBe('idem_456')
+            ->and($writer->command?->valid)->toBeFalse();
     });
 });
 

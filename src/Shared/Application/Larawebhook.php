@@ -23,6 +23,7 @@ use Proxynth\Larawebhook\Processing\Domain\ValueObjects\DeliveryAttempt;
  * Main entry point for the Larawebhook package.
  *
  * Provides a fluent API for webhook validation, logging, and querying.
+ * Prefer validate(), validateAndLog(), validateWithRetries(), and the read helpers.
  */
 class Larawebhook
 {
@@ -141,6 +142,8 @@ class Larawebhook
 
     /**
      * Log a successful webhook.
+     *
+     * @deprecated Use validateAndLog() or the corresponding application use case.
      */
     public function logSuccess(
         string $service,
@@ -161,6 +164,8 @@ class Larawebhook
 
     /**
      * Log a failed webhook.
+     *
+     * @deprecated Use validateAndLog() or the corresponding application use case.
      */
     public function logFailure(
         string $service,
