@@ -52,8 +52,15 @@ Route::post('/stripe-webhook', function () {
 - ✅ Validates the webhook signature
 - ✅ Logs the event to the database
 - ✅ Rejects duplicate webhooks (idempotency)
+- ✅ Dispatches collected domain events through the Laravel adapter
 - ✅ Returns 403 for invalid signatures
 - ✅ Returns 400 for malformed payloads
+
+## Documentation
+
+- [Getting Started](/getting-started)
+- [Architecture](/architecture)
+- [Facade API](/facade-api)
 
 ## Supported Services
 
