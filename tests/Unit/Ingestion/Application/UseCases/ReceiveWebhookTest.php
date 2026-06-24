@@ -5,7 +5,6 @@ declare(strict_types=1);
 use Illuminate\Support\Facades\Queue;
 use Proxynth\Larawebhook\Audit\Domain\Events\WebhookLogged;
 use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Persistence\Models\WebhookLog;
-use Proxynth\Larawebhook\Enums\WebhookService;
 use Proxynth\Larawebhook\Ingestion\Application\Commands\ReceiveWebhookCommand;
 use Proxynth\Larawebhook\Ingestion\Application\Results\ReceiveWebhookResult;
 use Proxynth\Larawebhook\Ingestion\Application\UseCases\ReceiveWebhook;
@@ -14,6 +13,7 @@ use Proxynth\Larawebhook\Ingestion\Domain\Events\WebhookRejected;
 use Proxynth\Larawebhook\Ingestion\Domain\Events\WebhookValidated;
 use Proxynth\Larawebhook\Ingestion\Domain\ValueObjects\Signature;
 use Proxynth\Larawebhook\Processing\Application\Ports\WebhookDuplicateDetector;
+use Proxynth\Larawebhook\Shared\Domain\Enums\WebhookService;
 use Proxynth\Larawebhook\Tests\Fakes\Processing\FakeWebhookDuplicateDetector;
 
 function githubPayload(string $deliveryId = 'delivery_123'): string

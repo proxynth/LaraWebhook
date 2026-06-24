@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-use Proxynth\Larawebhook\Enums\WebhookService;
 use Proxynth\Larawebhook\Ingestion\Application\Commands\ValidateWebhookCommand;
 use Proxynth\Larawebhook\Ingestion\Application\Ports\SignatureValidator;
 use Proxynth\Larawebhook\Ingestion\Application\UseCases\ValidateWebhook;
 use Proxynth\Larawebhook\Ingestion\Domain\ValueObjects\RawPayload;
 use Proxynth\Larawebhook\Ingestion\Domain\ValueObjects\Signature;
+use Proxynth\Larawebhook\Shared\Domain\Enums\WebhookService;
 
 beforeEach(function () {
     app()->forgetInstance(SignatureValidator::class);

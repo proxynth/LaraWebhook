@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Proxynth\Larawebhook\Ingestion\Application\Commands;
 
-use Proxynth\Larawebhook\Enums\WebhookService;
 use Proxynth\Larawebhook\Ingestion\Domain\ValueObjects\Signature;
 use Proxynth\Larawebhook\Shared\Application\Commands\Command;
+use Proxynth\Larawebhook\Shared\Domain\Enums\WebhookService;
 
 final readonly class ReceiveWebhookCommand implements Command
 {

@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 use Proxynth\Larawebhook\Audit\Domain\Events\WebhookLogged;
 use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Persistence\Models\WebhookLog;
-use Proxynth\Larawebhook\Enums\WebhookService;
 use Proxynth\Larawebhook\Exceptions\WebhookException;
 use Proxynth\Larawebhook\Processing\Application\Commands\RetryWebhookCommand;
 use Proxynth\Larawebhook\Processing\Application\UseCases\RetryWebhook;
 use Proxynth\Larawebhook\Processing\Domain\Events\WebhookProcessingFailed;
+use Proxynth\Larawebhook\Shared\Domain\Enums\WebhookService;
 
 beforeEach(function () {
     config([

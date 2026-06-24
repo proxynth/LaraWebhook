@@ -10,8 +10,8 @@ use Proxynth\Larawebhook\Audit\Application\Ports\WebhookAuditLogWriter;
 use Proxynth\Larawebhook\Audit\Application\UseCases\RecordWebhookLog;
 use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Notifications\FailureDetector;
 use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Persistence\Models\WebhookLog;
-use Proxynth\Larawebhook\Enums\WebhookService;
 use Proxynth\Larawebhook\Shared\Application\Larawebhook as LarawebhookClass;
+use Proxynth\Larawebhook\Shared\Domain\Enums\WebhookService;
 use Proxynth\Larawebhook\Shared\Infrastructure\Laravel\Facades\Larawebhook;
 
 describe('Larawebhook Facade', function () {

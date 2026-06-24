@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Proxynth\Larawebhook\Ingestion\Infrastructure\Validation;
 
-use Proxynth\Larawebhook\Enums\WebhookService;
 use Proxynth\Larawebhook\Ingestion\Application\Ports\SignatureValidator;
 use Proxynth\Larawebhook\Ingestion\Domain\ValueObjects\RawPayload;
 use Proxynth\Larawebhook\Ingestion\Domain\ValueObjects\Signature;
+use Proxynth\Larawebhook\Shared\Domain\Enums\WebhookService;
 
 final readonly class ProviderSignatureValidator implements SignatureValidator
 {

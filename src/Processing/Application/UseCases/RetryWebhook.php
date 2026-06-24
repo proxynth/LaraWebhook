@@ -7,7 +7,6 @@ namespace Proxynth\Larawebhook\Processing\Application\UseCases;
 use Proxynth\Larawebhook\Audit\Application\Commands\RecordWebhookLogCommand;
 use Proxynth\Larawebhook\Audit\Application\UseCases\RecordWebhookLog;
 use Proxynth\Larawebhook\Audit\Domain\Events\WebhookLogged;
-use Proxynth\Larawebhook\Enums\WebhookService;
 use Proxynth\Larawebhook\Exceptions\WebhookException;
 use Proxynth\Larawebhook\Ingestion\Application\Commands\ValidateWebhookCommand;
 use Proxynth\Larawebhook\Ingestion\Application\UseCases\ValidateWebhook;
@@ -15,6 +14,7 @@ use Proxynth\Larawebhook\Ingestion\Domain\ValueObjects\RawPayload;
 use Proxynth\Larawebhook\Processing\Application\Commands\RetryWebhookCommand;
 use Proxynth\Larawebhook\Processing\Application\Results\RetryWebhookResult;
 use Proxynth\Larawebhook\Processing\Domain\Events\WebhookProcessingFailed;
+use Proxynth\Larawebhook\Shared\Domain\Enums\WebhookService;
 
 final readonly class RetryWebhook
 {

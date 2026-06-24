@@ -227,25 +227,30 @@ interface SignatureValidatorInterface
 ## Using Parsers Directly
 
 ```php
-use Proxynth\Larawebhook\Enums\WebhookService;
+use Proxynth\Larawebhook\Ingestion\Application\Ports\WebhookPayloadParserResolver;
+use Proxynth\Larawebhook\Shared\Domain\Enums\WebhookService;
 
 $payload = json_decode($request->getContent(), true);
+$parserResolver = app(WebhookPayloadParserResolver::class);
 
 // Extract event type
-$eventType = WebhookService::Stripe->parser()->extractEventType($payload);
+$eventType = $parserResolver->forService(WebhookService::Stripe)->extractEventType($payload);
 // Returns: 'payment_intent.succeeded'
 
 // Extract metadata
-$metadata = WebhookService::Github->parser()->extractMetadata($payload);
+$metadata = $parserResolver->forService(WebhookService::Github)->extractMetadata($payload);
 // Returns: ['delivery_id' => '...', 'action' => 'opened', ...]
 ```
 
 ## Using Validators Directly
 
 ```php
-use Proxynth\Larawebhook\Enums\WebhookService;
+use Proxynth\Larawebhook\Ingestion\Infrastructure\Validation\WebhookValidatorFactory;
+use Proxynth\Larawebhook\Shared\Domain\Enums\WebhookService;
 
-$isValid = WebhookService::Stripe->signatureValidator()->validate(
+$validator = app(WebhookValidatorFactory::class);
+
+$isValid = $validator->forService(WebhookService::Stripe)->validate(
     payload: $rawPayload,
     signature: $signatureHeader,
     secret: config('larawebhook.services.stripe.webhook_secret'),

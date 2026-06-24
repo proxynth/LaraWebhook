@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace Proxynth\Larawebhook\Processing\Application\DTOs;
 
-use Proxynth\Larawebhook\Enums\WebhookService;
 use Proxynth\Larawebhook\Ingestion\Domain\ValueObjects\Provider;
 use Proxynth\Larawebhook\Processing\Domain\Entities\WebhookEvent;
 use Proxynth\Larawebhook\Processing\Domain\ValueObjects\EventType;
 use Proxynth\Larawebhook\Processing\Domain\ValueObjects\IdempotencyKey;
 use Proxynth\Larawebhook\Processing\Domain\ValueObjects\WebhookStatus;
+use Proxynth\Larawebhook\Shared\Domain\Enums\WebhookService;
 
 final readonly class ReplayableWebhook
 {

@@ -7,12 +7,13 @@ namespace Proxynth\Larawebhook\Ingestion\Infrastructure\Laravel\Middleware;
 use Closure;
 use Exception;
 use Illuminate\Http\Request;
-use Proxynth\Larawebhook\Enums\WebhookService;
 use Proxynth\Larawebhook\Ingestion\Application\Commands\ReceiveWebhookCommand;
 use Proxynth\Larawebhook\Ingestion\Application\UseCases\ReceiveWebhook;
 use Proxynth\Larawebhook\Ingestion\Domain\ValueObjects\Signature;
+use Proxynth\Larawebhook\Ingestion\Infrastructure\Support\WebhookServiceMetadata;
 use Proxynth\Larawebhook\Processing\Infrastructure\Laravel\Jobs\RetryWebhookJob;
 use Proxynth\Larawebhook\Shared\Application\EventBus;
+use Proxynth\Larawebhook\Shared\Domain\Enums\WebhookService;
 use Symfony\Component\HttpFoundation\Response;
 
 class ValidateWebhook
@@ -48,7 +49,7 @@ class ValidateWebhook
                 ], Response::HTTP_BAD_REQUEST);
         }
 
-        $signatureHeader = $webhookService->signatureHeader();
+        $signatureHeader = WebhookServiceMetadata::signatureHeader($webhookService);
         $signatureValue = $this->headerValue($request, $signatureHeader);
 
         if ($signatureValue === null) {
@@ -58,7 +59,7 @@ class ValidateWebhook
             ], Response::HTTP_BAD_REQUEST);
         }
 
-        $timestampHeader = $webhookService->timestampHeader();
+        $timestampHeader = WebhookServiceMetadata::timestampHeader($webhookService);
         $timestampValue = null;
 
         if ($timestampHeader !== null) {
@@ -134,7 +135,7 @@ class ValidateWebhook
 
     private function externalIdHeaderValue(Request $request, WebhookService $webhookService): ?string
     {
-        $externalIdHeader = $webhookService->externalIdHeader();
+        $externalIdHeader = WebhookServiceMetadata::externalIdHeader($webhookService);
 
         if ($externalIdHeader === null) {
             return null;

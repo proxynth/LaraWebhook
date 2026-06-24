@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Proxynth\Larawebhook\Ingestion\Infrastructure\Validation;
 
-use Proxynth\Larawebhook\Enums\WebhookService;
 use Proxynth\Larawebhook\Exceptions\InvalidSignatureException;
 use Proxynth\Larawebhook\Exceptions\WebhookException;
 use Proxynth\Larawebhook\Ingestion\Domain\ValueObjects\Signature;
+use Proxynth\Larawebhook\Shared\Domain\Enums\WebhookService;
 
 class WebhookValidator
 {
@@ -36,11 +36,31 @@ class WebhookValidator
             throw new WebhookException("Unsupported service: {$service}");
         }
 
-        return $webhookService->signatureValidator()->validate(
-            $payload,
-            $signature,
-            $this->secret,
-            $this->tolerance
-        );
+        return match ($webhookService) {
+            WebhookService::Stripe => (new StripeSignatureValidator)->validate(
+                $payload,
+                $signature,
+                $this->secret,
+                $this->tolerance
+            ),
+            WebhookService::Github => (new GithubSignatureValidator)->validate(
+                $payload,
+                $signature,
+                $this->secret,
+                $this->tolerance
+            ),
+            WebhookService::Slack => (new SlackSignatureValidator)->validate(
+                $payload,
+                $signature,
+                $this->secret,
+                $this->tolerance
+            ),
+            WebhookService::Shopify => (new ShopifySignatureValidator)->validate(
+                $payload,
+                $signature,
+                $this->secret,
+                $this->tolerance
+            ),
+        };
     }
 }

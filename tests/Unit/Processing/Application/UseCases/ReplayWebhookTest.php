@@ -8,7 +8,6 @@ use Proxynth\Larawebhook\Audit\Application\ReadModels\WebhookLogSummary;
 use Proxynth\Larawebhook\Audit\Domain\Events\WebhookLogged;
 use Proxynth\Larawebhook\Audit\Domain\Exceptions\PayloadNotAvailable;
 use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Persistence\Models\WebhookLog;
-use Proxynth\Larawebhook\Enums\WebhookService;
 use Proxynth\Larawebhook\Exceptions\WebhookException;
 use Proxynth\Larawebhook\Ingestion\Application\Commands\ValidateWebhookCommand;
 use Proxynth\Larawebhook\Ingestion\Application\Ports\SignatureValidator;
@@ -21,6 +20,7 @@ use Proxynth\Larawebhook\Processing\Application\Ports\ReplayableWebhookRepositor
 use Proxynth\Larawebhook\Processing\Application\Results\ReplayWebhookResult;
 use Proxynth\Larawebhook\Processing\Application\UseCases\ReplayWebhook;
 use Proxynth\Larawebhook\Processing\Domain\Events\WebhookReplayed;
+use Proxynth\Larawebhook\Shared\Domain\Enums\WebhookService;
 use Proxynth\Larawebhook\Shared\Infrastructure\Laravel\Providers\LarawebhookServiceProvider;
 
 beforeEach(function () {

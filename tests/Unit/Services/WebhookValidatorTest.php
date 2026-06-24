@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-use Proxynth\Larawebhook\Enums\WebhookService;
 use Proxynth\Larawebhook\Exceptions\InvalidSignatureException;
 use Proxynth\Larawebhook\Exceptions\WebhookException;
 use Proxynth\Larawebhook\Ingestion\Infrastructure\Validation\WebhookValidator;
+use Proxynth\Larawebhook\Shared\Domain\Enums\WebhookService;
 
 beforeEach(function () {
     $this->secret = 'test_secret_key_123';
