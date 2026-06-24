@@ -23,8 +23,6 @@ uses(Testcase::class)->in(__DIR__);
 uses(RefreshDatabase::class)->in(
     // Unit tests that need database
     'Unit/Services/WebhookLoggerTest.php',
-    'Unit/Services/WebhookValidatorWithLoggingTest.php',
-    'Unit/Services/WebhookValidatorRetryTest.php',
     'Unit/Services/FailureDetectorTest.php',
     'Unit/Services/NotificationSenderTest.php',
     'Unit/Notifications/WebhookFailedNotificationTest.php',

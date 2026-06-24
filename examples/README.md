@@ -138,14 +138,12 @@ Route::post('/stripe-webhook', [StripeWebhookController::class, 'handle'])
 ### Pattern 2: Manual Validation
 
 ```php
-use Proxynth\Larawebhook\Services\WebhookValidator;
+use Proxynth\Larawebhook\Shared\Infrastructure\Laravel\Facades\Larawebhook;
 
 public function handle(Request $request)
 {
-    $validator = new WebhookValidator(config('larawebhook.services.stripe.webhook_secret'));
-
     try {
-        $log = $validator->validateAndLog(
+        $log = Larawebhook::validateAndLog(
             $request->getContent(),
             $request->header('Stripe-Signature'),
             'stripe',
