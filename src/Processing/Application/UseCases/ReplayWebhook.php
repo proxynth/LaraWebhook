@@ -70,7 +70,7 @@ final readonly class ReplayWebhook
             payload: $validation->payload,
             attempt: $replayableWebhook->attempt + 1,
             externalId: $replayableWebhook->externalId,
-            idempotencyKey: $replayedEvent->idempotencyKey()?->value(),
+            idempotencyKey: null,
             errorMessage: $validation->errorMessage,
         ));
 

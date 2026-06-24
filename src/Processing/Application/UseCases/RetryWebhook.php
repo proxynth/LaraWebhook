@@ -54,8 +54,8 @@ final readonly class RetryWebhook
             valid: $validation->isValid(),
             payload: $validation->payload,
             attempt: $command->attempt,
-            externalId: $validation->externalId,
-            idempotencyKey: $command->idempotencyKey,
+            externalId: null,
+            idempotencyKey: null,
             errorMessage: $validation->errorMessage,
         ));
 

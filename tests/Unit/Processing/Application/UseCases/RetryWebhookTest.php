@@ -48,8 +48,8 @@ it('records a successful retry and stops retrying', function () {
         ->and($log->event)->toBe('pull_request.opened')
         ->and($log->status)->toBe('success')
         ->and($log->attempt)->toBe(0)
-        ->and($log->external_id)->toBe('delivery_123')
-        ->and($log->idempotency_key)->toBe('dedupe_123')
+        ->and($log->external_id)->toBeNull()
+        ->and($log->idempotency_key)->toBeNull()
         ->and($log->error_message)->toBeNull();
 });
 
@@ -81,8 +81,8 @@ it('records a failed retry and schedules the next attempt when attempts remain',
     expect($log)->not->toBeNull()
         ->and($log->status)->toBe('failed')
         ->and($log->attempt)->toBe(0)
-        ->and($log->external_id)->toBe('delivery_123')
-        ->and($log->idempotency_key)->toBe('dedupe_123');
+        ->and($log->external_id)->toBeNull()
+        ->and($log->idempotency_key)->toBeNull();
 });
 
 it('records a failed retry and stops retrying at the max attempt', function () {

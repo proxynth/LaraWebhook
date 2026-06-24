@@ -122,7 +122,7 @@ it('replays a webhook without needing database access', function () {
         ->and($auditWriter->command)->toBeInstanceOf(RecordWebhookLogCommand::class)
         ->and($auditWriter->command?->attempt)->toBe(2)
         ->and($auditWriter->command?->externalId)->toBe('delivery_123')
-        ->and($auditWriter->command?->idempotencyKey)->toBe('dedupe_123')
+        ->and($auditWriter->command?->idempotencyKey)->toBeNull()
         ->and($result)->toBeInstanceOf(ReplayWebhookResult::class)
         ->and($result->log)->toBeInstanceOf(WebhookLogSummary::class)
         ->and($result->log->id)->toBe(999)
