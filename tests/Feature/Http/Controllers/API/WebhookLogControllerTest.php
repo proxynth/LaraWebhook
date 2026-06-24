@@ -184,6 +184,7 @@ it('successfully replays a webhook', function () {
 
     $newLog = WebhookLog::latest()->first();
     expect($newLog->attempt)->toBe(1);
+    expect($newLog->idempotency_key)->toBeNull();
 });
 
 it('returns error when replaying webhook without configured secret', function () {
