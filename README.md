@@ -466,9 +466,10 @@ Larawebhook::validate($payload, $signature, 'stripe');
 // Validate and log
 $log = Larawebhook::validateAndLog($payload, $signature, 'github', 'push');
 
-// Log webhooks manually
+// Legacy compatibility helpers, deprecated
 Larawebhook::logSuccess('stripe', 'payment.succeeded', $payload);
 Larawebhook::logFailure('stripe', 'payment.failed', $payload, 'Card declined');
+// Prefer validateAndLog() or the corresponding application use case for new code.
 
 // Query logs
 $allLogs = Larawebhook::logs();

@@ -14,6 +14,7 @@ use Proxynth\Larawebhook\Ingestion\Domain\ValueObjects\Signature;
  * @method static bool validate(string $payload, Signature $signature, string|WebhookService $service)
  * @method static WebhookLog validateAndLog(string $payload, Signature $signature, string|WebhookService $service, string $event)
  * @method static WebhookLog validateWithRetries(string $payload, Signature $signature, string|WebhookService $service, string $event)
+ *                                                                                                                                     Legacy helpers logSuccess() and logFailure() are deprecated; prefer validateAndLog() and application use cases.
  * @method static WebhookLog logSuccess(string $service, string $event, array $payload, int $attempt = 0, ?string $idempotencyKey = null)
  * @method static WebhookLog logFailure(string $service, string $event, array $payload, string $errorMessage, int $attempt = 0, ?string $idempotencyKey = null)
  * @method static Collection logs()
