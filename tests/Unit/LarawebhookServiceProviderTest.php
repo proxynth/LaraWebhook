@@ -16,6 +16,8 @@ use Proxynth\Larawebhook\Audit\Infrastructure\Logging\WebhookLogger;
 use Proxynth\Larawebhook\Ingestion\Application\Ports\SignatureValidator;
 use Proxynth\Larawebhook\Processing\Application\Ports\ReplayableWebhookRepository;
 use Proxynth\Larawebhook\Processing\Application\UseCases\RetryWebhook;
+use Proxynth\Larawebhook\Shared\Application\EventBus;
+use Proxynth\Larawebhook\Shared\Infrastructure\Laravel\EventBus\LaravelEventBus;
 use Proxynth\Larawebhook\Shared\Infrastructure\Laravel\Providers\LarawebhookServiceProvider;
 
 describe('LarawebhookServiceProvider service registration', function () {
@@ -72,6 +74,14 @@ describe('LarawebhookServiceProvider service registration', function () {
         $instance2 = app(WebhookLogReadRepository::class);
 
         expect($instance1)->toBeInstanceOf(WebhookLogReadRepository::class)
+            ->and($instance1)->toBe($instance2);
+    });
+
+    it('registers EventBus as singleton', function () {
+        $instance1 = app(EventBus::class);
+        $instance2 = app(EventBus::class);
+
+        expect($instance1)->toBeInstanceOf(LaravelEventBus::class)
             ->and($instance1)->toBe($instance2);
     });
 

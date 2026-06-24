@@ -4,11 +4,19 @@ declare(strict_types=1);
 
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Route;
+use Proxynth\Larawebhook\Audit\Domain\Events\WebhookLogged;
 use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Persistence\Models\WebhookLog;
+use Proxynth\Larawebhook\Ingestion\Domain\Events\WebhookReceived;
+use Proxynth\Larawebhook\Ingestion\Domain\Events\WebhookRejected;
+use Proxynth\Larawebhook\Ingestion\Domain\Events\WebhookValidated;
 use Proxynth\Larawebhook\Processing\Infrastructure\Laravel\Jobs\RetryWebhookJob;
+use Proxynth\Larawebhook\Shared\Application\EventBus;
+use Proxynth\Larawebhook\Tests\Fakes\Shared\FakeEventBus;
 
 beforeEach(function () {
     Queue::fake();
+    $this->eventBus = new FakeEventBus;
+    app()->instance(EventBus::class, $this->eventBus);
 
     // Set up test secrets in config
     config([
@@ -62,7 +70,12 @@ describe('ValidateWebhook middleware with Stripe', function () {
         $log = WebhookLog::first();
         expect($log->service)->toBe('stripe')
             ->and($log->event)->toBe('payment_intent.succeeded')
-            ->and($log->status)->toBe('success');
+            ->and($log->status)->toBe('success')
+            ->and($this->eventBus->events)->toHaveCount(3)
+            ->and($this->eventBus->events[0])->toBeInstanceOf(WebhookReceived::class)
+            ->and($this->eventBus->events[1])->toBeInstanceOf(WebhookValidated::class)
+            ->and($this->eventBus->events[2])->toBeInstanceOf(WebhookLogged::class);
+
     });
 
     it('rejects Stripe webhooks with missing signature', function () {
@@ -121,7 +134,12 @@ describe('ValidateWebhook middleware with Stripe', function () {
         expect(WebhookLog::count())->toBe(1);
         $log = WebhookLog::first();
         expect($log->status)->toBe('failed')
-            ->and($log->error_message)->toContain('Invalid Stripe webhook signature');
+            ->and($log->error_message)->toContain('Invalid Stripe webhook signature')
+            ->and($this->eventBus->events)->toHaveCount(3)
+            ->and($this->eventBus->events[0])->toBeInstanceOf(WebhookReceived::class)
+            ->and($this->eventBus->events[1])->toBeInstanceOf(WebhookRejected::class)
+            ->and($this->eventBus->events[2])->toBeInstanceOf(WebhookLogged::class);
+
     });
 
     it('rejects Stripe webhooks with malformed signature', function () {
@@ -202,6 +220,11 @@ describe('ValidateWebhook middleware with GitHub', function () {
 
         $response->assertStatus(403)
             ->assertSee('Invalid GitHub webhook signature');
+
+        expect($this->eventBus->events)->toHaveCount(3)
+            ->and($this->eventBus->events[0])->toBeInstanceOf(WebhookReceived::class)
+            ->and($this->eventBus->events[1])->toBeInstanceOf(WebhookRejected::class)
+            ->and($this->eventBus->events[2])->toBeInstanceOf(WebhookLogged::class);
     });
 });
 
