@@ -38,7 +38,7 @@ class WebhookLogFactory extends Factory
             'error_message' => $status === 'failed' ? $this->faker->sentence() : null,
             'attempt' => $this->faker->numberBetween(0, 3),
             'external_id' => null,
-            // 'idempotency_key' => null, // déjà présent
+            'idempotency_key' => null,
             'created_at' => $this->faker->dateTimeBetween('-30 days', 'now'),
             'updated_at' => $this->faker->dateTimeBetween('-30 days', 'now'),
         ];

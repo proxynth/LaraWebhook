@@ -4,11 +4,12 @@ declare(strict_types=1);
 
 namespace Proxynth\Larawebhook\Ingestion\Infrastructure\Support;
 
+use Proxynth\Larawebhook\Ingestion\Application\Ports\WebhookServiceMetadataResolver;
 use Proxynth\Larawebhook\Shared\Domain\Enums\WebhookService;
 
-final class WebhookServiceMetadata
+final class LaravelWebhookServiceMetadataResolver implements WebhookServiceMetadataResolver
 {
-    public static function signatureHeader(WebhookService $service): string
+    public function signatureHeader(WebhookService $service): string
     {
         return match ($service) {
             WebhookService::Stripe => 'Stripe-Signature',
@@ -18,7 +19,7 @@ final class WebhookServiceMetadata
         };
     }
 
-    public static function timestampHeader(WebhookService $service): ?string
+    public function timestampHeader(WebhookService $service): ?string
     {
         return match ($service) {
             WebhookService::Slack => 'X-Slack-Request-Timestamp',
@@ -26,7 +27,7 @@ final class WebhookServiceMetadata
         };
     }
 
-    public static function externalIdHeader(WebhookService $service): ?string
+    public function externalIdHeader(WebhookService $service): ?string
     {
         return match ($service) {
             WebhookService::Github => 'X-GitHub-Delivery',
@@ -35,13 +36,8 @@ final class WebhookServiceMetadata
         };
     }
 
-    public static function secretConfigKey(WebhookService $service): string
+    public function secret(WebhookService $service): ?string
     {
-        return "larawebhook.services.{$service->value}.webhook_secret";
-    }
-
-    public static function secret(WebhookService $service): ?string
-    {
-        return config(self::secretConfigKey($service));
+        return config("larawebhook.services.{$service->value}.webhook_secret");
     }
 }

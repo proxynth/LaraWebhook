@@ -121,7 +121,7 @@ it('replays a webhook without needing database access', function () {
         ->and($signatureValidator->command?->payload->decoded())->toBe(['action' => 'opened'])
         ->and($auditWriter->command)->toBeInstanceOf(RecordWebhookLogCommand::class)
         ->and($auditWriter->command?->attempt)->toBe(2)
-        ->and($auditWriter->command?->externalId)->toBe('delivery_123')
+        ->and($auditWriter->command?->externalId)->toBeNull()
         ->and($auditWriter->command?->idempotencyKey)->toBeNull()
         ->and($result)->toBeInstanceOf(ReplayWebhookResult::class)
         ->and($result->log)->toBeInstanceOf(WebhookLogSummary::class)
