@@ -11,6 +11,7 @@ use Proxynth\Larawebhook\Audit\Domain\Events\WebhookLogged;
 use Proxynth\Larawebhook\Ingestion\Application\Commands\ReceiveWebhookCommand;
 use Proxynth\Larawebhook\Ingestion\Application\Commands\ValidateWebhookCommand;
 use Proxynth\Larawebhook\Ingestion\Application\Ports\WebhookPayloadParserResolver;
+use Proxynth\Larawebhook\Ingestion\Application\Ports\WebhookServiceMetadataResolver;
 use Proxynth\Larawebhook\Ingestion\Application\Results\ReceiveWebhookResult;
 use Proxynth\Larawebhook\Ingestion\Domain\Events\WebhookReceived;
 use Proxynth\Larawebhook\Ingestion\Domain\Events\WebhookRejected;
@@ -32,6 +33,7 @@ final readonly class ReceiveWebhook
         private IdempotencyResolver $idempotencyResolver,
         private WebhookDuplicateDetector $duplicateDetector,
         private WebhookPayloadParserResolver $payloadParserResolver,
+        private WebhookServiceMetadataResolver $metadataResolver,
         private ValidateWebhook $validateWebhook,
         private RecordWebhookLog $recordWebhookLog,
     ) {}
@@ -83,7 +85,7 @@ final readonly class ReceiveWebhook
             externalId: $externalId,
         );
 
-        $secret = config("larawebhook.services.{$command->service->value}.webhook_secret");
+        $secret = $this->metadataResolver->secret($command->service);
 
         if (empty($secret)) {
             return ReceiveWebhookResult::secretNotConfigured($provider->value());

@@ -8,9 +8,9 @@ use Closure;
 use Exception;
 use Illuminate\Http\Request;
 use Proxynth\Larawebhook\Ingestion\Application\Commands\ReceiveWebhookCommand;
+use Proxynth\Larawebhook\Ingestion\Application\Ports\WebhookServiceMetadataResolver;
 use Proxynth\Larawebhook\Ingestion\Application\UseCases\ReceiveWebhook;
 use Proxynth\Larawebhook\Ingestion\Domain\ValueObjects\Signature;
-use Proxynth\Larawebhook\Ingestion\Infrastructure\Support\WebhookServiceMetadata;
 use Proxynth\Larawebhook\Processing\Infrastructure\Laravel\Jobs\RetryWebhookJob;
 use Proxynth\Larawebhook\Shared\Application\EventBus;
 use Proxynth\Larawebhook\Shared\Domain\Enums\WebhookService;
@@ -21,6 +21,7 @@ class ValidateWebhook
     public function __construct(
         private readonly ReceiveWebhook $receiveWebhook,
         private readonly EventBus $eventBus,
+        private readonly WebhookServiceMetadataResolver $metadataResolver,
     ) {}
 
     /**
@@ -49,7 +50,7 @@ class ValidateWebhook
                 ], Response::HTTP_BAD_REQUEST);
         }
 
-        $signatureHeader = WebhookServiceMetadata::signatureHeader($webhookService);
+        $signatureHeader = $this->metadataResolver->signatureHeader($webhookService);
         $signatureValue = $this->headerValue($request, $signatureHeader);
 
         if ($signatureValue === null) {
@@ -59,7 +60,7 @@ class ValidateWebhook
             ], Response::HTTP_BAD_REQUEST);
         }
 
-        $timestampHeader = WebhookServiceMetadata::timestampHeader($webhookService);
+        $timestampHeader = $this->metadataResolver->timestampHeader($webhookService);
         $timestampValue = null;
 
         if ($timestampHeader !== null) {
@@ -135,7 +136,7 @@ class ValidateWebhook
 
     private function externalIdHeaderValue(Request $request, WebhookService $webhookService): ?string
     {
-        $externalIdHeader = WebhookServiceMetadata::externalIdHeader($webhookService);
+        $externalIdHeader = $this->metadataResolver->externalIdHeader($webhookService);
 
         if ($externalIdHeader === null) {
             return null;

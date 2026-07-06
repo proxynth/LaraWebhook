@@ -4,7 +4,7 @@ namespace Proxynth\Larawebhook\Ingestion\Infrastructure\Validation;
 
 use Illuminate\Support\Facades\Config;
 use Proxynth\Larawebhook\Exceptions\WebhookException;
-use Proxynth\Larawebhook\Ingestion\Infrastructure\Support\WebhookServiceMetadata;
+use Proxynth\Larawebhook\Ingestion\Application\Ports\WebhookServiceMetadataResolver;
 use Proxynth\Larawebhook\Shared\Domain\Enums\WebhookService;
 
 class WebhookValidatorFactory
@@ -14,6 +14,10 @@ class WebhookValidatorFactory
      */
     private array $validators = [];
 
+    public function __construct(
+        private readonly WebhookServiceMetadataResolver $metadataResolver,
+    ) {}
+
     /**
      * @throws WebhookException
      */
@@ -21,7 +25,7 @@ class WebhookValidatorFactory
     {
         $service = $this->resolveService($service);
 
-        $resolvedSecret = $secret ?? WebhookServiceMetadata::secret($service);
+        $resolvedSecret = $secret ?? $this->metadataResolver->secret($service);
 
         if ($resolvedSecret === null || $resolvedSecret === '') {
             throw new WebhookException("No secret configured for service: {$service->value}");
