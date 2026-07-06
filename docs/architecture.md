@@ -58,6 +58,19 @@ $log = Larawebhook::validateAndLog($request->getContent(), $signature, 'stripe',
 
 The database unique constraint applies to `service + idempotency_key`, not `service + external_id`.
 
+### Historical migration
+
+`idempotency_key` was introduced after `external_id`. Older installations may contain webhook logs where `external_id` was used as the deduplication key.
+
+During migration, LaraWebhook backfills `idempotency_key` from `external_id` for one row per `service + external_id` pair. Historical duplicate audit rows keep a null `idempotency_key` to avoid migration failures when the unique index on `service + idempotency_key` is created.
+
+After migration:
+
+- `external_id` remains the provider identifier;
+- `idempotency_key` is the deduplication key;
+- duplicate detection uses `idempotency_key`;
+- historical duplicate logs remain available as audit data.
+
 ## Read Side
 
 Dashboard and API query handlers use read models and read repositories:
