@@ -92,9 +92,7 @@ class LarawebhookServiceProvider extends PackageServiceProvider
     public function configurePackage(Package $package): void
     {
         $package->name('larawebhook')
-            ->hasMigrations([
-                'create_webhook_logs_table',
-            ])->hasCommands(PruneWebhookLogsConsoleCommand::class)
+            ->hasCommands(PruneWebhookLogsConsoleCommand::class)
             ->hasViews();
     }
 

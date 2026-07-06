@@ -242,11 +242,17 @@ describe('WebhookLog external_id model methods', function () {
         expect($logs)->toHaveCount(2);
     });
 
-    it('allows repeated external_id values and relies on idempotency_key for deduplication', function () {
+    it('allows repeated external_id values when no idempotency key is stored', function () {
         $this->logger->logSuccess('stripe', 'event1', ['id' => '1'], 0, 'evt_unique');
 
-        // A second log with the same external_id is allowed as long as the idempotency key differs.
         expect(fn () => $this->logger->logSuccess('stripe', 'event2', ['id' => '2'], 0, 'evt_unique'))
+            ->not->toThrow(QueryException::class);
+    });
+
+    it('allows repeated external_id values when idempotency keys differ', function () {
+        $this->logger->logSuccess('stripe', 'event1', ['id' => '1'], 0, 'evt_unique', 'idem_1');
+
+        expect(fn () => $this->logger->logSuccess('stripe', 'event2', ['id' => '2'], 0, 'evt_unique', 'idem_2'))
             ->not->toThrow(QueryException::class);
     });
 
