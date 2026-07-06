@@ -5,6 +5,13 @@ All notable changes to `larawebhook` will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.28.2](https://github.com/proxynth/LaraWebhook/compare/v1.28.1...v1.28.2) (2026-07-06)
+
+
+### Bug Fixes
+
+* make idempotency key migration safe ([#123](https://github.com/proxynth/LaraWebhook/issues/123)) ([1943a2f](https://github.com/proxynth/LaraWebhook/commit/1943a2f58d3613018a608da4a5751481c38f363b))
+
 ## [1.28.1](https://github.com/proxynth/LaraWebhook/compare/v1.28.0...v1.28.1) (2026-06-24)
 
 
