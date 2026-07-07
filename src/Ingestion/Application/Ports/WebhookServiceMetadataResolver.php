@@ -13,6 +13,4 @@ interface WebhookServiceMetadataResolver
     public function timestampHeader(WebhookService $service): ?string;
 
     public function externalIdHeader(WebhookService $service): ?string;
-
-    public function secret(WebhookService $service): ?string;
 }

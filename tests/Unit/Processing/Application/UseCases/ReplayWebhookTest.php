@@ -11,6 +11,7 @@ use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Persistence\Models\Webhook
 use Proxynth\Larawebhook\Exceptions\WebhookException;
 use Proxynth\Larawebhook\Ingestion\Application\Commands\ValidateWebhookCommand;
 use Proxynth\Larawebhook\Ingestion\Application\Ports\SignatureValidator;
+use Proxynth\Larawebhook\Ingestion\Application\Ports\WebhookSecretResolver;
 use Proxynth\Larawebhook\Ingestion\Domain\ValueObjects\RawPayload;
 use Proxynth\Larawebhook\Ingestion\Domain\ValueObjects\Signature;
 use Proxynth\Larawebhook\Processing\Application\Commands\ReplayWebhookCommand;
@@ -22,6 +23,7 @@ use Proxynth\Larawebhook\Processing\Application\UseCases\ReplayWebhook;
 use Proxynth\Larawebhook\Processing\Domain\Events\WebhookReplayed;
 use Proxynth\Larawebhook\Shared\Domain\Enums\WebhookService;
 use Proxynth\Larawebhook\Shared\Infrastructure\Laravel\Providers\LarawebhookServiceProvider;
+use Proxynth\Larawebhook\Tests\Fakes\Ingestion\FakeWebhookSecretResolver;
 
 beforeEach(function () {
     app()->register(LarawebhookServiceProvider::class, true);
@@ -246,3 +248,42 @@ it('throws when the service is unsupported', function () {
         signature: incomingSignature('signature'),
     ));
 })->throws(WebhookException::class, "Webhook service 'unsupported' is not supported.");
+
+it('throws when replay secret is not configured', function () {
+    app()->instance(ReplayableWebhookRepository::class, new class implements ReplayableWebhookRepository
+    {
+        public function findReplayableById(int|string $id): ReplayableWebhook
+        {
+            return replayableWebhook($id);
+        }
+    });
+
+    app()->instance(SignatureValidator::class, new class implements SignatureValidator
+    {
+        public function validate(
+            WebhookService $service,
+            RawPayload $payload,
+            Signature $signature,
+            string $secret,
+        ): bool {
+            throw new LogicException('Not expected.');
+        }
+    });
+
+    app()->instance(WebhookAuditLogWriter::class, new class implements WebhookAuditLogWriter
+    {
+        public function record(RecordWebhookLogCommand $command): WebhookLog
+        {
+            throw new LogicException('Not expected.');
+        }
+    });
+
+    app()->instance(WebhookSecretResolver::class, new FakeWebhookSecretResolver([
+        'github' => null,
+    ]));
+
+    expect(fn () => app(ReplayWebhook::class)->handle(new ReplayWebhookCommand(
+        webhookLogId: 1,
+        signature: Signature::fromString('sha256=invalid'),
+    )))->toThrow(WebhookException::class, 'No secret configured for service: github');
+});

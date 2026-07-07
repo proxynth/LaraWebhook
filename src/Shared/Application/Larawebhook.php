@@ -14,7 +14,7 @@ use Proxynth\Larawebhook\Exceptions\InvalidSignatureException;
 use Proxynth\Larawebhook\Exceptions\WebhookException;
 use Proxynth\Larawebhook\Ingestion\Application\Commands\ValidateWebhookCommand;
 use Proxynth\Larawebhook\Ingestion\Application\Ports\WebhookPayloadParserResolver;
-use Proxynth\Larawebhook\Ingestion\Application\Ports\WebhookServiceMetadataResolver;
+use Proxynth\Larawebhook\Ingestion\Application\Ports\WebhookSecretResolver;
 use Proxynth\Larawebhook\Ingestion\Application\UseCases\ValidateWebhook;
 use Proxynth\Larawebhook\Ingestion\Domain\ValueObjects\RawPayload;
 use Proxynth\Larawebhook\Ingestion\Domain\ValueObjects\Signature;
@@ -33,7 +33,7 @@ class Larawebhook
 
     private ?RecordWebhookLog $recordWebhookLog = null;
 
-    private ?WebhookServiceMetadataResolver $metadataResolver = null;
+    private ?WebhookSecretResolver $secretResolver = null;
 
     private ?WebhookPayloadParserResolver $payloadParserResolver = null;
 
@@ -52,7 +52,7 @@ class Larawebhook
         $webhookService = $this->resolveService($service);
         $rawPayload = RawPayload::fromString($payload);
 
-        $secret = $this->getMetadataResolver()->secret($webhookService);
+        $secret = $this->getSecretResolver()->resolve($webhookService);
 
         if ($secret === null || $secret === '') {
             throw new WebhookException("No secret configured for service: {$webhookService->value}");
@@ -299,7 +299,7 @@ class Larawebhook
             return null;
         }
 
-        return $this->getMetadataResolver()->secret($webhookService);
+        return $this->getSecretResolver()->resolve($webhookService);
     }
 
     /**
@@ -398,13 +398,13 @@ class Larawebhook
         return $this->recordWebhookLog;
     }
 
-    private function getMetadataResolver(): WebhookServiceMetadataResolver
+    private function getSecretResolver(): WebhookSecretResolver
     {
-        if ($this->metadataResolver === null) {
-            $this->metadataResolver = app(WebhookServiceMetadataResolver::class);
+        if ($this->secretResolver === null) {
+            $this->secretResolver = app(WebhookSecretResolver::class);
         }
 
-        return $this->metadataResolver;
+        return $this->secretResolver;
     }
 
     private function getPayloadParserResolver(): WebhookPayloadParserResolver
@@ -443,7 +443,7 @@ class Larawebhook
     ): WebhookLog {
         $webhookService = $this->resolveService($service);
         $rawPayload = RawPayload::fromString($payload);
-        $secret = $this->getMetadataResolver()->secret($webhookService);
+        $secret = $this->getSecretResolver()->resolve($webhookService);
 
         if ($secret === null || $secret === '') {
             throw new WebhookException("No secret configured for service: {$webhookService->value}");

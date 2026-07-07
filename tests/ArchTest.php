@@ -108,3 +108,11 @@ arch('application does not depend on infrastructure except documented migration 
         'Proxynth\Larawebhook\Processing\Infrastructure\Laravel\Http\Controllers',
         'Proxynth\Larawebhook\Shared\Infrastructure\Laravel\Http\Controllers',
     ]);
+
+arch('application does not call config helper')
+    ->expect([
+        'Proxynth\Larawebhook\Ingestion\Application',
+        'Proxynth\Larawebhook\Processing\Application',
+        'Proxynth\Larawebhook\Audit\Application',
+    ])
+    ->not->toUse('config');

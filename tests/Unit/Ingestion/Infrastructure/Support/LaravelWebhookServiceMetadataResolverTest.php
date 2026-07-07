@@ -40,12 +40,3 @@ it('resolves provider-specific external id headers', function () {
         ->and($resolver->externalIdHeader(WebhookService::Stripe))->toBeNull()
         ->and($resolver->externalIdHeader(WebhookService::Slack))->toBeNull();
 });
-
-it('resolves provider secrets from config', function () {
-    $resolver = new LaravelWebhookServiceMetadataResolver;
-
-    expect($resolver->secret(WebhookService::Stripe))->toBe('stripe_secret')
-        ->and($resolver->secret(WebhookService::Github))->toBe('github_secret')
-        ->and($resolver->secret(WebhookService::Slack))->toBe('slack_secret')
-        ->and($resolver->secret(WebhookService::Shopify))->toBe('shopify_secret');
-});

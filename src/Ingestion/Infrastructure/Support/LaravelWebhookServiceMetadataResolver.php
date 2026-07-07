@@ -35,9 +35,4 @@ final class LaravelWebhookServiceMetadataResolver implements WebhookServiceMetad
             default => null,
         };
     }
-
-    public function secret(WebhookService $service): ?string
-    {
-        return config("larawebhook.services.{$service->value}.webhook_secret");
-    }
 }
