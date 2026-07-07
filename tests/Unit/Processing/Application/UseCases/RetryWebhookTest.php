@@ -6,16 +6,21 @@ use Proxynth\Larawebhook\Audit\Domain\Events\WebhookLogged;
 use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Persistence\Models\WebhookLog;
 use Proxynth\Larawebhook\Exceptions\WebhookException;
 use Proxynth\Larawebhook\Processing\Application\Commands\RetryWebhookCommand;
+use Proxynth\Larawebhook\Processing\Application\Data\RetryPolicy;
+use Proxynth\Larawebhook\Processing\Application\Ports\RetryPolicyResolver;
 use Proxynth\Larawebhook\Processing\Application\UseCases\RetryWebhook;
 use Proxynth\Larawebhook\Processing\Domain\Events\WebhookProcessingFailed;
 use Proxynth\Larawebhook\Shared\Domain\Enums\WebhookService;
+use Proxynth\Larawebhook\Tests\Fakes\Processing\FakeRetryPolicyResolver;
 
 beforeEach(function () {
-    config([
-        'larawebhook.retries.enabled' => true,
-        'larawebhook.retries.max_attempts' => 3,
-        'larawebhook.retries.delays' => [1, 5, 10],
-    ]);
+    app()->instance(
+        RetryPolicyResolver::class,
+        new FakeRetryPolicyResolver(new RetryPolicy(
+            maxAttempts: 3,
+            delays: [1, 5, 10],
+        )),
+    );
 });
 
 it('records a successful retry and stops retrying', function () {
@@ -86,7 +91,13 @@ it('records a failed retry and schedules the next attempt when attempts remain',
 });
 
 it('records a failed retry and stops retrying at the max attempt', function () {
-    config(['larawebhook.retries.max_attempts' => 1]);
+    app()->instance(
+        RetryPolicyResolver::class,
+        new FakeRetryPolicyResolver(new RetryPolicy(
+            maxAttempts: 1,
+            delays: [1, 5, 10],
+        )),
+    );
 
     $result = app(RetryWebhook::class)->handle(new RetryWebhookCommand(
         payload: '{"action":"opened"}',
@@ -114,3 +125,29 @@ it('throws when the service is unsupported', function () {
         secret: 'github_secret',
     ));
 })->throws(WebhookException::class, "Webhook service 'unsupported' is not supported.");
+
+it('uses retry policy delay for the current attempt', function () {
+    app()->instance(
+        RetryPolicyResolver::class,
+        new FakeRetryPolicyResolver(new RetryPolicy(
+            maxAttempts: 3,
+            delays: [7, 42],
+        )),
+    );
+
+    $result = app(RetryWebhook::class)->handle(new RetryWebhookCommand(
+        payload: '{"action":"opened"}',
+        signature: incomingSignature('sha256=invalid'),
+        service: WebhookService::Github->value,
+        event: 'pull_request.opened',
+        secret: 'github_secret',
+        attempt: 1,
+        externalId: 'delivery_123',
+        idempotencyKey: 'dedupe_123',
+    ));
+
+    expect($result->isFailed())->toBeTrue()
+        ->and($result->shouldRetry)->toBeTrue()
+        ->and($result->nextAttempt)->toBe(2)
+        ->and($result->delaySeconds)->toBe(42);
+});

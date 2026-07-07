@@ -11,6 +11,7 @@ use Proxynth\Larawebhook\Ingestion\Application\Commands\ReceiveWebhookCommand;
 use Proxynth\Larawebhook\Ingestion\Application\Ports\WebhookServiceMetadataResolver;
 use Proxynth\Larawebhook\Ingestion\Application\UseCases\ReceiveWebhook;
 use Proxynth\Larawebhook\Ingestion\Domain\ValueObjects\Signature;
+use Proxynth\Larawebhook\Processing\Application\Ports\RetryPolicyResolver;
 use Proxynth\Larawebhook\Processing\Infrastructure\Laravel\Jobs\RetryWebhookJob;
 use Proxynth\Larawebhook\Shared\Application\EventBus;
 use Proxynth\Larawebhook\Shared\Domain\Enums\WebhookService;
@@ -22,6 +23,7 @@ class ValidateWebhook
         private readonly ReceiveWebhook $receiveWebhook,
         private readonly EventBus $eventBus,
         private readonly WebhookServiceMetadataResolver $metadataResolver,
+        private readonly RetryPolicyResolver $retryPolicyResolver,
     ) {}
 
     /**
@@ -156,11 +158,9 @@ class ValidateWebhook
         ?string $externalId,
         ?string $idempotencyKey
     ): void {
-        $delays = config('larawebhook.retries.delays', [1, 5, 10]);
+        $delays = $this->retryPolicyResolver->resolve()->delays;
 
-        $firstDelay = is_array($delays) && isset($delays[0])
-            ? (int) $delays[0]
-            : 1;
+        $firstDelay = $delays[0] ?? 1;
 
         RetryWebhookJob::dispatch(
             $payload,

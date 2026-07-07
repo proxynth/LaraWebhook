@@ -12,6 +12,7 @@ use Proxynth\Larawebhook\Ingestion\Application\Commands\ValidateWebhookCommand;
 use Proxynth\Larawebhook\Ingestion\Application\UseCases\ValidateWebhook;
 use Proxynth\Larawebhook\Ingestion\Domain\ValueObjects\RawPayload;
 use Proxynth\Larawebhook\Processing\Application\Commands\RetryWebhookCommand;
+use Proxynth\Larawebhook\Processing\Application\Ports\RetryPolicyResolver;
 use Proxynth\Larawebhook\Processing\Application\Results\RetryWebhookResult;
 use Proxynth\Larawebhook\Processing\Domain\Events\WebhookProcessingFailed;
 use Proxynth\Larawebhook\Shared\Domain\Enums\WebhookService;
@@ -21,6 +22,7 @@ final readonly class RetryWebhook
     public function __construct(
         private ValidateWebhook $validateWebhook,
         private RecordWebhookLog $recordWebhookLog,
+        private RetryPolicyResolver $retryPolicyResolver,
     ) {}
 
     /**
@@ -35,9 +37,7 @@ final readonly class RetryWebhook
         }
 
         $rawPayload = RawPayload::fromString($command->payload);
-        $maxAttempts = (int) config('larawebhook.retries.max_attempts', 3);
-        $delays = config('larawebhook.retries.delays', [1, 5, 10]);
-        $delays = is_array($delays) ? $delays : [1, 5, 10];
+        $retryPolicy = $this->retryPolicyResolver->resolve();
 
         $validation = $this->validateWebhook->handle(new ValidateWebhookCommand(
             service: $webhookService,
@@ -70,13 +70,13 @@ final readonly class RetryWebhook
             ]);
         }
 
-        $shouldRetry = $command->attempt < $maxAttempts - 1;
+        $shouldRetry = $retryPolicy->shouldRetryAfter($command->attempt);
 
         return RetryWebhookResult::failed(
             log: $log,
             shouldRetry: $shouldRetry,
-            nextAttempt: $shouldRetry ? $command->attempt + 1 : null,
-            delaySeconds: $shouldRetry ? $this->delayForAttempt($delays, $command->attempt) : null,
+            nextAttempt: $retryPolicy->nextAttemptAfter($command->attempt),
+            delaySeconds: $retryPolicy->delayForAttempt($command->attempt),
             events: [
                 new WebhookProcessingFailed(
                     provider: $validation->service,
@@ -93,17 +93,5 @@ final readonly class RetryWebhook
                 ),
             ],
         );
-    }
-
-    /**
-     * @param  array<int, int|string>  $delays
-     */
-    private function delayForAttempt(array $delays, int $attempt): int
-    {
-        if (isset($delays[$attempt])) {
-            return (int) $delays[$attempt];
-        }
-
-        return (int) (end($delays) ?: 10);
     }
 }

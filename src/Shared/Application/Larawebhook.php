@@ -18,6 +18,7 @@ use Proxynth\Larawebhook\Ingestion\Application\Ports\WebhookSecretResolver;
 use Proxynth\Larawebhook\Ingestion\Application\UseCases\ValidateWebhook;
 use Proxynth\Larawebhook\Ingestion\Domain\ValueObjects\RawPayload;
 use Proxynth\Larawebhook\Ingestion\Domain\ValueObjects\Signature;
+use Proxynth\Larawebhook\Processing\Application\Ports\RetryPolicyResolver;
 use Proxynth\Larawebhook\Processing\Domain\ValueObjects\DeliveryAttempt;
 use Proxynth\Larawebhook\Shared\Domain\Enums\WebhookService;
 
@@ -40,6 +41,8 @@ class Larawebhook
     private ?NotificationSender $notificationSender = null;
 
     private ?FailureDetector $failureDetector = null;
+
+    private ?RetryPolicyResolver $retryPolicyResolver = null;
 
     /**
      * Validate a webhook signature.
@@ -107,13 +110,13 @@ class Larawebhook
         string $event
     ): WebhookLog {
         $webhookService = $this->resolveService($service);
-        $maxAttempts = (int) config('larawebhook.retries.max_attempts', 3);
+        $maxAttempts = $this->getRetryPolicyResolver()->resolve()->maxAttempts;
 
         if ($maxAttempts <= 0) {
             throw new WebhookException('Validation failed with no recorded exception.');
         }
 
-        $delays = config('larawebhook.retries.delays', [1, 5, 10]);
+        $delays = $this->getRetryPolicyResolver()->resolve()->delays;
         $lastLog = null;
 
         for ($attempt = 0; $attempt < $maxAttempts; $attempt++) {
@@ -131,9 +134,7 @@ class Larawebhook
             }
 
             if ($attempt < $maxAttempts - 1) {
-                $delay = is_array($delays) && isset($delays[$attempt])
-                    ? (int) $delays[$attempt]
-                    : 0;
+                $delay = $delays[$attempt] ?? 0;
 
                 if ($delay > 0) {
                     sleep($delay);
@@ -405,6 +406,15 @@ class Larawebhook
         }
 
         return $this->secretResolver;
+    }
+
+    private function getRetryPolicyResolver(): RetryPolicyResolver
+    {
+        if ($this->retryPolicyResolver === null) {
+            $this->retryPolicyResolver = app(RetryPolicyResolver::class);
+        }
+
+        return $this->retryPolicyResolver;
     }
 
     private function getPayloadParserResolver(): WebhookPayloadParserResolver

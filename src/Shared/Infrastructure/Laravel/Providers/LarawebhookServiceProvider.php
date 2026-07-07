@@ -35,9 +35,11 @@ use Proxynth\Larawebhook\Ingestion\Infrastructure\Validation\ProviderSignatureVa
 use Proxynth\Larawebhook\Ingestion\Infrastructure\Validation\WebhookValidatorFactory;
 use Proxynth\Larawebhook\Processing\Application\Ports\IdempotencyResolver;
 use Proxynth\Larawebhook\Processing\Application\Ports\ReplayableWebhookRepository;
+use Proxynth\Larawebhook\Processing\Application\Ports\RetryPolicyResolver;
 use Proxynth\Larawebhook\Processing\Application\Ports\WebhookDuplicateDetector;
 use Proxynth\Larawebhook\Processing\Application\UseCases\ReplayWebhook;
 use Proxynth\Larawebhook\Processing\Application\UseCases\RetryWebhook;
+use Proxynth\Larawebhook\Processing\Infrastructure\Config\ConfigRetryPolicyResolver;
 use Proxynth\Larawebhook\Processing\Infrastructure\Deduplication\EloquentWebhookDuplicateDetector;
 use Proxynth\Larawebhook\Processing\Infrastructure\Idempotency\DefaultIdempotencyResolver;
 use Proxynth\Larawebhook\Processing\Infrastructure\Persistence\EloquentReplayableWebhookRepository;
@@ -171,6 +173,8 @@ class LarawebhookServiceProvider extends PackageServiceProvider
         $this->app->singleton(ReceiveWebhook::class);
 
         $this->app->singleton(WebhookSecretResolver::class, ConfigWebhookSecretResolver::class);
+
+        $this->app->singleton(RetryPolicyResolver::class, ConfigRetryPolicyResolver::class);
     }
 
     /**
