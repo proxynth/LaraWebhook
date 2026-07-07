@@ -13,9 +13,12 @@ use Proxynth\Larawebhook\Ingestion\Domain\Events\WebhookReceived;
 use Proxynth\Larawebhook\Ingestion\Domain\Events\WebhookRejected;
 use Proxynth\Larawebhook\Ingestion\Domain\Events\WebhookValidated;
 use Proxynth\Larawebhook\Ingestion\Domain\ValueObjects\Signature;
+use Proxynth\Larawebhook\Processing\Application\Data\RetryConfiguration;
+use Proxynth\Larawebhook\Processing\Application\Ports\RetryConfigurationResolver;
 use Proxynth\Larawebhook\Processing\Application\Ports\WebhookDuplicateDetector;
 use Proxynth\Larawebhook\Shared\Domain\Enums\WebhookService;
 use Proxynth\Larawebhook\Tests\Fakes\Ingestion\FakeWebhookSecretResolver;
+use Proxynth\Larawebhook\Tests\Fakes\Processing\FakeRetryConfigurationResolver;
 use Proxynth\Larawebhook\Tests\Fakes\Processing\FakeWebhookDuplicateDetector;
 
 function githubPayload(string $deliveryId = 'delivery_123'): string
@@ -45,7 +48,13 @@ beforeEach(function () {
 
     config()->set('larawebhook.services.github.webhook_secret', 'secret');
     config()->set('larawebhook.retries.enabled', true);
-    config()->set('larawebhook.retries.async', false);
+    app()->instance(
+        RetryConfigurationResolver::class,
+        new FakeRetryConfigurationResolver(new RetryConfiguration(
+            enabled: true,
+            async: false,
+        )),
+    );
 });
 
 it('receives a valid webhook and logs it successfully', function () {
@@ -150,9 +159,6 @@ it('returns secret not configured when webhook secret is missing', function () {
 });
 
 it('returns failed when signature is invalid and async retries are disabled', function () {
-    config()->set('larawebhook.retries.enabled', true);
-    config()->set('larawebhook.retries.async', false);
-
     app()->instance(WebhookSecretResolver::class, new FakeWebhookSecretResolver([
         'github' => 'github_secret',
     ]));
@@ -179,8 +185,13 @@ it('returns failed when signature is invalid and async retries are disabled', fu
 });
 
 it('returns accepted for retry when signature is invalid and async retires are enabled', function () {
-    config()->set('larawebhook.retries.enabled', true);
-    config()->set('larawebhook.retries.async', true);
+    app()->instance(
+        RetryConfigurationResolver::class,
+        new FakeRetryConfigurationResolver(new RetryConfiguration(
+            enabled: true,
+            async: true,
+        )),
+    );
 
     app()->instance(WebhookSecretResolver::class, new FakeWebhookSecretResolver([
         'github' => 'github_secret',
@@ -271,9 +282,6 @@ it('processes valid webhook through domain event lifecycle', function () {
 });
 
 it('marks webhook as failed when validation fails and async retries are disabled', function () {
-    config()->set('larawebhook.retries.enabled', true);
-    config()->set('larawebhook.retries.async', false);
-
     app()->instance(WebhookSecretResolver::class, new FakeWebhookSecretResolver([
         'github' => 'github_secret',
     ]));

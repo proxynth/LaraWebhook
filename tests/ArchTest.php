@@ -20,6 +20,10 @@ $applications = [
     'Proxynth\Larawebhook\Shared\Application',
 ];
 
+$pureApplications = array_values(array_diff($applications, [
+    'Proxynth\Larawebhook\Shared\Application\Larawebhook',
+]));
+
 $controllers = [
     'Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Http\Controllers',
     'Proxynth\Larawebhook\Ingestion\Infrastructure\Laravel\Http\Controllers',
@@ -109,10 +113,6 @@ arch('application does not depend on infrastructure except documented migration 
         'Proxynth\Larawebhook\Shared\Infrastructure\Laravel\Http\Controllers',
     ]);
 
-arch('application does not call config helper')
-    ->expect([
-        'Proxynth\Larawebhook\Ingestion\Application',
-        'Proxynth\Larawebhook\Processing\Application',
-        'Proxynth\Larawebhook\Audit\Application',
-    ])
-    ->not->toUse('config');
+arch('application layer does not call config helper')
+    ->expect('config')
+    ->not->toBeUsedIn($pureApplications);
