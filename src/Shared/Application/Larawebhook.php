@@ -23,10 +23,14 @@ use Proxynth\Larawebhook\Processing\Domain\ValueObjects\DeliveryAttempt;
 use Proxynth\Larawebhook\Shared\Domain\Enums\WebhookService;
 
 /**
- * Main entry point for the Larawebhook package.
+ * Laravel-friendly public API for LaraWebhook.
  *
- * Provides a fluent API for webhook validation, logging, and querying.
- * Prefer validate(), validateAndLog(), validateWithRetries(), and the read helpers.
+ * This class intentionally acts as a DX adapter around application use cases,
+ * repositories, and Laravel infrastructure services.
+ *
+ * It is not a pure application use case.
+ * Critical workflows should remain implemented in dedicated use cases such as
+ * ValidateWebhook, ReceiveWebhook, RetryWebhook, ReplayWebhook, and RecordWebhookLog.
  */
 class Larawebhook
 {
@@ -55,7 +59,7 @@ class Larawebhook
         $webhookService = $this->resolveService($service);
         $rawPayload = RawPayload::fromString($payload);
 
-        $secret = $this->getSecretResolver()->resolve($webhookService);
+        $secret = $this->getSecret($webhookService);
 
         if ($secret === null || $secret === '') {
             throw new WebhookException("No secret configured for service: {$webhookService->value}");
@@ -98,7 +102,10 @@ class Larawebhook
     }
 
     /**
-     * Validate a webhook with automatic retries.
+     * Validate a webhook with synchronous automatic retries.
+     *
+     * This is a Laravel-friendly facade helper kept for DX and backward compatibility.
+     * For asynchronous retry processing, prefer the ReceiveWebhook / RetryWebhook flow.
      *
      * @throws InvalidSignatureException
      * @throws WebhookException
@@ -110,31 +117,33 @@ class Larawebhook
         string $event
     ): WebhookLog {
         $webhookService = $this->resolveService($service);
-        $maxAttempts = $this->getRetryPolicyResolver()->resolve()->maxAttempts;
+        $retryPolicy = $this->getRetryPolicyResolver()->resolve();
 
-        if ($maxAttempts <= 0) {
+        if ($retryPolicy->maxAttempts <= 0) {
             throw new WebhookException('Validation failed with no recorded exception.');
         }
 
-        $delays = $this->getRetryPolicyResolver()->resolve()->delays;
+        $rawPayload = RawPayload::fromString($payload);
+        $externalId = $this->extractExternalId($webhookService, $rawPayload);
+
         $lastLog = null;
 
-        for ($attempt = 0; $attempt < $maxAttempts; $attempt++) {
+        for ($attempt = 0; $attempt < $retryPolicy->maxAttempts; $attempt++) {
             $lastLog = $this->validateAndRecord(
                 payload: $payload,
                 signature: $signature,
                 service: $webhookService,
                 event: $event,
                 attempt: $attempt,
-                externalId: $this->extractExternalId($webhookService, RawPayload::fromString($payload)),
+                externalId: $externalId,
             );
 
             if ($lastLog->status !== 'failed') {
                 return $lastLog;
             }
 
-            if ($attempt < $maxAttempts - 1) {
-                $delay = $delays[$attempt] ?? 0;
+            if ($retryPolicy->shouldRetryAfter($attempt)) {
+                $delay = $retryPolicy->delayForAttempt($attempt) ?? 0;
 
                 if ($delay > 0) {
                     sleep($delay);
@@ -150,7 +159,7 @@ class Larawebhook
     /**
      * Log a successful webhook.
      *
-     * @deprecated Use validateAndLog() or the corresponding application use case.
+     * @deprecated Prefer validateAndLog() for validated webhooks or RecordWebhookLog for explicit audit writes.
      */
     public function logSuccess(
         string $service,
@@ -165,14 +174,16 @@ class Larawebhook
             valid: true,
             payload: $payload,
             attempt: $attempt,
+            externalId: null,
             idempotencyKey: $idempotencyKey,
+            errorMessage: null,
         ));
     }
 
     /**
      * Log a failed webhook.
      *
-     * @deprecated Use validateAndLog() or the corresponding application use case.
+     * @deprecated Prefer validateAndLog() for validated webhooks or RecordWebhookLog for explicit audit writes.
      */
     public function logFailure(
         string $service,
@@ -188,6 +199,7 @@ class Larawebhook
             valid: false,
             payload: $payload,
             attempt: $attempt,
+            externalId: null,
             idempotencyKey: $idempotencyKey,
             errorMessage: $errorMessage,
         ));
@@ -453,7 +465,7 @@ class Larawebhook
     ): WebhookLog {
         $webhookService = $this->resolveService($service);
         $rawPayload = RawPayload::fromString($payload);
-        $secret = $this->getSecretResolver()->resolve($webhookService);
+        $secret = $this->getSecret($webhookService);
 
         if ($secret === null || $secret === '') {
             throw new WebhookException("No secret configured for service: {$webhookService->value}");

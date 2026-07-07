@@ -14,7 +14,6 @@ use Proxynth\Larawebhook\Shared\Domain\Enums\WebhookService;
  * @method static bool validate(string $payload, Signature $signature, string|WebhookService $service)
  * @method static WebhookLog validateAndLog(string $payload, Signature $signature, string|WebhookService $service, string $event)
  * @method static WebhookLog validateWithRetries(string $payload, Signature $signature, string|WebhookService $service, string $event)
- *                                                                                                                                     Legacy helpers logSuccess() and logFailure() are deprecated; prefer validateAndLog() and application use cases.
  * @method static WebhookLog logSuccess(string $service, string $event, array $payload, int $attempt = 0, ?string $idempotencyKey = null)
  * @method static WebhookLog logFailure(string $service, string $event, array $payload, string $errorMessage, int $attempt = 0, ?string $idempotencyKey = null)
  * @method static Collection logs()
@@ -25,12 +24,12 @@ use Proxynth\Larawebhook\Shared\Domain\Enums\WebhookService;
  * @method static bool canSendNotification(string $service, string $event)
  * @method static bool sendNotificationIfNeeded(string $service, string $event)
  * @method static bool notificationsEnabled()
- * @method static array getNotificationChannels()
+ * @method static array<int, string> getNotificationChannels()
  * @method static void clearCooldown(string $service, string $event)
  * @method static ?string getSecret(string|WebhookService $service)
  * @method static bool isServiceSupported(string $service)
- * @method static array supportedServices()
- * @method static array services()
+ * @method static array<int, string> supportedServices()
+ * @method static array<int, string> services()
  * @method static ?WebhookService service(string $service)
  *
  * @see \Proxynth\Larawebhook\Shared\Application\Larawebhook
