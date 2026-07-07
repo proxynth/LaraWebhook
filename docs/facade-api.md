@@ -3,10 +3,28 @@
 LaraWebhook provides a powerful Facade and an Enum for type-safe service handling.
 For the inbound request flow, see [Architecture](/architecture). For manual validation, always wrap raw signature headers with `Signature::fromString()`.
 
-## Larawebhook Facade
+## Role of the facade
 
-The `Larawebhook` facade provides a fluent API for all webhook operations.
-Prefer `validate()`, `validateAndLog()`, `validateWithRetries()`, and the read/query helpers for new code.
+The `Larawebhook` facade is a Laravel-friendly public API.
+
+It is intentionally a DX adapter over application use cases, repositories and Laravel infrastructure services. It should not be treated as the place where core webhook workflows are implemented.
+
+Critical behavior belongs to dedicated use cases:
+
+- `ReceiveWebhook` for inbound middleware processing;
+- `ValidateWebhook` for signature validation;
+- `RecordWebhookLog` for audit persistence;
+- `RetryWebhook` for retry attempts;
+- `ReplayWebhook` for replay attempts.
+
+For new code, prefer the high-level helpers:
+
+- `validate()`
+- `validateAndLog()`
+- `validateWithRetries()`
+- query/read helpers
+
+Manual logging helpers remain available for compatibility, but are deprecated.
 
 ### Validation
 
@@ -20,13 +38,14 @@ Larawebhook::validate($payload, $signature, 'stripe');
 $log = Larawebhook::validateAndLog($payload, $signature, 'github', 'push');
 ```
 
-### Logging
+#### Logging
 
-The manual logging helpers remain available for compatibility, but they are deprecated.
-Prefer `validateAndLog()` or the corresponding application use case when you need to persist an audit log.
+Manual logging helpers remain available for compatibility, but they are deprecated.
+
+Prefer `validateAndLog()` when a webhook should be validated and persisted, or use `RecordWebhookLog` directly when writing internal package code.
 
 ```php
-// Log webhooks manually
+// Deprecated manual audit helpers
 Larawebhook::logSuccess('stripe', 'payment.succeeded', $payload);
 Larawebhook::logFailure('stripe', 'payment.failed', $payload, 'Card declined');
 ```
