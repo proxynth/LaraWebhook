@@ -6,6 +6,7 @@ use Illuminate\Support\Facades\Queue;
 use Proxynth\Larawebhook\Audit\Domain\Events\WebhookLogged;
 use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Persistence\Models\WebhookLog;
 use Proxynth\Larawebhook\Ingestion\Application\Commands\ReceiveWebhookCommand;
+use Proxynth\Larawebhook\Ingestion\Application\Ports\WebhookSecretResolver;
 use Proxynth\Larawebhook\Ingestion\Application\Results\ReceiveWebhookResult;
 use Proxynth\Larawebhook\Ingestion\Application\UseCases\ReceiveWebhook;
 use Proxynth\Larawebhook\Ingestion\Domain\Events\WebhookReceived;
@@ -14,6 +15,7 @@ use Proxynth\Larawebhook\Ingestion\Domain\Events\WebhookValidated;
 use Proxynth\Larawebhook\Ingestion\Domain\ValueObjects\Signature;
 use Proxynth\Larawebhook\Processing\Application\Ports\WebhookDuplicateDetector;
 use Proxynth\Larawebhook\Shared\Domain\Enums\WebhookService;
+use Proxynth\Larawebhook\Tests\Fakes\Ingestion\FakeWebhookSecretResolver;
 use Proxynth\Larawebhook\Tests\Fakes\Processing\FakeWebhookDuplicateDetector;
 
 function githubPayload(string $deliveryId = 'delivery_123'): string
@@ -28,7 +30,7 @@ function githubPayload(string $deliveryId = 'delivery_123'): string
     ], JSON_THROW_ON_ERROR);
 }
 
-function githubSignature(string $payload, string $secret = 'secret'): Signature
+function githubSignature(string $payload, string $secret = 'github_secret'): Signature
 {
     return incomingSignature(
         'sha256='.hash_hmac('sha256', $payload, $secret)
@@ -47,6 +49,10 @@ beforeEach(function () {
 });
 
 it('receives a valid webhook and logs it successfully', function () {
+    app()->instance(WebhookSecretResolver::class, new FakeWebhookSecretResolver([
+        'github' => 'github_secret',
+    ]));
+
     $payload = githubPayload();
     $signature = githubSignature($payload);
 
@@ -72,6 +78,10 @@ it('receives a valid webhook and logs it successfully', function () {
 });
 
 it('returns already processed when the idempotency key already exists', function () {
+    app()->instance(WebhookSecretResolver::class, new FakeWebhookSecretResolver([
+        'github' => 'github_secret',
+    ]));
+
     $payload = githubPayload();
     $signature = githubSignature($payload);
     $this->duplicateDetector->shouldAlreadyProcessed('github', 'delivery_123');
@@ -91,6 +101,10 @@ it('returns already processed when the idempotency key already exists', function
 });
 
 it('uses payload hash idempotency fallback when no external id is available', function () {
+    app()->instance(WebhookSecretResolver::class, new FakeWebhookSecretResolver([
+        'github' => 'github_secret',
+    ]));
+
     $payload = json_encode([
         'type' => 'custom.event',
         'data' => [
@@ -116,6 +130,10 @@ it('uses payload hash idempotency fallback when no external id is available', fu
 it('returns secret not configured when webhook secret is missing', function () {
     config()->set('larawebhook.services.github.webhook_secret', null);
 
+    app()->instance(WebhookSecretResolver::class, new FakeWebhookSecretResolver([
+        'github' => null,
+    ]));
+
     $payload = githubPayload();
 
     $result = app(ReceiveWebhook::class)->handle(new ReceiveWebhookCommand(
@@ -134,6 +152,10 @@ it('returns secret not configured when webhook secret is missing', function () {
 it('returns failed when signature is invalid and async retries are disabled', function () {
     config()->set('larawebhook.retries.enabled', true);
     config()->set('larawebhook.retries.async', false);
+
+    app()->instance(WebhookSecretResolver::class, new FakeWebhookSecretResolver([
+        'github' => 'github_secret',
+    ]));
 
     $payload = githubPayload();
 
@@ -160,6 +182,10 @@ it('returns accepted for retry when signature is invalid and async retires are e
     config()->set('larawebhook.retries.enabled', true);
     config()->set('larawebhook.retries.async', true);
 
+    app()->instance(WebhookSecretResolver::class, new FakeWebhookSecretResolver([
+        'github' => 'github_secret',
+    ]));
+
     $payload = githubPayload();
 
     $result = app(ReceiveWebhook::class)->handle(new ReceiveWebhookCommand(
@@ -173,11 +199,15 @@ it('returns accepted for retry when signature is invalid and async retires are e
         ->and($result->log)->toBeInstanceOf(WebhookLog::class)
         ->and($result->log?->status)->toBe('failed')
         ->and($result->event)->not->toBeNull()
-        ->and($result->secret)->toBe('secret')
+        ->and($result->secret)->toBe('github_secret')
         ->and($result->idempotencyKey)->toBe('delivery_retry');
 });
 
 it('handles invalid json payload without crashing', function () {
+    app()->instance(WebhookSecretResolver::class, new FakeWebhookSecretResolver([
+        'github' => 'github_secret',
+    ]));
+
     $payload = '{invalid-json';
     $signature = githubSignature($payload);
 
@@ -193,6 +223,10 @@ it('handles invalid json payload without crashing', function () {
 });
 
 it('records the idempotency key separately from provider external id', function () {
+    app()->instance(WebhookSecretResolver::class, new FakeWebhookSecretResolver([
+        'github' => 'github_secret',
+    ]));
+
     $payload = json_encode([
         'type' => 'custom.event',
         'data' => ['foo' => 'bar'],
@@ -215,6 +249,10 @@ it('records the idempotency key separately from provider external id', function 
 });
 
 it('processes valid webhook through domain event lifecycle', function () {
+    app()->instance(WebhookSecretResolver::class, new FakeWebhookSecretResolver([
+        'github' => 'github_secret',
+    ]));
+
     $payload = githubPayload();
     $signature = githubSignature($payload);
 
@@ -236,6 +274,10 @@ it('marks webhook as failed when validation fails and async retries are disabled
     config()->set('larawebhook.retries.enabled', true);
     config()->set('larawebhook.retries.async', false);
 
+    app()->instance(WebhookSecretResolver::class, new FakeWebhookSecretResolver([
+        'github' => 'github_secret',
+    ]));
+
     $payload = githubPayload();
 
     $result = app(ReceiveWebhook::class)->handle(new ReceiveWebhookCommand(
@@ -249,4 +291,21 @@ it('marks webhook as failed when validation fails and async retries are disabled
         ->and($result->log)->toBeInstanceOf(WebhookLog::class)
         ->and($result->log?->status)->toBe('failed')
         ->and($result->errorMessage)->not->toBeNull();
+});
+
+it('returns secret not configured when resolver returns null', function () {
+    app()->instance(WebhookSecretResolver::class, new FakeWebhookSecretResolver([
+        'github' => null,
+    ]));
+
+    $payload = githubPayload();
+
+    $result = app(ReceiveWebhook::class)->handle(new ReceiveWebhookCommand(
+        service: WebhookService::Github,
+        payload: $payload,
+        signature: Signature::fromString('sha256=invalid'),
+        externalIdHeaderValue: 'delivery_123',
+    ));
+
+    expect($result->status)->toBe('secret_not_configured');
 });

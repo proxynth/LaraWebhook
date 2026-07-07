@@ -15,9 +15,12 @@ use Proxynth\Larawebhook\Audit\Application\Queries\ListWebhookLogsQuery;
 use Proxynth\Larawebhook\Audit\Domain\Exceptions\PayloadNotAvailable;
 use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Http\Resources\WebhookLogResource;
 use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Persistence\Models\WebhookLog;
+use Proxynth\Larawebhook\Exceptions\WebhookException;
+use Proxynth\Larawebhook\Ingestion\Application\Ports\WebhookSecretResolver;
 use Proxynth\Larawebhook\Ingestion\Domain\ValueObjects\Signature;
 use Proxynth\Larawebhook\Processing\Application\Commands\ReplayWebhookCommand;
 use Proxynth\Larawebhook\Processing\Application\UseCases\ReplayWebhook;
+use Proxynth\Larawebhook\Shared\Domain\Enums\WebhookService;
 use RuntimeException;
 use Throwable;
 
@@ -27,6 +30,7 @@ class WebhookLogController extends Controller
         private readonly ListWebhookLogs $listWebhookLogs,
         private readonly GetWebhookLogDetails $getWebhookLogDetails,
         private readonly ReplayWebhook $replayWebhook,
+        private readonly WebhookSecretResolver $secretResolver,
     ) {}
 
     public function index(Request $request): JsonResponse
@@ -105,13 +109,15 @@ class WebhookLogController extends Controller
     /**
      * Extract signature from original webhook payload.
      * This is a placeholder - in production, you'd store the original signature.
+     *
+     * @throws WebhookException
      */
     private function extractSignatureFromPayload(WebhookLog $log): Signature
     {
         // For now, we'll regenerate the signature for replay purposes
         // In a real implementation, you'd store the original signature
         $payload = json_encode($log->payload);
-        $secret = config("larawebhook.services.{$log->service}.webhook_secret");
+        $secret = $this->secretResolver->resolve(WebhookService::fromString($log->service));
 
         if ($secret === null) {
             throw new RuntimeException('No secret configured for service: '.$log->service);
