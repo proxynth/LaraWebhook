@@ -19,6 +19,7 @@ use Proxynth\Larawebhook\Ingestion\Domain\Events\WebhookValidated;
 use Proxynth\Larawebhook\Ingestion\Domain\ValueObjects\Provider;
 use Proxynth\Larawebhook\Ingestion\Domain\ValueObjects\RawPayload;
 use Proxynth\Larawebhook\Processing\Application\Ports\IdempotencyResolver;
+use Proxynth\Larawebhook\Processing\Application\Ports\RetryConfigurationResolver;
 use Proxynth\Larawebhook\Processing\Application\Ports\WebhookDuplicateDetector;
 use Proxynth\Larawebhook\Processing\Domain\Entities\WebhookEvent;
 use Proxynth\Larawebhook\Processing\Domain\ValueObjects\DeliveryAttempt;
@@ -34,6 +35,7 @@ final readonly class ReceiveWebhook
         private WebhookDuplicateDetector $duplicateDetector,
         private WebhookPayloadParserResolver $payloadParserResolver,
         private WebhookSecretResolver $secretResolver,
+        private RetryConfigurationResolver $retryConfigurationResolver,
         private ValidateWebhook $validateWebhook,
         private RecordWebhookLog $recordWebhookLog,
     ) {}
@@ -155,7 +157,7 @@ final readonly class ReceiveWebhook
             errorMessage: $validation->errorMessage,
         ));
 
-        if ($this->shouldRetryAsync()) {
+        if ($this->retryConfigurationResolver->resolve()->shouldRetryAsync()) {
             return ReceiveWebhookResult::acceptedForRetry(
                 log: $log,
                 event: $event,
@@ -214,12 +216,6 @@ final readonly class ReceiveWebhook
         return $this->payloadParserResolver
             ->forService($service)
             ->extractExternalId($decodedPayload, $externalIdHeaderValue);
-    }
-
-    private function shouldRetryAsync(): bool
-    {
-        return config('larawebhook.retries.enabled', true)
-            && config('larawebhook.retries.async', false);
     }
 
     private function failureStatusCode(?string $errorMessage): int
