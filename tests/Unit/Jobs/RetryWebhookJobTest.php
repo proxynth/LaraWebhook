@@ -4,15 +4,21 @@ declare(strict_types=1);
 
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Support\Facades\Queue;
+use Proxynth\Larawebhook\Processing\Application\Data\RetryPolicy;
+use Proxynth\Larawebhook\Processing\Application\Ports\RetryPolicyResolver;
 use Proxynth\Larawebhook\Processing\Application\UseCases\RetryWebhook;
 use Proxynth\Larawebhook\Processing\Infrastructure\Laravel\Jobs\RetryWebhookJob;
+use Proxynth\Larawebhook\Tests\Fakes\Processing\FakeRetryPolicyResolver;
 
 beforeEach(function () {
-    config([
-        'larawebhook.retries.enabled' => true,
-        'larawebhook.retries.max_attempts' => 3,
-        'larawebhook.retries.delays' => [1, 5, 10],
-    ]);
+    config()->set('larawebhook.retries.enabled', true);
+    app()->instance(
+        RetryPolicyResolver::class,
+        new FakeRetryPolicyResolver(new RetryPolicy(
+            maxAttempts: 3,
+            delays: [1, 5, 10],
+        )),
+    );
 });
 
 describe('RetryWebhookJob structure', function () {
@@ -109,7 +115,13 @@ describe('RetryWebhookJob dispatching', function () {
 
     it('does not dispatch when the retry limit is reached', function () {
         Queue::fake();
-        config(['larawebhook.retries.max_attempts' => 1]);
+        app()->instance(
+            RetryPolicyResolver::class,
+            new FakeRetryPolicyResolver(new RetryPolicy(
+                maxAttempts: 1,
+                delays: [1, 5, 10],
+            )),
+        );
 
         $job = new RetryWebhookJob(
             payload: '{"action":"push"}',
