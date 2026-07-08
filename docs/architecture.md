@@ -62,7 +62,7 @@ Deduplication is backed by the `processed_webhook_events` projection.
 
 `processed_webhook_events` owns the uniqueness constraint on `service + idempotency_key`.
 
-For compatibility, `webhook_logs` may still contain a legacy uniqueness constraint on `service + idempotency_key`, but it is no longer used as the source of truth for deduplication.
+`webhook_logs` does not own any deduplication constraint. It is an audit trail and may contain multiple rows for the same webhook across receive, retry, replay or manual audit writes.
 
 ### Historical migration
 

@@ -1104,3 +1104,43 @@ it('does not process the same webhook twice', function () {
     expect(WebhookLog::query()->count())->toBe(1)
         ->and(ProcessedWebhookEvent::query()->count())->toBe(1);
 });
+
+it('does not use webhook logs as duplicate source anymore', function () {
+    WebhookLog::factory()->create([
+        'service' => 'github',
+        'event' => 'opened',
+        'status' => 'success',
+        'external_id' => 'delivery_123',
+        'idempotency_key' => 'delivery_123',
+    ]);
+
+    expect(WebhookLog::query()->count())->toBe(1)
+        ->and(ProcessedWebhookEvent::query()->count())->toBe(0);
+
+    $payload = json_encode([
+        'action' => 'opened',
+        'pull_request' => [
+            'id' => 123,
+        ],
+    ], JSON_THROW_ON_ERROR);
+
+    $signature = githubSignature($payload, 'test_github_secret');
+
+    $this->call(
+        'POST',
+        'test-github-webhook',
+        [],
+        [],
+        [],
+        [
+            'HTTP_X_HUB_SIGNATURE_256' => $signature->value(),
+            'HTTP_X_GITHUB_EVENT' => 'ping',
+            'HTTP_X_GITHUB_DELIVERY' => 'delivery_123',
+            'CONTENT_TYPE' => 'application/json',
+        ],
+        $payload
+    )->assertOk();
+
+    expect(WebhookLog::query()->count())->toBe(2)
+        ->and(ProcessedWebhookEvent::query()->count())->toBe(1);
+});

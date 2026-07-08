@@ -256,11 +256,31 @@ describe('WebhookLog external_id model methods', function () {
             ->not->toThrow(QueryException::class);
     });
 
-    it('enforces unique constraint on service + idempotency_key', function () {
-        $this->logger->logSuccess('stripe', 'event1', ['id' => '1'], 0, 'evt_unique', 'idem_unique');
+    it('allows multiple logs with same service and idempotency_key', function () {
+        $firstLog = $this->logger->logSuccess(
+            'stripe',
+            'event1',
+            ['id' => '1'],
+            0,
+            'evt_unique',
+            'idem_unique',
+        );
 
-        expect(fn () => $this->logger->logSuccess('stripe', 'event2', ['id' => '2'], 0, 'evt_other', 'idem_unique'))
-            ->toThrow(QueryException::class);
+        $secondLog = $this->logger->logSuccess(
+            'stripe',
+            'event2',
+            ['id' => '2'],
+            0,
+            'evt_other',
+            'idem_unique',
+        );
+
+        expect($firstLog->id)->not->toBe($secondLog->id)
+            ->and($firstLog->service)->toBe('stripe')
+            ->and($secondLog->service)->toBe('stripe')
+            ->and($firstLog->idempotency_key)->toBe('idem_unique')
+            ->and($secondLog->idempotency_key)->toBe('idem_unique')
+            ->and(WebhookLog::query()->count())->toBe(2);
     });
 
     it('allows same external_id for different services', function () {
