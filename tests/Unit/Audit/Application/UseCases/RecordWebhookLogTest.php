@@ -95,3 +95,31 @@ it('delegates failed records to the audit writer', function () {
         ->and($fakeWriter->commands[0]->valid)->toBeFalse()
         ->and($fakeWriter->commands[0]->errorMessage)->toBe('Invalid GitHub webhook signature.');
 });
+
+it('records multiple audit logs with the same idempotency key', function () {
+    $useCase = app(RecordWebhookLog::class);
+
+    $useCase->handle(new RecordWebhookLogCommand(
+        service: 'github',
+        event: 'opened',
+        valid: true,
+        payload: ['action' => 'opened'],
+        attempt: 0,
+        externalId: 'delivery_123',
+        idempotencyKey: 'delivery_123',
+        errorMessage: null,
+    ));
+
+    $useCase->handle(new RecordWebhookLogCommand(
+        service: 'github',
+        event: 'opened',
+        valid: false,
+        payload: ['action' => 'opened'],
+        attempt: 1,
+        externalId: 'delivery_123',
+        idempotencyKey: 'delivery_123',
+        errorMessage: 'Retry failed',
+    ));
+
+    expect(WebhookLog::query()->count())->toBe(2);
+});

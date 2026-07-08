@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Illuminate\Database\QueryException;
 use Proxynth\Larawebhook\Processing\Infrastructure\Persistence\EloquentProcessedWebhookRecorder;
 use Proxynth\Larawebhook\Processing\Infrastructure\Persistence\Models\ProcessedWebhookEvent;
 
@@ -31,4 +32,22 @@ it('does not create duplicate processed event for same service and idempotency k
     $recorder->recordProcessed('github', 'delivery_123', 'delivery_123', 'push');
 
     expect(ProcessedWebhookEvent::query()->count())->toBe(1);
+});
+
+it('enforces unique constraint on processed webhook events service and idempotency key', function () {
+    ProcessedWebhookEvent::query()->create([
+        'service' => 'stripe',
+        'idempotency_key' => 'idem_unique',
+        'external_id' => 'evt_unique',
+        'event' => 'event1',
+        'processed_at' => now(),
+    ]);
+
+    expect(fn () => ProcessedWebhookEvent::query()->create([
+        'service' => 'stripe',
+        'idempotency_key' => 'idem_unique',
+        'external_id' => 'evt_other',
+        'event' => 'event2',
+        'processed_at' => now(),
+    ]))->toThrow(QueryException::class);
 });
