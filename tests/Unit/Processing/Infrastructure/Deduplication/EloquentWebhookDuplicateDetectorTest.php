@@ -1,29 +1,28 @@
 <?php
 
-declare(strict_types=1);
-
 use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Persistence\Models\WebhookLog;
 use Proxynth\Larawebhook\Processing\Infrastructure\Deduplication\EloquentWebhookDuplicateDetector;
+use Proxynth\Larawebhook\Processing\Infrastructure\Persistence\Models\ProcessedWebhookEvent;
 
-it('detects already processed webhook logs by idempotency key', function () {
-    WebhookLog::factory()->create([
+it('detects already processed webhook using processed events table', function () {
+    ProcessedWebhookEvent::query()->create([
         'service' => 'github',
         'idempotency_key' => 'delivery_123',
         'external_id' => 'delivery_123',
+        'event' => 'push',
+        'processed_at' => now(),
     ]);
 
     $detector = app(EloquentWebhookDuplicateDetector::class);
 
-    expect($detector->alreadyProcessed('github', 'delivery_123'))->toBeTrue()
-        ->and($detector->alreadyProcessed('github', 'missing'))->toBeFalse()
-        ->and($detector->alreadyProcessed('stripe', 'delivery_123'))->toBeFalse();
+    expect($detector->alreadyProcessed('github', 'delivery_123'))->toBeTrue();
 });
 
-it('does not use external id as duplicate key when idempotency key is missing', function () {
+it('does not use webhook logs for duplicate detection anymore', function () {
     WebhookLog::factory()->create([
         'service' => 'github',
         'external_id' => 'delivery_123',
-        'idempotency_key' => null,
+        'idempotency_key' => 'delivery_123',
         'status' => 'success',
     ]);
 

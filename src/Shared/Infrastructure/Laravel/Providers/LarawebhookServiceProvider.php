@@ -34,6 +34,7 @@ use Proxynth\Larawebhook\Ingestion\Infrastructure\Support\LaravelWebhookServiceM
 use Proxynth\Larawebhook\Ingestion\Infrastructure\Validation\ProviderSignatureValidator;
 use Proxynth\Larawebhook\Ingestion\Infrastructure\Validation\WebhookValidatorFactory;
 use Proxynth\Larawebhook\Processing\Application\Ports\IdempotencyResolver;
+use Proxynth\Larawebhook\Processing\Application\Ports\ProcessedWebhookRecorder;
 use Proxynth\Larawebhook\Processing\Application\Ports\ReplayableWebhookRepository;
 use Proxynth\Larawebhook\Processing\Application\Ports\RetryConfigurationResolver;
 use Proxynth\Larawebhook\Processing\Application\Ports\RetryPolicyResolver;
@@ -44,6 +45,7 @@ use Proxynth\Larawebhook\Processing\Infrastructure\Config\ConfigRetryConfigurati
 use Proxynth\Larawebhook\Processing\Infrastructure\Config\ConfigRetryPolicyResolver;
 use Proxynth\Larawebhook\Processing\Infrastructure\Deduplication\EloquentWebhookDuplicateDetector;
 use Proxynth\Larawebhook\Processing\Infrastructure\Idempotency\DefaultIdempotencyResolver;
+use Proxynth\Larawebhook\Processing\Infrastructure\Persistence\EloquentProcessedWebhookRecorder;
 use Proxynth\Larawebhook\Processing\Infrastructure\Persistence\EloquentReplayableWebhookRepository;
 use Proxynth\Larawebhook\Shared\Application\EventBus;
 use Proxynth\Larawebhook\Shared\Application\Larawebhook;
@@ -179,6 +181,8 @@ class LarawebhookServiceProvider extends PackageServiceProvider
         $this->app->singleton(RetryPolicyResolver::class, ConfigRetryPolicyResolver::class);
 
         $this->app->singleton(RetryConfigurationResolver::class, ConfigRetryConfigurationResolver::class);
+
+        $this->app->singleton(ProcessedWebhookRecorder::class, EloquentProcessedWebhookRecorder::class);
     }
 
     /**

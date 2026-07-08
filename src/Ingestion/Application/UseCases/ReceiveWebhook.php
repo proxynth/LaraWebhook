@@ -19,6 +19,7 @@ use Proxynth\Larawebhook\Ingestion\Domain\Events\WebhookValidated;
 use Proxynth\Larawebhook\Ingestion\Domain\ValueObjects\Provider;
 use Proxynth\Larawebhook\Ingestion\Domain\ValueObjects\RawPayload;
 use Proxynth\Larawebhook\Processing\Application\Ports\IdempotencyResolver;
+use Proxynth\Larawebhook\Processing\Application\Ports\ProcessedWebhookRecorder;
 use Proxynth\Larawebhook\Processing\Application\Ports\RetryConfigurationResolver;
 use Proxynth\Larawebhook\Processing\Application\Ports\WebhookDuplicateDetector;
 use Proxynth\Larawebhook\Processing\Domain\Entities\WebhookEvent;
@@ -36,6 +37,7 @@ final readonly class ReceiveWebhook
         private WebhookPayloadParserResolver $payloadParserResolver,
         private WebhookSecretResolver $secretResolver,
         private RetryConfigurationResolver $retryConfigurationResolver,
+        private ProcessedWebhookRecorder $processedWebhookRecorder,
         private ValidateWebhook $validateWebhook,
         private RecordWebhookLog $recordWebhookLog,
     ) {}
@@ -123,6 +125,15 @@ final readonly class ReceiveWebhook
             ));
 
             $webhookEvent->markProcessed();
+
+            if ($idempotencyKey !== null) {
+                $this->processedWebhookRecorder->recordProcessed(
+                    service: $provider->value(),
+                    idempotencyKey: $idempotencyKey->value(),
+                    externalId: $externalId,
+                    event: $validation->event,
+                );
+            }
 
             return ReceiveWebhookResult::success($log, [
                 $receivedEvent,
