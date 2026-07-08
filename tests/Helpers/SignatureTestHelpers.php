@@ -17,3 +17,10 @@ function slackIncomingSignature(string $value, int|string $timestamp): Signature
         timestamp: (string) $timestamp,
     );
 }
+
+function githubSignature(string $payload, string $secret = 'github_secret'): Signature
+{
+    return incomingSignature(
+        'sha256='.hash_hmac('sha256', $payload, $secret)
+    );
+}

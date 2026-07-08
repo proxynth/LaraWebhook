@@ -53,10 +53,16 @@ $log = Larawebhook::validateAndLog($request->getContent(), $signature, 'stripe',
 ## Identity and Deduplication
 
 - `external_id` stores the provider delivery or event identifier when the provider exposes one.
-- `idempotency_key` stores the deduplication key used by the application.
+- `idempotency_key` stores the deduplication key resolved by the application.
 - Providers without a stable external id use a payload-hash fallback for idempotency.
 
-The database unique constraint applies to `service + idempotency_key`, not `service + external_id`.
+Deduplication is backed by the `processed_webhook_events` projection.
+
+`webhook_logs` is an audit trail and read model source. It may contain several rows for the same webhook across receive, retry or replay attempts.
+
+`processed_webhook_events` owns the uniqueness constraint on `service + idempotency_key`.
+
+For compatibility, `webhook_logs` may still contain a legacy uniqueness constraint on `service + idempotency_key`, but it is no longer used as the source of truth for deduplication.
 
 ### Historical migration
 

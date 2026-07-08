@@ -14,10 +14,12 @@ use Proxynth\Larawebhook\Ingestion\Domain\Events\WebhookRejected;
 use Proxynth\Larawebhook\Ingestion\Domain\Events\WebhookValidated;
 use Proxynth\Larawebhook\Ingestion\Domain\ValueObjects\Signature;
 use Proxynth\Larawebhook\Processing\Application\Data\RetryConfiguration;
+use Proxynth\Larawebhook\Processing\Application\Ports\ProcessedWebhookRecorder;
 use Proxynth\Larawebhook\Processing\Application\Ports\RetryConfigurationResolver;
 use Proxynth\Larawebhook\Processing\Application\Ports\WebhookDuplicateDetector;
 use Proxynth\Larawebhook\Shared\Domain\Enums\WebhookService;
 use Proxynth\Larawebhook\Tests\Fakes\Ingestion\FakeWebhookSecretResolver;
+use Proxynth\Larawebhook\Tests\Fakes\Processing\FakeProcessedWebhookRecorder;
 use Proxynth\Larawebhook\Tests\Fakes\Processing\FakeRetryConfigurationResolver;
 use Proxynth\Larawebhook\Tests\Fakes\Processing\FakeWebhookDuplicateDetector;
 
@@ -31,13 +33,6 @@ function githubPayload(string $deliveryId = 'delivery_123'): string
             'full_name' => 'proxynth/larawebhook',
         ],
     ], JSON_THROW_ON_ERROR);
-}
-
-function githubSignature(string $payload, string $secret = 'github_secret'): Signature
-{
-    return incomingSignature(
-        'sha256='.hash_hmac('sha256', $payload, $secret)
-    );
 }
 
 beforeEach(function () {
@@ -316,4 +311,54 @@ it('returns secret not configured when resolver returns null', function () {
     ));
 
     expect($result->status)->toBe('secret_not_configured');
+});
+
+it('records processed webhook event after succesful receive', function () {
+    $processedRecorder = new FakeProcessedWebhookRecorder;
+
+    app()->instance(ProcessedWebhookRecorder::class, $processedRecorder);
+
+    app()->instance(WebhookSecretResolver::class, new FakeWebhookSecretResolver([
+        'github' => 'github_secret',
+    ]));
+
+    $payload = json_encode([
+        'type' => 'custom.event',
+        'data' => [
+            'foo' => 'bar',
+        ],
+    ], JSON_THROW_ON_ERROR);
+
+    $signature = githubSignature($payload);
+
+    $result = app(ReceiveWebhook::class)->handle(new ReceiveWebhookCommand(
+        service: WebhookService::Github,
+        payload: $payload,
+        signature: $signature,
+        externalIdHeaderValue: 'delivery_123',
+    ));
+
+    expect($result->isSuccess())->toBeTrue()
+        ->and($processedRecorder->records)->toHaveCount(1)
+        ->and($processedRecorder->records[0])->toMatchArray([
+            'service' => 'github',
+            'idempotencyKey' => 'delivery_123',
+            'externalId' => 'delivery_123',
+        ]);
+});
+
+it('does not record processed webhook event when validation fails', function () {
+    $processedRecorder = new FakeProcessedWebhookRecorder;
+
+    app()->instance(ProcessedWebhookRecorder::class, $processedRecorder);
+
+    $result = app(ReceiveWebhook::class)->handle(new ReceiveWebhookCommand(
+        service: WebhookService::Github,
+        payload: githubPayload(),
+        signature: Signature::fromString('sha256=invalid'),
+        externalIdHeaderValue: 'delivery_123',
+    ));
+
+    expect($result->isSuccess())->toBeFalse()
+        ->and($processedRecorder->records)->toBeEmpty();
 });

@@ -9,7 +9,9 @@ use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Persistence\Models\Webhook
 use Proxynth\Larawebhook\Ingestion\Domain\Events\WebhookReceived;
 use Proxynth\Larawebhook\Ingestion\Domain\Events\WebhookRejected;
 use Proxynth\Larawebhook\Ingestion\Domain\Events\WebhookValidated;
+use Proxynth\Larawebhook\Ingestion\Domain\ValueObjects\Signature;
 use Proxynth\Larawebhook\Processing\Infrastructure\Laravel\Jobs\RetryWebhookJob;
+use Proxynth\Larawebhook\Processing\Infrastructure\Persistence\Models\ProcessedWebhookEvent;
 use Proxynth\Larawebhook\Shared\Application\EventBus;
 use Proxynth\Larawebhook\Tests\Fakes\Shared\FakeEventBus;
 
@@ -1044,4 +1046,61 @@ it('stores provider external id and idempotency key separately', function () {
     expect($log)->not->toBeNull()
         ->and($log->external_id)->toBe('delivery_123')
         ->and($log->idempotency_key)->toBe('delivery_123');
+});
+
+it('does not process the same webhook twice', function () {
+    $payload = json_encode([
+        'action' => 'opened',
+        'pull_request' => [
+            'id' => 123,
+        ],
+    ], JSON_THROW_ON_ERROR);
+
+    $signature = githubSignature($payload, 'test_github_secret');
+
+    $response = $this->call(
+        'POST',
+        'test-github-webhook',
+        [],
+        [],
+        [],
+        [
+            'HTTP_X_HUB_SIGNATURE_256' => $signature->value(),
+            'HTTP_X_GITHUB_EVENT' => 'ping',
+            'HTTP_X_GITHUB_DELIVERY' => 'delivery_123',
+            'CONTENT_TYPE' => 'application/json',
+        ],
+        $payload
+    );
+
+    expect(WebhookLog::query()->count())->toBe(1)
+        ->and(ProcessedWebhookEvent::query()->count())->toBe(1);
+
+    $processed = ProcessedWebhookEvent::query()->first();
+
+    expect($processed->service)->toBe('github')
+        ->and($processed->idempotency_key)->toBe('delivery_123')
+        ->and($processed->external_id)->toBe('delivery_123')
+        ->and($processed->event)->not->toBeNull();
+
+    $this->call(
+        'POST',
+        'test-github-webhook',
+        [],
+        [],
+        [],
+        [
+            'HTTP_X_HUB_SIGNATURE_256' => $signature->value(),
+            'HTTP_X_GITHUB_EVENT' => 'ping',
+            'HTTP_X_GITHUB_DELIVERY' => 'delivery_123',
+            'CONTENT_TYPE' => 'application/json',
+        ],
+        $payload
+    )->assertOk()
+        ->assertJson([
+            'status' => 'already_processed',
+        ]);
+
+    expect(WebhookLog::query()->count())->toBe(1)
+        ->and(ProcessedWebhookEvent::query()->count())->toBe(1);
 });
