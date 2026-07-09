@@ -43,6 +43,22 @@ final class WebhookEvent
         );
     }
 
+    public static function fromHistory(
+        Provider $provider,
+        EventType $eventType,
+        ?IdempotencyKey $idempotencyKey,
+        WebhookStatus $status,
+        bool $valid = true,
+    ): self {
+        return new self(
+            provider: $provider,
+            eventType: $eventType,
+            idempotencyKey: $idempotencyKey,
+            status: $status,
+            valid: $valid,
+        );
+    }
+
     public function markValidated(): void
     {
         $this->ensureNotTerminal();

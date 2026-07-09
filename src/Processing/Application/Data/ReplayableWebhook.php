@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Proxynth\Larawebhook\Processing\Application\DTOs;
+namespace Proxynth\Larawebhook\Processing\Application\Data;
 
 use Proxynth\Larawebhook\Ingestion\Domain\ValueObjects\Provider;
 use Proxynth\Larawebhook\Processing\Domain\Entities\WebhookEvent;
@@ -26,7 +26,7 @@ final readonly class ReplayableWebhook
 
     public function toWebhookEvent(): WebhookEvent
     {
-        return WebhookEvent::replayable(
+        return WebhookEvent::fromHistory(
             provider: Provider::fromString($this->service),
             eventType: EventType::fromString($this->event),
             idempotencyKey: IdempotencyKey::optional($this->idempotencyKey),

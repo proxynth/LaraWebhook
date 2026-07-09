@@ -134,3 +134,93 @@ it('can replay only when replayable', function () {
 
     $event->replay();
 })->throws(InvalidWebhookState::class);
+
+it('transitions through retry success flow', function () {
+    $event = WebhookEvent::received(
+        provider: Provider::fromString('github'),
+        eventType: EventType::fromString('opened'),
+        idempotencyKey: IdempotencyKey::optional('delivery_123'),
+    );
+
+    $event->markValidated();
+    $event->markProcessing();
+    $event->markProcessed();
+
+    expect($event->status()->value())->toBe('processed');
+});
+
+it('transitions through retry failure flow', function () {
+    $event = WebhookEvent::received(
+        provider: Provider::fromString('github'),
+        eventType: EventType::fromString('opened'),
+        idempotencyKey: IdempotencyKey::optional('delivery_123'),
+    );
+
+    $event->markFailed('Invalid signature');
+
+    expect($event->status()->value())->toBe('failed');
+});
+
+it('does not allow processing before validation', function () {
+    $event = WebhookEvent::received(
+        provider: Provider::fromString('github'),
+        eventType: EventType::fromString('opened'),
+        idempotencyKey: IdempotencyKey::optional('delivery_123'),
+    );
+
+    expect(fn () => $event->markProcessing())
+        ->toThrow(InvalidWebhookState::class);
+});
+
+it('does not allow processed before processing', function () {
+    $event = WebhookEvent::received(
+        provider: Provider::fromString('github'),
+        eventType: EventType::fromString('opened'),
+        idempotencyKey: IdempotencyKey::optional('delivery_123'),
+    );
+
+    $event->markValidated();
+
+    expect(fn () => $event->markProcessed())
+        ->toThrow(InvalidWebhookState::class);
+});
+
+it('can be restored from history', function () {
+    $event = WebhookEvent::fromHistory(
+        provider: Provider::fromString('github'),
+        eventType: EventType::fromString('opened'),
+        idempotencyKey: IdempotencyKey::optional('delivery_123'),
+        status: WebhookStatus::failed(),
+    );
+
+    expect($event->provider()->value())->toBe('github')
+        ->and($event->eventType()->value())->toBe('opened')
+        ->and($event->status()->value())->toBe('failed')
+        ->and($event->idempotencyKey()?->value())->toBe('delivery_123');
+});
+
+it('allows replay from failed webhook', function () {
+    $event = WebhookEvent::fromHistory(
+        provider: Provider::fromString('github'),
+        eventType: EventType::fromString('opened'),
+        idempotencyKey: IdempotencyKey::optional('delivery_123'),
+        status: WebhookStatus::failed(),
+    );
+
+    $replayed = $event->replay();
+
+    expect($replayed->provider()->value())->toBe('github')
+        ->and($replayed->eventType()->value())->toBe('opened');
+});
+
+it('does not allow replay from received webhook', function () {
+    $event = WebhookEvent::fromHistory(
+        provider: Provider::fromString('github'),
+        eventType: EventType::fromString('opened'),
+        idempotencyKey: IdempotencyKey::optional('delivery_123'),
+        status: WebhookStatus::received(),
+    );
+
+    expect(fn () => $event->replay())
+        ->toThrow(InvalidWebhookState::class);
+});

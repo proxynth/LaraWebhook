@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Proxynth\Larawebhook\Processing\Infrastructure\Persistence;
 
 use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Persistence\Models\WebhookLog;
-use Proxynth\Larawebhook\Processing\Application\DTOs\ReplayableWebhook;
+use Proxynth\Larawebhook\Processing\Application\Data\ReplayableWebhook;
 use Proxynth\Larawebhook\Processing\Application\Ports\ReplayableWebhookRepository;
 
 final class EloquentReplayableWebhookRepository implements ReplayableWebhookRepository

@@ -9,6 +9,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Proxynth\Larawebhook\Exceptions\WebhookException;
 use Proxynth\Larawebhook\Ingestion\Domain\ValueObjects\Signature;
 use Proxynth\Larawebhook\Processing\Application\Commands\RetryWebhookCommand;
 use Proxynth\Larawebhook\Processing\Application\UseCases\RetryWebhook;
@@ -38,6 +39,8 @@ class RetryWebhookJob implements ShouldQueue
 
     /**
      * Execute the job.
+     *
+     * @throws WebhookException
      */
     public function handle(RetryWebhook $retryWebhook): void
     {
