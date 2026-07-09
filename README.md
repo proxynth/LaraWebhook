@@ -448,6 +448,15 @@ public function handleWebhook(Request $request)
 }
 ```
 
+## Deduplication
+
+LaraWebhook separates audit logs from deduplication state.
+
+- `webhook_logs` stores the audit trail and dashboard/API read data.
+- `processed_webhook_events` stores successfully processed webhook identities.
+- Deduplication uses `service + idempotency_key`.
+- `external_id` remains the provider delivery/event identifier.
+
 ---
 
 ## 🎯 Facade & Enum API
@@ -983,7 +992,7 @@ Successful webhook processing creates a log entry:
 **View webhook logs:**
 ```bash
 php artisan tinker
->>> \Proxynth\LaraWebhook\Models\WebhookLog::where('service', 'stripe')->latest()->first();
+>>> \Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Persistence\Models\WebhookLog::where('service', 'stripe')->latest()->first();
 ```
 
 **Test with Stripe CLI:**
@@ -1314,7 +1323,7 @@ Successful webhook processing creates a log entry:
 **View webhook logs:**
 ```bash
 php artisan tinker
->>> \Proxynth\LaraWebhook\Models\WebhookLog::where('service', 'github')->latest()->first();
+>>> \Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Persistence\Models\WebhookLog::where('service', 'github')->latest()->first();
 ```
 
 **Test webhook delivery:**
@@ -1906,7 +1915,7 @@ $logs = WebhookLog::service('github')
 ```bash
 # Check for recent failures
 php artisan tinker
->>> \Proxynth\LaraWebhook\Models\WebhookLog::where('status', 'failed')
+>>> \Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Persistence\Models\WebhookLog::where('status', 'failed')
         ->where('created_at', '>', now()->subHour())
         ->count();
 ```
@@ -2108,7 +2117,7 @@ Webhooks are logged in the `webhook_logs` table with:
 To view logs:
 ```bash
 php artisan tinker
->>> \Proxynth\LaraWebhook\Models\WebhookLog::latest()->get();
+>>> \Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Persistence\Models\WebhookLog::latest()->get();
 ```
 
 ---

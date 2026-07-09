@@ -1,30 +1,43 @@
-# Facade & Enum API
-
-LaraWebhook provides a powerful Facade and an Enum for type-safe service handling.
-For the inbound request flow, see [Architecture](/architecture). For manual validation, always wrap raw signature headers with `Signature::fromString()`.
-
-## Role of the facade
+# Facade API
 
 The `Larawebhook` facade is a Laravel-friendly public API.
 
-It is intentionally a DX adapter over application use cases, repositories and Laravel infrastructure services. It should not be treated as the place where core webhook workflows are implemented.
+It is a DX adapter over application use cases, read repositories and Laravel services. It should not be treated as the place where core webhook workflows are implemented.
 
-Critical behavior belongs to dedicated use cases:
+Critical workflows live in dedicated use cases:
 
-- `ReceiveWebhook` for inbound middleware processing;
-- `ValidateWebhook` for signature validation;
-- `RecordWebhookLog` for audit persistence;
-- `RetryWebhook` for retry attempts;
-- `ReplayWebhook` for replay attempts.
+- `ReceiveWebhook`
+- `ValidateWebhook`
+- `RecordWebhookLog`
+- `RetryWebhook`
+- `ReplayWebhook`
 
 For new code, prefer the high-level helpers:
 
 - `validate()`
 - `validateAndLog()`
-- `validateWithRetries()`
-- query/read helpers
+- `validateWithRetries()` for simple synchronous/manual flows
+- `logs()`
+- `logsForService()`
+- `failedLogs()`
+- `successfulLogs()`
+- `getFailureCount()`
+- notification helpers when using LaraWebhook notifications
+- service helpers such as `isServiceSupported()`, `supportedServices()`, `service()`
 
-Manual logging helpers remain available for compatibility, but are deprecated.
+## Legacy manual logging helpers
+
+`logSuccess()` and `logFailure()` remain available for compatibility.
+
+They are deprecated for new code.
+
+Prefer:
+
+- `validateAndLog()` when validating and recording a webhook;
+- `RecordWebhookLog` when writing package/internal audit code;
+- the middleware flow for normal inbound webhooks.
+
+Manual logging helpers write audit logs only. They do not create `processed_webhook_events` entries and therefore do not affect deduplication.
 
 ### Validation
 

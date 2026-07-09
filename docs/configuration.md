@@ -49,6 +49,13 @@ Configure automatic retry behavior for failed webhooks:
 ],
 ```
 
+* enabled: enables retry behavior.
+* async: dispatches retry attempts to the queue when using the middleware.
+* max_attempts: maximum number of attempts.
+* delays: delay in seconds per retry attempt.
+
+Internally, retry settings are resolved through infrastructure config resolvers. Application use cases do not read Laravel config directly.
+
 ### Async Retries
 
 When `async` is `true`:

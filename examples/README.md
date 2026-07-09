@@ -350,7 +350,7 @@ php artisan tinker
 
 ```bash
 php artisan tinker
->>> \Proxynth\LaraWebhook\Models\WebhookLog::where('status', 'failed')
+>>> \Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Persistence\Models\WebhookLog::where('status', 'failed')
         ->where('created_at', '>', now()->subHour())
         ->get();
 ```
