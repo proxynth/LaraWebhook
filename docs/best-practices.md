@@ -143,7 +143,7 @@ public function handle(Request $request)
 
 ```bash
 php artisan tinker
->>> \Proxynth\Larawebhook\Models\WebhookLog::where('status', 'failed')
+>>> \Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Persistence\Models\WebhookLog::where('status', 'failed')
         ->where('created_at', '>', now()->subHour())
         ->count();
 ```

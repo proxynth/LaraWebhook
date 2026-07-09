@@ -179,7 +179,7 @@ LaraWebhook automatically validates this signature.
 **View logs:**
 ```bash
 php artisan tinker
->>> \Proxynth\Larawebhook\Models\WebhookLog::where('service', 'github')->latest()->first();
+>>> \Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Persistence\Models\WebhookLog::where('service', 'github')->latest()->first();
 ```
 
 ## Common Events

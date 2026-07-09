@@ -67,12 +67,14 @@ Route::post('/github-webhook', function () {
 
 **What the middleware does:**
 
-- ✅ Validates the webhook signature
-- ✅ Runs `ReceiveWebhook`, which validates the payload, detects duplicates, and records the audit log
-- ✅ Dispatches collected domain events for the HTTP adapter
-- ✅ Rejects duplicate webhooks (returns `200 OK` with `already_processed`)
-- ✅ Returns 403 for invalid signatures
-- ✅ Returns 400 for missing headers or malformed payloads
+- validates the provider signature;
+- extracts the event type and provider external id when available;
+- resolves an application idempotency key;
+- rejects already processed webhooks using `processed_webhook_events`;
+- records an audit log in `webhook_logs`;
+- records successful processing in `processed_webhook_events`;
+- optionally dispatches async retries;
+- returns provider-safe HTTP responses.
 
 ### Manual Validation (Advanced)
 
@@ -108,6 +110,10 @@ public function handleWebhook(Request $request)
 ```
 
 `Signature::fromString()` wraps the raw signature header in a typed value object so the application can carry the signature safely and, for providers that need it, keep timestamp metadata attached to the same object.
+
+Manual facade flows are useful when you cannot use the middleware.
+
+For normal inbound webhooks, prefer the middleware because it also handles idempotency, duplicate detection, audit logging and async retry orchestration.
 
 ## Architecture Notes
 
