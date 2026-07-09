@@ -15,7 +15,7 @@ use Proxynth\Larawebhook\Ingestion\Application\Ports\WebhookSecretResolver;
 use Proxynth\Larawebhook\Ingestion\Domain\ValueObjects\RawPayload;
 use Proxynth\Larawebhook\Ingestion\Domain\ValueObjects\Signature;
 use Proxynth\Larawebhook\Processing\Application\Commands\ReplayWebhookCommand;
-use Proxynth\Larawebhook\Processing\Application\DTOs\ReplayableWebhook;
+use Proxynth\Larawebhook\Processing\Application\Data\ReplayableWebhook;
 use Proxynth\Larawebhook\Processing\Application\Exceptions\ReplayWebhookNotAllowed;
 use Proxynth\Larawebhook\Processing\Application\Ports\ReplayableWebhookRepository;
 use Proxynth\Larawebhook\Processing\Application\Results\ReplayWebhookResult;
@@ -286,4 +286,22 @@ it('throws when replay secret is not configured', function () {
         webhookLogId: 1,
         signature: Signature::fromString('sha256=invalid'),
     )))->toThrow(WebhookException::class, 'No secret configured for service: github');
+});
+
+it('throws when webhook event state does not allow replay', function () {
+    app()->instance(ReplayableWebhookRepository::class, new class implements ReplayableWebhookRepository
+    {
+        public function findReplayableById(int|string $id): ReplayableWebhook
+        {
+            return replayableWebhook(
+                id: $id,
+                status: 'processing',
+            );
+        }
+    });
+
+    expect(fn () => app(ReplayWebhook::class)->handle(new ReplayWebhookCommand(
+        webhookLogId: 1,
+        signature: Signature::fromString('sha256=valid'),
+    )))->toThrow(ReplayWebhookNotAllowed::class);
 });

@@ -5,11 +5,13 @@ declare(strict_types=1);
 use Proxynth\Larawebhook\Audit\Domain\Events\WebhookLogged;
 use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Persistence\Models\WebhookLog;
 use Proxynth\Larawebhook\Exceptions\WebhookException;
+use Proxynth\Larawebhook\Ingestion\Domain\ValueObjects\Signature;
 use Proxynth\Larawebhook\Processing\Application\Commands\RetryWebhookCommand;
 use Proxynth\Larawebhook\Processing\Application\Data\RetryPolicy;
 use Proxynth\Larawebhook\Processing\Application\Ports\RetryPolicyResolver;
 use Proxynth\Larawebhook\Processing\Application\UseCases\RetryWebhook;
 use Proxynth\Larawebhook\Processing\Domain\Events\WebhookProcessingFailed;
+use Proxynth\Larawebhook\Processing\Domain\Exceptions\InvalidWebhookState;
 use Proxynth\Larawebhook\Shared\Domain\Enums\WebhookService;
 use Proxynth\Larawebhook\Tests\Fakes\Processing\FakeRetryPolicyResolver;
 
@@ -150,4 +152,65 @@ it('uses retry policy delay for the current attempt', function () {
         ->and($result->shouldRetry)->toBeTrue()
         ->and($result->nextAttempt)->toBe(2)
         ->and($result->delaySeconds)->toBe(42);
+});
+
+it('records a successful retry through webhook event transitions', function () {
+    $result = app(RetryWebhook::class)->handle(new RetryWebhookCommand(
+        payload: '{"action":"opened"}',
+        signature: incomingSignature(githubSignature('{"action":"opened"}')->value()),
+        service: WebhookService::Github->value,
+        event: 'opened',
+        secret: 'github_secret',
+        attempt: 1,
+        externalId: 'delivery_123',
+        idempotencyKey: 'delivery_123',
+    ));
+
+    expect($result->isSuccess())->toBeTrue();
+
+    $log = WebhookLog::query()->latest('id')->first();
+
+    expect($log->status)->toBe('success')
+        ->and($log->service)->toBe('github')
+        ->and($log->event)->toBe('opened')
+        ->and($log->attempt)->toBe(1)
+        ->and($log->external_id)->toBeNull()
+        ->and($log->idempotency_key)->toBeNull();
+});
+
+it('records a failed retry through webhook event transitions', function () {
+    $result = app(RetryWebhook::class)->handle(new RetryWebhookCommand(
+        payload: '{"action":"opened"}',
+        signature: Signature::fromString('sha256=invalid'),
+        service: WebhookService::Github->value,
+        event: 'opened',
+        secret: 'github_secret',
+        attempt: 1,
+        externalId: 'delivery_123',
+        idempotencyKey: 'delivery_123',
+    ));
+
+    expect($result->isFailed())->toBeTrue()
+        ->and($result->shouldRetry)->toBeTrue()
+        ->and($result->nextAttempt)->toBe(2);
+
+    $log = WebhookLog::query()->latest('id')->first();
+
+    expect($log->status)->toBe('failed')
+        ->and($log->attempt)->toBe(1)
+        ->and($log->external_id)->toBeNull()
+        ->and($log->idempotency_key)->toBeNull();
+});
+
+it('requires idempotency key to mark a retry as processed', function () {
+    expect(fn () => app(RetryWebhook::class)->handle(new RetryWebhookCommand(
+        payload: '{"action":"opened"}',
+        signature: githubSignature('{"action":"opened"}'),
+        service: WebhookService::Github->value,
+        event: 'opened',
+        secret: 'github_secret',
+        attempt: 1,
+        externalId: 'delivery_123',
+        idempotencyKey: null,
+    )))->toThrow(InvalidWebhookState::class);
 });
