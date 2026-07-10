@@ -1,6 +1,11 @@
 <?php
 
+use Illuminate\Events\Dispatcher;
+use Proxynth\Larawebhook\Audit\Domain\Events\WebhookLogged;
 use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Persistence\Models\WebhookLog;
+use Proxynth\Larawebhook\Processing\Domain\Events\WebhookReplayed;
+use Proxynth\Larawebhook\Shared\Application\Ports\EventBus;
+use Proxynth\Larawebhook\Shared\Infrastructure\Laravel\EventBus\LaravelEventBus;
 use Proxynth\Larawebhook\Shared\Infrastructure\Laravel\Providers\LarawebhookServiceProvider;
 
 beforeEach(function () {
@@ -262,4 +267,27 @@ it('catches and returns error when exception occurs during replay', function () 
 
     expect($response->json('message'))->toContain('Error replaying webhook:');
     expect($response->json('message'))->toContain('Database connection lost');
+});
+
+it('dispatches replay domain events', function () {
+    Event::fake();
+
+    app()->instance(
+        EventBus::class,
+        new LaravelEventBus(app(Dispatcher::class)),
+    );
+
+    $log = WebhookLog::factory()->create([
+        'service' => 'stripe',
+        'event' => 'payment_intent.succeeded',
+        'payload' => ['type' => 'payment_intent.succeeded', 'data' => ['amount' => 1000]],
+        'status' => 'failed',
+        'attempt' => 0,
+    ]);
+
+    $this->postJson("/api/larawebhook/logs/{$log->id}/replay");
+
+    Event::assertDispatched(WebhookReplayed::class);
+    Event::assertDispatched(WebhookLogged::class);
+
 });

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Proxynth\Larawebhook\Shared\Application;
+namespace Proxynth\Larawebhook\Shared\Application\Ports;
 
 use Proxynth\Larawebhook\Shared\Domain\Events\DomainEvent;
 

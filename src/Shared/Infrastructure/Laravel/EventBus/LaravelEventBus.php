@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Proxynth\Larawebhook\Shared\Infrastructure\Laravel\EventBus;
 
 use Illuminate\Contracts\Events\Dispatcher;
-use Proxynth\Larawebhook\Shared\Application\EventBus;
+use Proxynth\Larawebhook\Shared\Application\Ports\EventBus;
 use Proxynth\Larawebhook\Shared\Domain\Events\DomainEvent;
 
 final readonly class LaravelEventBus implements EventBus

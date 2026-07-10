@@ -20,6 +20,7 @@ use Proxynth\Larawebhook\Ingestion\Application\Ports\WebhookSecretResolver;
 use Proxynth\Larawebhook\Ingestion\Domain\ValueObjects\Signature;
 use Proxynth\Larawebhook\Processing\Application\Commands\ReplayWebhookCommand;
 use Proxynth\Larawebhook\Processing\Application\UseCases\ReplayWebhook;
+use Proxynth\Larawebhook\Shared\Application\Ports\EventBus;
 use Proxynth\Larawebhook\Shared\Domain\Enums\WebhookService;
 use RuntimeException;
 use Throwable;
@@ -31,6 +32,7 @@ class WebhookLogController extends Controller
         private readonly GetWebhookLogDetails $getWebhookLogDetails,
         private readonly ReplayWebhook $replayWebhook,
         private readonly WebhookSecretResolver $secretResolver,
+        private readonly EventBus $eventBus,
     ) {}
 
     public function index(Request $request): JsonResponse
@@ -79,6 +81,8 @@ class WebhookLogController extends Controller
                 webhookLogId: $log->getKey(),
                 signature: $this->extractSignatureFromPayload($log),
             ));
+
+            $this->eventBus->dispatchMany($result->events);
 
             return response()->json([
                 'success' => $result->log->status === 'success',

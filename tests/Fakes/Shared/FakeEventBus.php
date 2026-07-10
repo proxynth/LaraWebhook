@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Proxynth\Larawebhook\Tests\Fakes\Shared;
 
-use Proxynth\Larawebhook\Shared\Application\EventBus;
+use Proxynth\Larawebhook\Shared\Application\Ports\EventBus;
 use Proxynth\Larawebhook\Shared\Domain\Events\DomainEvent;
 
 final class FakeEventBus implements EventBus
