@@ -362,3 +362,35 @@ it('does not record processed webhook event when validation fails', function () 
     expect($result->isSuccess())->toBeFalse()
         ->and($processedRecorder->records)->toBeEmpty();
 });
+
+it('returns already processed when processed event was recorded concurrently', function () {
+    $processedRecorder = new FakeProcessedWebhookRecorder(
+        alreadyRecorded: true,
+    );
+
+    app()->instance(ProcessedWebhookRecorder::class, $processedRecorder);
+
+    app()->instance(WebhookSecretResolver::class, new FakeWebhookSecretResolver([
+        'github' => 'github_secret',
+    ]));
+
+    $payload = json_encode([
+        'type' => 'custom.event',
+        'data' => [
+            'foo' => 'bar',
+        ],
+    ], JSON_THROW_ON_ERROR);
+
+    $signature = githubSignature($payload);
+
+    $result = app(ReceiveWebhook::class)->handle(new ReceiveWebhookCommand(
+        service: WebhookService::Github,
+        payload: $payload,
+        signature: $signature,
+        externalIdHeaderValue: 'delivery_123',
+    ));
+
+    expect($result->isAlreadyProcessed())->toBeTrue()
+        ->and($result->externalId)->toBe('delivery_123')
+        ->and($result->idempotencyKey)->toBe('delivery_123');
+});

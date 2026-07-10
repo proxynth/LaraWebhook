@@ -25,15 +25,6 @@ it('records processed webhook event', function () {
         ->and($processed->processed_at)->not->toBeNull();
 });
 
-it('does not create duplicate processed event for same service and idempotency key', function () {
-    $recorder = app(EloquentProcessedWebhookRecorder::class);
-
-    $recorder->recordProcessed('github', 'delivery_123', 'delivery_123', 'push');
-    $recorder->recordProcessed('github', 'delivery_123', 'delivery_123', 'push');
-
-    expect(ProcessedWebhookEvent::query()->count())->toBe(1);
-});
-
 it('enforces unique constraint on processed webhook events service and idempotency key', function () {
     ProcessedWebhookEvent::query()->create([
         'service' => 'stripe',
@@ -50,4 +41,28 @@ it('enforces unique constraint on processed webhook events service and idempoten
         'event' => 'event2',
         'processed_at' => now(),
     ]))->toThrow(QueryException::class);
+});
+
+it('returns already recorded when processed webhook already exists', function () {
+    $recorder = app(EloquentProcessedWebhookRecorder::class);
+
+    $first = $recorder->recordProcessed(
+        service: 'github',
+        idempotencyKey: 'delivery_123',
+        externalId: 'delivery_123',
+        event: 'push',
+    );
+
+    $second = $recorder->recordProcessed(
+        service: 'github',
+        idempotencyKey: 'delivery_123',
+        externalId: 'delivery_123',
+        event: 'push',
+    );
+
+    expect($first->recorded)->toBeTrue()
+        ->and($first->alreadyRecorded)->toBeFalse()
+        ->and($second->recorded)->toBeFalse()
+        ->and($second->alreadyRecorded)->toBeTrue()
+        ->and(ProcessedWebhookEvent::query()->count())->toBe(1);
 });

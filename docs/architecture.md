@@ -64,6 +64,16 @@ Deduplication is backed by the `processed_webhook_events` projection.
 
 `webhook_logs` does not own any deduplication constraint. It is an audit trail and may contain multiple rows for the same webhook across receive, retry, replay or manual audit writes.
 
+### Concurrency
+
+`processed_webhook_events` owns a database unique constraint on `service + idempotency_key`.
+
+The application first checks duplicates through `WebhookDuplicateDetector`, then records successful processing through `ProcessedWebhookRecorder`.
+
+If two identical webhooks are received concurrently, both requests may pass the initial duplicate check. The database unique constraint remains the final guard.
+
+Duplicate insert collisions are converted into an `already_processed` result instead of surfacing as an infrastructure error.
+
 ### Historical migration
 
 `idempotency_key` was introduced after `external_id`. Older installations may contain webhook logs where `external_id` was used as the deduplication key.
