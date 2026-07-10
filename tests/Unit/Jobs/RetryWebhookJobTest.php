@@ -3,11 +3,17 @@
 declare(strict_types=1);
 
 use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Events\Dispatcher;
 use Illuminate\Support\Facades\Queue;
+use Proxynth\Larawebhook\Audit\Domain\Events\WebhookLogged;
+use Proxynth\Larawebhook\Ingestion\Domain\ValueObjects\Signature;
 use Proxynth\Larawebhook\Processing\Application\Data\RetryPolicy;
 use Proxynth\Larawebhook\Processing\Application\Ports\RetryPolicyResolver;
 use Proxynth\Larawebhook\Processing\Application\UseCases\RetryWebhook;
+use Proxynth\Larawebhook\Processing\Domain\Events\WebhookProcessingFailed;
 use Proxynth\Larawebhook\Processing\Infrastructure\Laravel\Jobs\RetryWebhookJob;
+use Proxynth\Larawebhook\Shared\Application\Ports\EventBus;
+use Proxynth\Larawebhook\Shared\Infrastructure\Laravel\EventBus\LaravelEventBus;
 use Proxynth\Larawebhook\Tests\Fakes\Processing\FakeRetryPolicyResolver;
 
 beforeEach(function () {
@@ -83,7 +89,7 @@ describe('RetryWebhookJob dispatching', function () {
             idempotencyKey: 'delivery_123',
         );
 
-        $job->handle(app(RetryWebhook::class));
+        $job->handle(app(RetryWebhook::class), app(EventBus::class));
 
         Queue::assertNothingPushed();
     });
@@ -102,7 +108,7 @@ describe('RetryWebhookJob dispatching', function () {
             idempotencyKey: 'delivery_123',
         );
 
-        $job->handle(app(RetryWebhook::class));
+        $job->handle(app(RetryWebhook::class), app(EventBus::class));
 
         Queue::assertPushed(RetryWebhookJob::class, function (RetryWebhookJob $queuedJob) {
             return $queuedJob->attempt() === 1
@@ -134,8 +140,36 @@ describe('RetryWebhookJob dispatching', function () {
             idempotencyKey: 'delivery_123',
         );
 
-        $job->handle(app(RetryWebhook::class));
+        $job->handle(app(RetryWebhook::class), app(EventBus::class));
 
         Queue::assertNothingPushed();
     });
+});
+
+it('dispatches domain events produced by retry webhook', function () {
+    Event::fake();
+
+    app()->instance(
+        EventBus::class,
+        new LaravelEventBus(app(Dispatcher::class)),
+    );
+
+    $job = new RetryWebhookJob(
+        payload: '{"action":"opened"}',
+        signature: Signature::fromString('sha256=invalid'),
+        service: 'github',
+        event: 'opened',
+        secret: 'github_secret',
+        attempt: 1,
+        externalId: 'delivery_123',
+        idempotencyKey: 'delivery_123',
+    );
+
+    $job->handle(
+        app(RetryWebhook::class),
+        app(EventBus::class),
+    );
+
+    Event::assertDispatched(WebhookProcessingFailed::class);
+    Event::assertDispatched(WebhookLogged::class);
 });

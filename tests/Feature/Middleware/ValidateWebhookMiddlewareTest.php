@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Illuminate\Events\Dispatcher;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Route;
 use Proxynth\Larawebhook\Audit\Domain\Events\WebhookLogged;
@@ -9,10 +10,10 @@ use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Persistence\Models\Webhook
 use Proxynth\Larawebhook\Ingestion\Domain\Events\WebhookReceived;
 use Proxynth\Larawebhook\Ingestion\Domain\Events\WebhookRejected;
 use Proxynth\Larawebhook\Ingestion\Domain\Events\WebhookValidated;
-use Proxynth\Larawebhook\Ingestion\Domain\ValueObjects\Signature;
 use Proxynth\Larawebhook\Processing\Infrastructure\Laravel\Jobs\RetryWebhookJob;
 use Proxynth\Larawebhook\Processing\Infrastructure\Persistence\Models\ProcessedWebhookEvent;
-use Proxynth\Larawebhook\Shared\Application\EventBus;
+use Proxynth\Larawebhook\Shared\Application\Ports\EventBus;
+use Proxynth\Larawebhook\Shared\Infrastructure\Laravel\EventBus\LaravelEventBus;
 use Proxynth\Larawebhook\Tests\Fakes\Shared\FakeEventBus;
 
 beforeEach(function () {
@@ -1143,4 +1144,133 @@ it('does not use webhook logs as duplicate source anymore', function () {
 
     expect(WebhookLog::query()->count())->toBe(2)
         ->and(ProcessedWebhookEvent::query()->count())->toBe(1);
+});
+
+it('dispatches domain events after successful webhook receive', function () {
+    Event::fake([
+        WebhookReceived::class,
+        WebhookValidated::class,
+        WebhookLogged::class,
+    ]);
+
+    app()->instance(
+        EventBus::class,
+        new LaravelEventBus(app(Dispatcher::class)),
+    );
+
+    $payload = json_encode([
+        'action' => 'opened',
+        'pull_request' => [
+            'id' => 123,
+        ],
+    ], JSON_THROW_ON_ERROR);
+
+    $signature = githubSignature($payload, 'test_github_secret');
+
+    $this->call(
+        'POST',
+        'test-github-webhook',
+        [],
+        [],
+        [],
+        [
+            'HTTP_X_HUB_SIGNATURE_256' => $signature->value(),
+            'HTTP_X_GITHUB_EVENT' => 'ping',
+            'HTTP_X_GITHUB_DELIVERY' => 'delivery_123',
+            'CONTENT_TYPE' => 'application/json',
+        ],
+        $payload
+    )->assertOk();
+
+    Event::assertDispatched(WebhookReceived::class);
+    Event::assertDispatched(WebhookValidated::class);
+    Event::assertDispatched(WebhookLogged::class);
+});
+
+it('dispatches domain events after rejected webhook receive', function () {
+    Event::fake();
+
+    config()->set('larawebhook.retries.async', false);
+
+    app()->instance(
+        EventBus::class,
+        new LaravelEventBus(app(Dispatcher::class)),
+    );
+
+    $payload = json_encode([
+        'action' => 'opened',
+        'pull_request' => [
+            'id' => 123,
+        ],
+    ], JSON_THROW_ON_ERROR);
+
+    $this->call(
+        'POST',
+        'test-github-webhook',
+        [],
+        [],
+        [],
+        [
+            'HTTP_X_HUB_SIGNATURE_256' => 'sha1=invalid_signature',
+            'HTTP_X_GITHUB_EVENT' => 'ping',
+            'HTTP_X_GITHUB_DELIVERY' => 'delivery_123',
+            'CONTENT_TYPE' => 'application/json',
+        ],
+        $payload
+    );
+
+    Event::assertDispatched(WebhookReceived::class);
+    Event::assertDispatched(WebhookRejected::class);
+    Event::assertDispatched(WebhookLogged::class);
+    Event::assertNotDispatched(WebhookValidated::class);
+});
+
+it('does not dispatch receive events for already processed webhook', function () {
+    Event::fake();
+
+    $payload = json_encode([
+        'action' => 'opened',
+        'pull_request' => [
+            'id' => 123,
+        ],
+    ], JSON_THROW_ON_ERROR);
+
+    $signature = githubSignature($payload, 'test_github_secret');
+
+    $this->call(
+        'POST',
+        'test-github-webhook',
+        [],
+        [],
+        [],
+        [
+            'HTTP_X_HUB_SIGNATURE_256' => $signature->value(),
+            'HTTP_X_GITHUB_EVENT' => 'ping',
+            'HTTP_X_GITHUB_DELIVERY' => 'delivery_123',
+            'CONTENT_TYPE' => 'application/json',
+        ],
+        $payload
+    );
+
+    $this->call(
+        'POST',
+        'test-github-webhook',
+        [],
+        [],
+        [],
+        [
+            'HTTP_X_HUB_SIGNATURE_256' => $signature->value(),
+            'HTTP_X_GITHUB_EVENT' => 'ping',
+            'HTTP_X_GITHUB_DELIVERY' => 'delivery_123',
+            'CONTENT_TYPE' => 'application/json',
+        ],
+        $payload
+    )->assertOk()
+        ->assertJson([
+            'status' => 'already_processed',
+        ]);
+
+    Event::assertNotDispatched(WebhookReceived::class);
+    Event::assertNotDispatched(WebhookValidated::class);
+    Event::assertNotDispatched(WebhookLogged::class);
 });

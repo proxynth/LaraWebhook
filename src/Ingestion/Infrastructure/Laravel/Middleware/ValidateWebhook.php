@@ -13,7 +13,7 @@ use Proxynth\Larawebhook\Ingestion\Application\UseCases\ReceiveWebhook;
 use Proxynth\Larawebhook\Ingestion\Domain\ValueObjects\Signature;
 use Proxynth\Larawebhook\Processing\Application\Ports\RetryPolicyResolver;
 use Proxynth\Larawebhook\Processing\Infrastructure\Laravel\Jobs\RetryWebhookJob;
-use Proxynth\Larawebhook\Shared\Application\EventBus;
+use Proxynth\Larawebhook\Shared\Application\Ports\EventBus;
 use Proxynth\Larawebhook\Shared\Domain\Enums\WebhookService;
 use Symfony\Component\HttpFoundation\Response;
 

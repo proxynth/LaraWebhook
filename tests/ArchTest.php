@@ -1,6 +1,8 @@
 <?php
 
 declare(strict_types=1);
+use Illuminate\Contracts\Events\Dispatcher;
+use Illuminate\Support\Facades\Event;
 
 arch('it will not use debugging functions')
     ->expect(['var_dump', 'dd', 'dump', 'ray'])
@@ -116,3 +118,13 @@ arch('application does not depend on infrastructure except documented migration 
 arch('application layer does not call config helper')
     ->expect('config')
     ->not->toBeUsedIn($pureApplications);
+
+arch('application use cases do not depend on laravel event dispatcher')
+    ->expect([
+        'Proxynth\Larawebhook\Ingestion\Application',
+        'Proxynth\Larawebhook\Processing\Application',
+        'Proxynth\Larawebhook\Audit\Application',
+    ])->not->toUse([
+        Dispatcher::class,
+        Event::class,
+    ]);

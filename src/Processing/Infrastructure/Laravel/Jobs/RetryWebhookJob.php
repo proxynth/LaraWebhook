@@ -13,6 +13,7 @@ use Proxynth\Larawebhook\Exceptions\WebhookException;
 use Proxynth\Larawebhook\Ingestion\Domain\ValueObjects\Signature;
 use Proxynth\Larawebhook\Processing\Application\Commands\RetryWebhookCommand;
 use Proxynth\Larawebhook\Processing\Application\UseCases\RetryWebhook;
+use Proxynth\Larawebhook\Shared\Application\Ports\EventBus;
 
 class RetryWebhookJob implements ShouldQueue
 {
@@ -42,7 +43,7 @@ class RetryWebhookJob implements ShouldQueue
      *
      * @throws WebhookException
      */
-    public function handle(RetryWebhook $retryWebhook): void
+    public function handle(RetryWebhook $retryWebhook, EventBus $eventBus): void
     {
         $result = $retryWebhook->handle(new RetryWebhookCommand(
             payload: $this->payload,
@@ -54,6 +55,8 @@ class RetryWebhookJob implements ShouldQueue
             externalId: $this->externalId,
             idempotencyKey: $this->idempotencyKey,
         ));
+
+        $eventBus->dispatchMany($result->events);
 
         if (! $result->shouldRetry) {
             return;

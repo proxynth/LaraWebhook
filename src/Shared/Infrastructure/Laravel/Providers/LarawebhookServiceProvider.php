@@ -47,8 +47,8 @@ use Proxynth\Larawebhook\Processing\Infrastructure\Deduplication\EloquentWebhook
 use Proxynth\Larawebhook\Processing\Infrastructure\Idempotency\DefaultIdempotencyResolver;
 use Proxynth\Larawebhook\Processing\Infrastructure\Persistence\EloquentProcessedWebhookRecorder;
 use Proxynth\Larawebhook\Processing\Infrastructure\Persistence\EloquentReplayableWebhookRepository;
-use Proxynth\Larawebhook\Shared\Application\EventBus;
 use Proxynth\Larawebhook\Shared\Application\Larawebhook;
+use Proxynth\Larawebhook\Shared\Application\Ports\EventBus;
 use Proxynth\Larawebhook\Shared\Infrastructure\Laravel\EventBus\LaravelEventBus;
 use Spatie\LaravelPackageTools\Package;
 use Spatie\LaravelPackageTools\PackageServiceProvider;
