@@ -127,12 +127,19 @@ final readonly class ReceiveWebhook
             $webhookEvent->markProcessed();
 
             if ($idempotencyKey !== null) {
-                $this->processedWebhookRecorder->recordProcessed(
+                $recordResult = $this->processedWebhookRecorder->recordProcessed(
                     service: $provider->value(),
                     idempotencyKey: $idempotencyKey->value(),
                     externalId: $externalId,
                     event: $validation->event,
                 );
+
+                if ($recordResult->alreadyRecorded) {
+                    return ReceiveWebhookResult::alreadyProcessed(
+                        externalId: $externalId,
+                        idempotencyKey: $idempotencyKey->value(),
+                    );
+                }
             }
 
             return ReceiveWebhookResult::success($log, [

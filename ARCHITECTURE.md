@@ -201,8 +201,23 @@ It may contain:
 Infrastructure may depend on Laravel and external libraries.
 
 Examples:
+```text
+src/Ingestion/Infrastructure/Laravel/Middleware/ValidateWebhook.php
+src/Audit/Infrastructure/Laravel/Http/Controllers/WebhookLogController.php
+src/Audit/Infrastructure/Laravel/Persistence/Models/WebhookLog.php
+src/Shared/Infrastructure/Laravel/Providers/LarawebhookServiceProvider.php
+```
 
-text src/Ingestion/Infrastructure/Laravel/Middleware/ValidateWebhook.php src/Audit/Infrastructure/Laravel/Http/Controllers/WebhookLogController.php src/Audit/Infrastructure/Laravel/Persistence/Models/WebhookLog.php src/Shared/Infrastructure/Laravel/Providers/LarawebhookServiceProvider.php
+
+### Concurrency
+
+`processed_webhook_events` owns a database unique constraint on `service + idempotency_key`.
+
+The application first checks duplicates through `WebhookDuplicateDetector`, then records successful processing through `ProcessedWebhookRecorder`.
+
+If two identical webhooks are received concurrently, both requests may pass the initial duplicate check. The database unique constraint remains the final guard.
+
+Duplicate insert collisions are converted into an `already_processed` result instead of surfacing as an infrastructure error.
 
 ## CQRS
 
