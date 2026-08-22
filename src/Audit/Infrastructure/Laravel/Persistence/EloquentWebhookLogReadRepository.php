@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Persistence;
 
-use Illuminate\Pagination\LengthAwarePaginator;
+use Proxynth\Larawebhook\Audit\Application\Data\WebhookLogPage;
 use Proxynth\Larawebhook\Audit\Application\Ports\WebhookLogReadRepository;
 use Proxynth\Larawebhook\Audit\Application\Queries\ListWebhookLogsQuery;
 use Proxynth\Larawebhook\Audit\Application\ReadModels\WebhookFailureDetails;
@@ -14,7 +14,7 @@ use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Persistence\Models\Webhook
 
 final class EloquentWebhookLogReadRepository implements WebhookLogReadRepository
 {
-    public function paginateSummaries(ListWebhookLogsQuery $query): LengthAwarePaginator
+    public function paginateSummaries(ListWebhookLogsQuery $query): WebhookLogPage
     {
         $logs = WebhookLog::query()
             ->when($query->service !== null, fn ($builder) => $builder->where('service', $query->service))
@@ -24,8 +24,22 @@ final class EloquentWebhookLogReadRepository implements WebhookLogReadRepository
             ->latest()
             ->paginate($query->perPage);
 
-        return $logs->through(
-            fn (WebhookLog $log): WebhookLogSummary => WebhookLogSummary::fromModel($log)
+        $factory = new WebhookLogReadModelFactory;
+
+        $mapped = $logs->through(fn (WebhookLog $log): WebhookLogSummary => $factory->summary($log));
+
+        return new WebhookLogPage(
+            items: array_values($mapped->items()),
+            total: $mapped->total(),
+            perPage: $mapped->perPage(),
+            currentPage: $mapped->currentPage(),
+            lastPage: $mapped->lastPage(),
+            links: [
+                'first' => $mapped->url(1),
+                'last' => $mapped->url($mapped->lastPage()),
+                'prev' => $mapped->previousPageUrl(),
+                'next' => $mapped->nextPageUrl(),
+            ],
         );
     }
 
@@ -33,7 +47,7 @@ final class EloquentWebhookLogReadRepository implements WebhookLogReadRepository
     {
         $log = WebhookLog::query()->findOrFail($id);
 
-        return WebhookLogDetails::fromModel($log);
+        return (new WebhookLogReadModelFactory)->details($log);
     }
 
     public function findFailureDetails(int|string $id): WebhookFailureDetails
@@ -43,6 +57,6 @@ final class EloquentWebhookLogReadRepository implements WebhookLogReadRepository
             ->where('status', 'failed')
             ->firstOrFail();
 
-        return WebhookFailureDetails::fromModel($log);
+        return (new WebhookLogReadModelFactory)->failureDetails($log);
     }
 }

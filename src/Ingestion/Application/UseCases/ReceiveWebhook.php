@@ -6,16 +6,13 @@ namespace Proxynth\Larawebhook\Ingestion\Application\UseCases;
 
 use Exception;
 use Proxynth\Larawebhook\Audit\Application\Commands\RecordWebhookLogCommand;
-use Proxynth\Larawebhook\Audit\Application\UseCases\RecordWebhookLog;
-use Proxynth\Larawebhook\Audit\Domain\Events\WebhookLogged;
 use Proxynth\Larawebhook\Ingestion\Application\Commands\ReceiveWebhookCommand;
 use Proxynth\Larawebhook\Ingestion\Application\Commands\ValidateWebhookCommand;
+use Proxynth\Larawebhook\Ingestion\Application\Ports\AuditLogRecorder;
 use Proxynth\Larawebhook\Ingestion\Application\Ports\WebhookPayloadParserResolver;
 use Proxynth\Larawebhook\Ingestion\Application\Ports\WebhookSecretResolver;
 use Proxynth\Larawebhook\Ingestion\Application\Results\ReceiveWebhookResult;
-use Proxynth\Larawebhook\Ingestion\Domain\Events\WebhookReceived;
-use Proxynth\Larawebhook\Ingestion\Domain\Events\WebhookRejected;
-use Proxynth\Larawebhook\Ingestion\Domain\Events\WebhookValidated;
+use Proxynth\Larawebhook\Ingestion\Application\Services\ReceiveWebhookEventFactory;
 use Proxynth\Larawebhook\Ingestion\Domain\ValueObjects\Provider;
 use Proxynth\Larawebhook\Ingestion\Domain\ValueObjects\RawPayload;
 use Proxynth\Larawebhook\Processing\Application\Ports\IdempotencyResolver;
@@ -26,7 +23,8 @@ use Proxynth\Larawebhook\Processing\Domain\Entities\WebhookEvent;
 use Proxynth\Larawebhook\Processing\Domain\ValueObjects\DeliveryAttempt;
 use Proxynth\Larawebhook\Processing\Domain\ValueObjects\EventType;
 use Proxynth\Larawebhook\Processing\Domain\ValueObjects\IdempotencyKey;
-use Proxynth\Larawebhook\Shared\Domain\Enums\WebhookService;
+use Proxynth\Larawebhook\Shared\Application\Ports\TransactionRunner;
+use Proxynth\Larawebhook\Shared\Domain\ValueObjects\WebhookServiceIdentifier;
 use Symfony\Component\HttpFoundation\Response;
 
 final readonly class ReceiveWebhook
@@ -39,7 +37,9 @@ final readonly class ReceiveWebhook
         private RetryConfigurationResolver $retryConfigurationResolver,
         private ProcessedWebhookRecorder $processedWebhookRecorder,
         private ValidateWebhook $validateWebhook,
-        private RecordWebhookLog $recordWebhookLog,
+        private AuditLogRecorder $recordWebhookLog,
+        private TransactionRunner $transactionRunner,
+        private ReceiveWebhookEventFactory $eventFactory,
     ) {}
 
     /**
@@ -47,7 +47,12 @@ final readonly class ReceiveWebhook
      */
     public function handle(ReceiveWebhookCommand $command): ReceiveWebhookResult
     {
-        $provider = Provider::fromString($command->service->value);
+        return $this->transactionRunner->run(fn (): ReceiveWebhookResult => $this->handleInTransaction($command));
+    }
+
+    private function handleInTransaction(ReceiveWebhookCommand $command): ReceiveWebhookResult
+    {
+        $provider = Provider::fromString($command->service->value());
         $rawPayload = RawPayload::fromString($command->payload);
         $decodedPayload = $rawPayload->decoded();
 
@@ -83,11 +88,7 @@ final readonly class ReceiveWebhook
             eventType: EventType::fromString($event),
             idempotencyKey: $idempotencyKey,
         );
-        $receivedEvent = new WebhookReceived(
-            provider: $provider->value(),
-            event: $event,
-            externalId: $externalId,
-        );
+        $receivedEvent = $this->eventFactory->received($provider->value(), $event, $externalId);
 
         $secret = $this->secretResolver->resolve($command->service);
 
@@ -107,24 +108,11 @@ final readonly class ReceiveWebhook
         if ($validation->isValid()) {
             $webhookEvent->markValidated();
             $webhookEvent->markProcessing();
-            $validatedEvent = new WebhookValidated(
-                provider: $validation->service,
-                event: $validation->event,
-                externalId: $validation->externalId,
+            $validatedEvent = $this->eventFactory->validated(
+                $validation->service,
+                $validation->event,
+                $validation->externalId,
             );
-
-            $log = $this->recordWebhookLog->handle(new RecordWebhookLogCommand(
-                service: $validation->service,
-                event: $validation->event,
-                valid: $validation->isValid(),
-                payload: $validation->payload,
-                attempt: DeliveryAttempt::initial()->value(),
-                externalId: $externalId,
-                idempotencyKey: $idempotencyKey?->value(),
-                errorMessage: $validation->errorMessage,
-            ));
-
-            $webhookEvent->markProcessed();
 
             if ($idempotencyKey !== null) {
                 $recordResult = $this->processedWebhookRecorder->recordProcessed(
@@ -142,29 +130,37 @@ final readonly class ReceiveWebhook
                 }
             }
 
+            $log = $this->recordWebhookLog->record(new RecordWebhookLogCommand(
+                service: $validation->service,
+                event: $validation->event,
+                valid: $validation->isValid(),
+                payload: $validation->payload,
+                attempt: DeliveryAttempt::initial()->value(),
+                externalId: $externalId,
+                idempotencyKey: $idempotencyKey?->value(),
+                errorMessage: $validation->errorMessage,
+            ));
+
+            $webhookEvent->markProcessed();
+
             return ReceiveWebhookResult::success($log, [
                 $receivedEvent,
                 $validatedEvent,
-                new WebhookLogged(
-                    webhookLogId: $log->id,
-                    provider: $log->service,
-                    event: $log->event,
-                    status: $log->status,
-                ),
+                $this->eventFactory->logged($log),
             ]);
         }
 
         $webhookEvent->markFailed(
             $validation->errorMessage ?? 'Webhook validation failed.'
         );
-        $rejectedEvent = new WebhookRejected(
-            provider: $validation->service,
-            event: $validation->event,
-            externalId: $validation->externalId,
-            reason: $validation->errorMessage ?? 'Webhook validation failed.',
+        $rejectedEvent = $this->eventFactory->rejected(
+            $validation->service,
+            $validation->event,
+            $validation->externalId,
+            $validation->errorMessage ?? 'Webhook validation failed.',
         );
 
-        $log = $this->recordWebhookLog->handle(new RecordWebhookLogCommand(
+        $log = $this->recordWebhookLog->record(new RecordWebhookLogCommand(
             service: $validation->service,
             event: $validation->event,
             valid: false,
@@ -179,39 +175,28 @@ final readonly class ReceiveWebhook
             return ReceiveWebhookResult::acceptedForRetry(
                 log: $log,
                 event: $event,
-                secret: $secret,
                 externalId: $externalId,
                 idempotencyKey: $idempotencyKey?->value(),
                 events: [
                     $receivedEvent,
                     $rejectedEvent,
-                    new WebhookLogged(
-                        webhookLogId: $log->id,
-                        provider: $log->service,
-                        event: $log->event,
-                        status: $log->status,
-                    ),
+                    $this->eventFactory->logged($log),
                 ],
             );
         }
 
         return ReceiveWebhookResult::failed(
             log: $log,
-            statusCode: $this->failureStatusCode($log->error_message),
+            statusCode: $this->failureStatusCode($log->errorMessage),
             events: [
                 $receivedEvent,
                 $rejectedEvent,
-                new WebhookLogged(
-                    webhookLogId: $log->id,
-                    provider: $log->service,
-                    event: $log->event,
-                    status: $log->status,
-                ),
+                $this->eventFactory->logged($log),
             ],
         );
     }
 
-    private function extractEventType(mixed $decodedPayload, WebhookService $service): string
+    private function extractEventType(mixed $decodedPayload, WebhookServiceIdentifier $service): string
     {
         if (! is_array($decodedPayload)) {
             return 'unknown';
@@ -224,7 +209,7 @@ final readonly class ReceiveWebhook
 
     private function extractExternalId(
         mixed $decodedPayload,
-        WebhookService $service,
+        WebhookServiceIdentifier $service,
         ?string $externalIdHeaderValue
     ): ?string {
         if (! is_array($decodedPayload)) {

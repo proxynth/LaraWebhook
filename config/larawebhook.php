@@ -6,37 +6,42 @@ return [
     | Custom Validators
     |--------------------------------------------------------------------------
     |
-    | Register custom webhook validators for additional services.
+    | Register custom signature validators for supported services.
+    | A custom validator replaces the built-in validator for its service.
     | Each validator must implement WebhookValidatorInterface.
     |
     | Example:
-    | 'twilio' => \App\Webhooks\TwilioValidator::class,
+    | 'stripe' => \App\Webhooks\CustomStripeValidator::class,
     |
     */
     'custom_validators' => [
         // Add your custom validators here
     ],
 
+    'custom_parsers' => [
+        // 'twilio' => \App\Webhooks\TwilioPayloadParser::class,
+    ],
+
     'services' => [
         'stripe' => [
             'public' => env('STRIPE_PUBLIC_KEY', 'stripe_public_key_test'),
-            'secret' => env('STRIPE_SECRET_KEY', 'stripe_secret_key_test'),
-            'webhook_secret' => env('STRIPE_WEBHOOK_SECRET', 'stripe_webhook_secret_key_test'),
+            'secret' => env('STRIPE_SECRET_KEY'),
+            'webhook_secret' => env('STRIPE_WEBHOOK_SECRET'),
             'tolerance' => 300,
         ],
 
         'github' => [
-            'webhook_secret' => env('GITHUB_WEBHOOK_SECRET', 'github_webhook_secret_key_test'),
+            'webhook_secret' => env('GITHUB_WEBHOOK_SECRET'),
             'tolerance' => 300,
         ],
 
         'slack' => [
-            'webhook_secret' => env('SLACK_WEBHOOK_SECRET', 'slack_webhook_secret_test'),
+            'webhook_secret' => env('SLACK_WEBHOOK_SECRET'),
             'tolerance' => env('SLACK_WEBHOOK_TOLERANCE', 300),
         ],
 
         'shopify' => [
-            'webhook_secret' => env('SHOPIFY_WEBHOOK_SECRET', 'shopify_webhook_secret_test'),
+            'webhook_secret' => env('SHOPIFY_WEBHOOK_SECRET'),
             'tolerance' => env('SHOPIFY_WEBHOOK_TOLERANCE', 300),
         ],
     ],

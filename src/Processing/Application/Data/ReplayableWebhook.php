@@ -9,7 +9,8 @@ use Proxynth\Larawebhook\Processing\Domain\Entities\WebhookEvent;
 use Proxynth\Larawebhook\Processing\Domain\ValueObjects\EventType;
 use Proxynth\Larawebhook\Processing\Domain\ValueObjects\IdempotencyKey;
 use Proxynth\Larawebhook\Processing\Domain\ValueObjects\WebhookStatus;
-use Proxynth\Larawebhook\Shared\Domain\Enums\WebhookService;
+use Proxynth\Larawebhook\Shared\Domain\ValueObjects\ConfiguredWebhookService;
+use Proxynth\Larawebhook\Shared\Domain\ValueObjects\WebhookServiceIdentifier;
 
 final readonly class ReplayableWebhook
 {
@@ -34,8 +35,8 @@ final readonly class ReplayableWebhook
         );
     }
 
-    public function service(): WebhookService
+    public function service(): WebhookServiceIdentifier
     {
-        return WebhookService::fromString($this->service);
+        return ConfiguredWebhookService::resolve($this->service);
     }
 }

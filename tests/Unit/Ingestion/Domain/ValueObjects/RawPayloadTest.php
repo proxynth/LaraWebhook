@@ -21,5 +21,12 @@ it('can decode json payload', function () {
 });
 
 it('returns an empty array when payload is not valid json object', function () {
-    expect(RawPayload::fromString('invalid')->decoded())->toBe(['raw' => 'invalid']);
+    $payload = RawPayload::fromString('invalid');
+
+    expect($payload->isValidJson())->toBeFalse()
+        ->and($payload->decoded())->toBe(['raw' => 'invalid']);
+});
+
+it('identifies valid json payloads', function () {
+    expect(RawPayload::fromString('{"event":"test"}')->isValidJson())->toBeTrue();
 });

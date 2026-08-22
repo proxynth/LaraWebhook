@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Proxynth\Larawebhook\Ingestion\Application\Ports;
 
-use Proxynth\Larawebhook\Shared\Domain\Enums\WebhookService;
+use Proxynth\Larawebhook\Shared\Domain\ValueObjects\WebhookServiceIdentifier;
 
 interface WebhookSecretResolver
 {
-    public function resolve(WebhookService $service): ?string;
+    public function resolve(WebhookServiceIdentifier $service): ?string;
 }

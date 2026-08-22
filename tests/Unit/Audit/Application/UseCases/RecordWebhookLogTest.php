@@ -3,9 +3,11 @@
 declare(strict_types=1);
 
 use Proxynth\Larawebhook\Audit\Application\Commands\RecordWebhookLogCommand;
+use Proxynth\Larawebhook\Audit\Application\Data\WebhookLogData;
 use Proxynth\Larawebhook\Audit\Application\Ports\WebhookAuditLogWriter;
 use Proxynth\Larawebhook\Audit\Application\UseCases\RecordWebhookLog;
 use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Persistence\Models\WebhookLog;
+use Proxynth\Larawebhook\Audit\Infrastructure\Logging\WebhookLogDataFactory;
 
 beforeEach(function () {
     app()->forgetInstance(WebhookAuditLogWriter::class);
@@ -17,11 +19,11 @@ it('delegates successful records to the audit writer', function () {
         /** @var list<RecordWebhookLogCommand> */
         public array $commands = [];
 
-        public function record(RecordWebhookLogCommand $command): WebhookLog
+        public function record(RecordWebhookLogCommand $command): WebhookLogData
         {
             $this->commands[] = $command;
 
-            return WebhookLog::make([
+            return WebhookLogDataFactory::fromModel(WebhookLog::make([
                 'service' => $command->service,
                 'event' => $command->event,
                 'status' => $command->valid ? 'success' : 'failed',
@@ -30,7 +32,7 @@ it('delegates successful records to the audit writer', function () {
                 'external_id' => $command->externalId,
                 'idempotency_key' => $command->idempotencyKey,
                 'error_message' => $command->errorMessage,
-            ]);
+            ]));
         }
     };
 
@@ -46,7 +48,7 @@ it('delegates successful records to the audit writer', function () {
         idempotencyKey: 'delivery_123',
     ));
 
-    expect($log)->toBeInstanceOf(WebhookLog::class)
+    expect($log)->toBeInstanceOf(WebhookLogData::class)
         ->and($log->status)->toBe('success')
         ->and($fakeWriter->commands)->toHaveCount(1)
         ->and($fakeWriter->commands[0]->service)->toBe('github')
@@ -59,11 +61,11 @@ it('delegates failed records to the audit writer', function () {
         /** @var list<RecordWebhookLogCommand> */
         public array $commands = [];
 
-        public function record(RecordWebhookLogCommand $command): WebhookLog
+        public function record(RecordWebhookLogCommand $command): WebhookLogData
         {
             $this->commands[] = $command;
 
-            return WebhookLog::make([
+            return WebhookLogDataFactory::fromModel(WebhookLog::make([
                 'service' => $command->service,
                 'event' => $command->event,
                 'status' => $command->valid ? 'success' : 'failed',
@@ -72,7 +74,7 @@ it('delegates failed records to the audit writer', function () {
                 'external_id' => $command->externalId,
                 'idempotency_key' => $command->idempotencyKey,
                 'error_message' => $command->errorMessage,
-            ]);
+            ]));
         }
     };
 
@@ -89,7 +91,7 @@ it('delegates failed records to the audit writer', function () {
         errorMessage: 'Invalid GitHub webhook signature.',
     ));
 
-    expect($log)->toBeInstanceOf(WebhookLog::class)
+    expect($log)->toBeInstanceOf(WebhookLogData::class)
         ->and($log->status)->toBe('failed')
         ->and($fakeWriter->commands)->toHaveCount(1)
         ->and($fakeWriter->commands[0]->valid)->toBeFalse()

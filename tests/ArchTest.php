@@ -22,9 +22,7 @@ $applications = [
     'Proxynth\Larawebhook\Shared\Application',
 ];
 
-$pureApplications = array_values(array_diff($applications, [
-    'Proxynth\Larawebhook\Shared\Application\Larawebhook',
-]));
+$pureApplications = $applications;
 
 $controllers = [
     'Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Http\Controllers',
@@ -33,18 +31,7 @@ $controllers = [
     'Proxynth\Larawebhook\Shared\Infrastructure\Laravel\Http\Controllers',
 ];
 
-$applicationInfrastructureExceptions = [
-    // Temporary migration exceptions while application read/write models still return Eloquent-backed logs.
-    'Proxynth\Larawebhook\Audit\Application\Ports\WebhookAuditLogWriter',
-    'Proxynth\Larawebhook\Audit\Application\ReadModels\WebhookFailureDetails',
-    'Proxynth\Larawebhook\Audit\Application\ReadModels\WebhookLogDetails',
-    'Proxynth\Larawebhook\Audit\Application\ReadModels\WebhookLogSummary',
-    'Proxynth\Larawebhook\Audit\Application\UseCases\RecordWebhookLog',
-    'Proxynth\Larawebhook\Ingestion\Application\Results\ReceiveWebhookResult',
-    'Proxynth\Larawebhook\Processing\Application\Results\ReplayWebhookResult',
-    'Proxynth\Larawebhook\Processing\Application\Results\RetryWebhookResult',
-    'Proxynth\Larawebhook\Shared\Application\Larawebhook',
-];
+$applicationInfrastructureExceptions = [];
 
 arch('domain does not depend on illuminate')
     ->expect($domains)

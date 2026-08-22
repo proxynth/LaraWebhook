@@ -17,7 +17,9 @@ use Proxynth\Larawebhook\Ingestion\Application\Ports\SignatureValidator;
 use Proxynth\Larawebhook\Ingestion\Application\Ports\WebhookServiceMetadataResolver;
 use Proxynth\Larawebhook\Processing\Application\Ports\ReplayableWebhookRepository;
 use Proxynth\Larawebhook\Processing\Application\UseCases\RetryWebhook;
+use Proxynth\Larawebhook\Shared\Application\Ports\Delay;
 use Proxynth\Larawebhook\Shared\Application\Ports\EventBus;
+use Proxynth\Larawebhook\Shared\Application\Ports\TransactionRunner;
 use Proxynth\Larawebhook\Shared\Infrastructure\Laravel\EventBus\LaravelEventBus;
 use Proxynth\Larawebhook\Shared\Infrastructure\Laravel\Providers\LarawebhookServiceProvider;
 
@@ -28,6 +30,11 @@ describe('LarawebhookServiceProvider service registration', function () {
 
         expect($instance1)->toBeInstanceOf(FailureDetector::class)
             ->and($instance1)->toBe($instance2);
+    });
+
+    it('registers infrastructure boundaries for delay and transactions', function () {
+        expect(app(Delay::class))->toBeInstanceOf(Delay::class)
+            ->and(app(TransactionRunner::class))->toBeInstanceOf(TransactionRunner::class);
     });
 
     it('registers NotificationSender as singleton', function () {

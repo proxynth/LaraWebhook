@@ -18,6 +18,8 @@ use Proxynth\Larawebhook\Tests\Fakes\Processing\FakeRetryPolicyResolver;
 
 beforeEach(function () {
     config()->set('larawebhook.retries.enabled', true);
+    config()->set('larawebhook.services.github.webhook_secret', 'github_secret_key');
+    config()->set('larawebhook.services.stripe.webhook_secret', 'secret');
     app()->instance(
         RetryPolicyResolver::class,
         new FakeRetryPolicyResolver(new RetryPolicy(
@@ -34,7 +36,6 @@ describe('RetryWebhookJob structure', function () {
             signature: incomingSignature('test_signature'),
             service: 'stripe',
             event: 'payment.succeeded',
-            secret: 'secret',
             attempt: 2,
             externalId: 'delivery_123',
             idempotencyKey: 'dedupe_123',
@@ -47,6 +48,8 @@ describe('RetryWebhookJob structure', function () {
             ->and($job->attempt())->toBe(2)
             ->and($job->externalId())->toBe('delivery_123')
             ->and($job->idempotencyKey())->toBe('dedupe_123');
+
+        expect(serialize($job))->not->toContain('secret');
     });
 
     it('keeps the unique id stable for the same payload', function () {
@@ -55,7 +58,6 @@ describe('RetryWebhookJob structure', function () {
             signature: incomingSignature('test_signature'),
             service: 'stripe',
             event: 'payment.succeeded',
-            secret: 'secret',
         );
 
         $job2 = new RetryWebhookJob(
@@ -63,7 +65,6 @@ describe('RetryWebhookJob structure', function () {
             signature: incomingSignature('test_signature'),
             service: 'stripe',
             event: 'payment.succeeded',
-            secret: 'secret',
         );
 
         expect($job1->uniqueId())->toBe($job2->uniqueId());
@@ -83,7 +84,6 @@ describe('RetryWebhookJob dispatching', function () {
             signature: $signature,
             service: 'github',
             event: 'push',
-            secret: $secret,
             attempt: 0,
             externalId: 'delivery_123',
             idempotencyKey: 'delivery_123',
@@ -102,7 +102,6 @@ describe('RetryWebhookJob dispatching', function () {
             signature: incomingSignature('sha256=invalid'),
             service: 'github',
             event: 'push',
-            secret: 'github_secret_key',
             attempt: 0,
             externalId: 'delivery_123',
             idempotencyKey: 'delivery_123',
@@ -134,7 +133,6 @@ describe('RetryWebhookJob dispatching', function () {
             signature: incomingSignature('sha256=invalid'),
             service: 'github',
             event: 'push',
-            secret: 'github_secret_key',
             attempt: 0,
             externalId: 'delivery_123',
             idempotencyKey: 'delivery_123',
@@ -159,7 +157,6 @@ it('dispatches domain events produced by retry webhook', function () {
         signature: Signature::fromString('sha256=invalid'),
         service: 'github',
         event: 'opened',
-        secret: 'github_secret',
         attempt: 1,
         externalId: 'delivery_123',
         idempotencyKey: 'delivery_123',

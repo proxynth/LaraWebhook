@@ -21,7 +21,7 @@ use Proxynth\Larawebhook\Ingestion\Domain\ValueObjects\Signature;
 use Proxynth\Larawebhook\Processing\Application\Commands\ReplayWebhookCommand;
 use Proxynth\Larawebhook\Processing\Application\UseCases\ReplayWebhook;
 use Proxynth\Larawebhook\Shared\Application\Ports\EventBus;
-use Proxynth\Larawebhook\Shared\Domain\Enums\WebhookService;
+use Proxynth\Larawebhook\Shared\Domain\ValueObjects\ConfiguredWebhookService;
 use RuntimeException;
 use Throwable;
 
@@ -46,19 +46,14 @@ class WebhookLogController extends Controller
         ));
 
         return response()->json([
-            'data' => WebhookLogResource::collection($logs),
+            'data' => WebhookLogResource::collection($logs->items),
             'meta' => [
-                'total' => $logs->total(),
-                'per_page' => $logs->perPage(),
-                'current_page' => $logs->currentPage(),
-                'last_page' => $logs->lastPage(),
+                'total' => $logs->total,
+                'per_page' => $logs->perPage,
+                'current_page' => $logs->currentPage,
+                'last_page' => $logs->lastPage,
             ],
-            'links' => [
-                'first' => $logs->url(1),
-                'last' => $logs->url($logs->lastPage()),
-                'prev' => $logs->previousPageUrl(),
-                'next' => $logs->nextPageUrl(),
-            ],
+            'links' => $logs->links,
         ]);
     }
 
@@ -121,7 +116,7 @@ class WebhookLogController extends Controller
         // For now, we'll regenerate the signature for replay purposes
         // In a real implementation, you'd store the original signature
         $payload = json_encode($log->payload);
-        $secret = $this->secretResolver->resolve(WebhookService::fromString($log->service));
+        $secret = $this->secretResolver->resolve(ConfiguredWebhookService::resolve($log->service));
 
         if ($secret === null) {
             throw new RuntimeException('No secret configured for service: '.$log->service);

@@ -14,7 +14,8 @@ use Proxynth\Larawebhook\Ingestion\Domain\ValueObjects\Signature;
 use Proxynth\Larawebhook\Processing\Application\Ports\RetryPolicyResolver;
 use Proxynth\Larawebhook\Processing\Infrastructure\Laravel\Jobs\RetryWebhookJob;
 use Proxynth\Larawebhook\Shared\Application\Ports\EventBus;
-use Proxynth\Larawebhook\Shared\Domain\Enums\WebhookService;
+use Proxynth\Larawebhook\Shared\Domain\ValueObjects\ConfiguredWebhookService;
+use Proxynth\Larawebhook\Shared\Domain\ValueObjects\WebhookServiceIdentifier;
 use Symfony\Component\HttpFoundation\Response;
 
 class ValidateWebhook
@@ -35,9 +36,9 @@ class ValidateWebhook
      */
     public function handle(Request $request, Closure $next, string $service): Response
     {
-        $webhookService = WebhookService::tryFromString($service);
+        $webhookService = ConfiguredWebhookService::resolve($service);
 
-        if ($webhookService === null) {
+        if (! array_key_exists($service, (array) config('larawebhook.services', []))) {
             return response()
                 ->json("Service '{$service}' is not supported.", Response::HTTP_BAD_REQUEST);
         }
@@ -110,9 +111,8 @@ class ValidateWebhook
             $this->dispatchRetryJob(
                 payload: $payload,
                 signature: $signature,
-                service: $webhookService->value,
+                service: $webhookService->value(),
                 event: $result->event ?? 'unknown',
-                secret: $result->secret ?? '',
                 externalId: $result->externalId,
                 idempotencyKey: $result->idempotencyKey
             );
@@ -136,7 +136,7 @@ class ValidateWebhook
         return $next($request);
     }
 
-    private function externalIdHeaderValue(Request $request, WebhookService $webhookService): ?string
+    private function externalIdHeaderValue(Request $request, WebhookServiceIdentifier $webhookService): ?string
     {
         $externalIdHeader = $this->metadataResolver->externalIdHeader($webhookService);
 
@@ -154,7 +154,6 @@ class ValidateWebhook
         Signature $signature,
         string $service,
         string $event,
-        string $secret,
         ?string $externalId,
         ?string $idempotencyKey
     ): void {
@@ -167,7 +166,6 @@ class ValidateWebhook
             $signature,
             $service,
             $event,
-            $secret,
             1,
             $externalId,
             $idempotencyKey

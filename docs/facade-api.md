@@ -31,6 +31,10 @@ For new code, prefer the high-level helpers:
 
 They are deprecated for new code.
 
+Plan their removal when upgrading to the next major version. Existing calls remain
+supported in the current major version; migrate them to `validateAndLog()` or the
+`RecordWebhookLog` use case before upgrading.
+
 Prefer:
 
 - `validateAndLog()` when validating and recording a webhook;

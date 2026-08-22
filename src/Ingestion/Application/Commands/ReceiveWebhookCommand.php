@@ -6,12 +6,12 @@ namespace Proxynth\Larawebhook\Ingestion\Application\Commands;
 
 use Proxynth\Larawebhook\Ingestion\Domain\ValueObjects\Signature;
 use Proxynth\Larawebhook\Shared\Application\Commands\Command;
-use Proxynth\Larawebhook\Shared\Domain\Enums\WebhookService;
+use Proxynth\Larawebhook\Shared\Domain\ValueObjects\WebhookServiceIdentifier;
 
 final readonly class ReceiveWebhookCommand implements Command
 {
     public function __construct(
-        public WebhookService $service,
+        public WebhookServiceIdentifier $service,
         public string $payload,
         public Signature $signature,
         public ?string $externalIdHeaderValue = null,

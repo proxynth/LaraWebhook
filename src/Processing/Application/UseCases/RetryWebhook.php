@@ -5,16 +5,17 @@ declare(strict_types=1);
 namespace Proxynth\Larawebhook\Processing\Application\UseCases;
 
 use Proxynth\Larawebhook\Audit\Application\Commands\RecordWebhookLogCommand;
-use Proxynth\Larawebhook\Audit\Application\UseCases\RecordWebhookLog;
 use Proxynth\Larawebhook\Audit\Domain\Events\WebhookLogged;
 use Proxynth\Larawebhook\Exceptions\WebhookException;
 use Proxynth\Larawebhook\Ingestion\Application\Commands\ValidateWebhookCommand;
+use Proxynth\Larawebhook\Ingestion\Application\Ports\WebhookSecretResolver;
 use Proxynth\Larawebhook\Ingestion\Application\Results\ValidateWebhookResult;
 use Proxynth\Larawebhook\Ingestion\Application\UseCases\ValidateWebhook;
 use Proxynth\Larawebhook\Ingestion\Domain\ValueObjects\Provider;
 use Proxynth\Larawebhook\Ingestion\Domain\ValueObjects\RawPayload;
 use Proxynth\Larawebhook\Processing\Application\Commands\RetryWebhookCommand;
 use Proxynth\Larawebhook\Processing\Application\Data\RetryPolicy;
+use Proxynth\Larawebhook\Processing\Application\Ports\AuditLogRecorder;
 use Proxynth\Larawebhook\Processing\Application\Ports\RetryPolicyResolver;
 use Proxynth\Larawebhook\Processing\Application\Results\RetryWebhookResult;
 use Proxynth\Larawebhook\Processing\Domain\Entities\WebhookEvent;
@@ -22,13 +23,15 @@ use Proxynth\Larawebhook\Processing\Domain\Events\WebhookProcessingFailed;
 use Proxynth\Larawebhook\Processing\Domain\ValueObjects\EventType;
 use Proxynth\Larawebhook\Processing\Domain\ValueObjects\IdempotencyKey;
 use Proxynth\Larawebhook\Shared\Domain\Enums\WebhookService;
+use Proxynth\Larawebhook\Shared\Domain\ValueObjects\ConfiguredWebhookService;
 
 final readonly class RetryWebhook
 {
     public function __construct(
         private ValidateWebhook $validateWebhook,
-        private RecordWebhookLog $recordWebhookLog,
+        private AuditLogRecorder $recordWebhookLog,
         private RetryPolicyResolver $retryPolicyResolver,
+        private WebhookSecretResolver $secretResolver,
     ) {}
 
     /**
@@ -36,14 +39,19 @@ final readonly class RetryWebhook
      */
     public function handle(RetryWebhookCommand $command): RetryWebhookResult
     {
-        $webhookService = WebhookService::tryFromString($command->service);
-
-        if ($webhookService === null) {
-            throw new WebhookException("Webhook service '{$command->service}' is not supported.");
-        }
+        $webhookService = ConfiguredWebhookService::resolve($command->service);
 
         $rawPayload = RawPayload::fromString($command->payload);
         $retryPolicy = $this->retryPolicyResolver->resolve();
+        $secret = $this->secretResolver->resolve($webhookService);
+
+        if ($secret === null) {
+            if (! $webhookService instanceof WebhookService) {
+                throw new WebhookException("Webhook service '{$command->service}' is not supported.");
+            }
+
+            throw new WebhookException("No secret configured for service: {$webhookService->value()}.");
+        }
 
         $validation = $this->validateWebhook->handle(new ValidateWebhookCommand(
             service: $webhookService,
@@ -51,7 +59,7 @@ final readonly class RetryWebhook
             signature: $command->signature,
             event: $command->event,
             externalId: $command->externalId,
-            secret: $command->secret,
+            secret: $secret,
         ));
 
         $webhookEvent = $this->createWebhookEvent(
@@ -59,17 +67,6 @@ final readonly class RetryWebhook
             event: $validation->event,
             idempotencyKey: $command->idempotencyKey,
         );
-
-        $this->recordWebhookLog->handle(new RecordWebhookLogCommand(
-            service: $validation->service,
-            event: $validation->event,
-            valid: $validation->isValid(),
-            payload: $validation->payload,
-            attempt: $command->attempt,
-            externalId: null,
-            idempotencyKey: null,
-            errorMessage: $validation->errorMessage,
-        ));
 
         if ($validation->isValid()) {
             return $this->handleValidRetry(
@@ -107,7 +104,7 @@ final readonly class RetryWebhook
         $webhookEvent->markValidated();
         $webhookEvent->markProcessing();
 
-        $log = $this->recordWebhookLog->handle(new RecordWebhookLogCommand(
+        $log = $this->recordWebhookLog->record(new RecordWebhookLogCommand(
             service: $validation->service,
             event: $validation->event,
             valid: true,
@@ -143,7 +140,7 @@ final readonly class RetryWebhook
 
         $webhookEvent->markFailed($reason);
 
-        $log = $this->recordWebhookLog->handle(new RecordWebhookLogCommand(
+        $log = $this->recordWebhookLog->record(new RecordWebhookLogCommand(
             service: $validation->service,
             event: $validation->event,
             valid: false,
