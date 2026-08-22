@@ -10,20 +10,22 @@ on:
 jobs:
   tests:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php-version: ['8.3', '8.4']
     steps:
       - uses: actions/checkout@v7
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.3'
+          php-version: ${{ matrix.php-version }}
           extensions: mbstring, ctype, json, dom
           coverage: pcov
       - name: Install dependencies
         run: composer install --prefer-dist --no-progress
-      - name: Run PHPUnit
-        run: vendor/bin/pest --coverage-text --ci
       - name: Run tests with coverage
-        run: vendor/bin/pest --coverage-text --coverage-clover=coverage.xml --ci
+        run: composer test -- --coverage-text --coverage-clover=coverage.xml --ci
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v7
         with:

@@ -16,6 +16,7 @@ use Proxynth\Larawebhook\Shared\Domain\Enums\WebhookService;
 use Proxynth\Larawebhook\Tests\Fakes\Processing\FakeRetryPolicyResolver;
 
 beforeEach(function () {
+    config()->set('larawebhook.services.github.webhook_secret', 'github_secret');
     app()->instance(
         RetryPolicyResolver::class,
         new FakeRetryPolicyResolver(new RetryPolicy(
@@ -35,7 +36,6 @@ it('records a successful retry and stops retrying', function () {
         signature: $signature,
         service: WebhookService::Github->value,
         event: 'pull_request.opened',
-        secret: $secret,
         attempt: 0,
         externalId: 'delivery_123',
         idempotencyKey: 'dedupe_123',
@@ -58,6 +58,8 @@ it('records a successful retry and stops retrying', function () {
         ->and($log->external_id)->toBeNull()
         ->and($log->idempotency_key)->toBeNull()
         ->and($log->error_message)->toBeNull();
+
+    expect(WebhookLog::count())->toBe(1);
 });
 
 it('records a failed retry and schedules the next attempt when attempts remain', function () {
@@ -69,7 +71,6 @@ it('records a failed retry and schedules the next attempt when attempts remain',
         signature: incomingSignature('sha256=invalid'),
         service: WebhookService::Github->value,
         event: 'pull_request.opened',
-        secret: $secret,
         attempt: 0,
         externalId: 'delivery_123',
         idempotencyKey: 'dedupe_123',
@@ -90,6 +91,8 @@ it('records a failed retry and schedules the next attempt when attempts remain',
         ->and($log->attempt)->toBe(0)
         ->and($log->external_id)->toBeNull()
         ->and($log->idempotency_key)->toBeNull();
+
+    expect(WebhookLog::count())->toBe(1);
 });
 
 it('records a failed retry and stops retrying at the max attempt', function () {
@@ -106,7 +109,6 @@ it('records a failed retry and stops retrying at the max attempt', function () {
         signature: incomingSignature('sha256=invalid'),
         service: WebhookService::Github->value,
         event: 'pull_request.opened',
-        secret: 'github_secret',
         attempt: 0,
         externalId: 'delivery_123',
         idempotencyKey: 'dedupe_123',
@@ -124,7 +126,6 @@ it('throws when the service is unsupported', function () {
         signature: incomingSignature('sha256=invalid'),
         service: 'unsupported',
         event: 'pull_request.opened',
-        secret: 'github_secret',
     ));
 })->throws(WebhookException::class, "Webhook service 'unsupported' is not supported.");
 
@@ -142,7 +143,6 @@ it('uses retry policy delay for the current attempt', function () {
         signature: incomingSignature('sha256=invalid'),
         service: WebhookService::Github->value,
         event: 'pull_request.opened',
-        secret: 'github_secret',
         attempt: 1,
         externalId: 'delivery_123',
         idempotencyKey: 'dedupe_123',
@@ -160,7 +160,6 @@ it('records a successful retry through webhook event transitions', function () {
         signature: incomingSignature(githubSignature('{"action":"opened"}')->value()),
         service: WebhookService::Github->value,
         event: 'opened',
-        secret: 'github_secret',
         attempt: 1,
         externalId: 'delivery_123',
         idempotencyKey: 'delivery_123',
@@ -184,7 +183,6 @@ it('records a failed retry through webhook event transitions', function () {
         signature: Signature::fromString('sha256=invalid'),
         service: WebhookService::Github->value,
         event: 'opened',
-        secret: 'github_secret',
         attempt: 1,
         externalId: 'delivery_123',
         idempotencyKey: 'delivery_123',
@@ -208,7 +206,6 @@ it('requires idempotency key to mark a retry as processed', function () {
         signature: githubSignature('{"action":"opened"}'),
         service: WebhookService::Github->value,
         event: 'opened',
-        secret: 'github_secret',
         attempt: 1,
         externalId: 'delivery_123',
         idempotencyKey: null,

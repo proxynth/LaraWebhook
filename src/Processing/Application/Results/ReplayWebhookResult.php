@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Proxynth\Larawebhook\Processing\Application\Results;
 
+use Proxynth\Larawebhook\Audit\Application\Data\WebhookLogData;
 use Proxynth\Larawebhook\Audit\Application\ReadModels\WebhookLogSummary;
 use Proxynth\Larawebhook\Shared\Application\Results\Result;
 use Proxynth\Larawebhook\Shared\Domain\Events\DomainEvent;
@@ -23,5 +24,26 @@ final readonly class ReplayWebhookResult implements Result
         array $events = [],
     ): self {
         return new self($log, $errorMessage, $events);
+    }
+
+    public static function fromData(
+        WebhookLogData $log,
+        ?string $errorMessage = null,
+        array $events = [],
+    ): self {
+        return new self(
+            new WebhookLogSummary(
+                id: $log->id,
+                service: $log->service,
+                event: $log->event,
+                status: $log->status,
+                attempt: $log->attempt,
+                externalId: $log->externalId,
+                idempotencyKey: $log->idempotencyKey,
+                createdAt: $log->createdAt,
+            ),
+            $errorMessage,
+            $events,
+        );
     }
 }

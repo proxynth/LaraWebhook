@@ -8,6 +8,7 @@ use Proxynth\Larawebhook\Ingestion\Application\UseCases\ValidateWebhook;
 use Proxynth\Larawebhook\Ingestion\Domain\ValueObjects\RawPayload;
 use Proxynth\Larawebhook\Ingestion\Domain\ValueObjects\Signature;
 use Proxynth\Larawebhook\Shared\Domain\Enums\WebhookService;
+use Proxynth\Larawebhook\Shared\Domain\ValueObjects\WebhookServiceIdentifier;
 
 beforeEach(function () {
     app()->forgetInstance(SignatureValidator::class);
@@ -19,7 +20,7 @@ it('returns a valid result for a valid github webhook', function () {
         public array $calls = [];
 
         public function validate(
-            WebhookService $service,
+            WebhookServiceIdentifier $service,
             RawPayload $payload,
             Signature $signature,
             string $secret,
@@ -62,7 +63,7 @@ it('returns an invalid result for an invalid github signature', function () {
     $fakeValidator = new class implements SignatureValidator
     {
         public function validate(
-            WebhookService $service,
+            WebhookServiceIdentifier $service,
             RawPayload $payload,
             Signature $signature,
             string $secret,
@@ -97,7 +98,7 @@ it('uses the explicit command secret instead of service config', function () {
         public ?string $capturedSecret = null;
 
         public function validate(
-            WebhookService $service,
+            WebhookServiceIdentifier $service,
             RawPayload $payload,
             Signature $signature,
             string $secret,

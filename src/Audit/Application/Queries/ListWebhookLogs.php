@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Proxynth\Larawebhook\Audit\Application\Queries;
 
-use Illuminate\Pagination\LengthAwarePaginator;
+use Proxynth\Larawebhook\Audit\Application\Data\WebhookLogPage;
 use Proxynth\Larawebhook\Audit\Application\Ports\WebhookLogReadRepository;
 
 final readonly class ListWebhookLogs
@@ -13,7 +13,7 @@ final readonly class ListWebhookLogs
         private WebhookLogReadRepository $readRepository,
     ) {}
 
-    public function handle(ListWebhookLogsQuery $query): LengthAwarePaginator
+    public function handle(ListWebhookLogsQuery $query): WebhookLogPage
     {
         return $this->readRepository->paginateSummaries($query);
     }

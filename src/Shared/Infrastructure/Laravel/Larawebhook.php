@@ -2,13 +2,12 @@
 
 declare(strict_types=1);
 
-namespace Proxynth\Larawebhook\Shared\Application;
+namespace Proxynth\Larawebhook\Shared\Infrastructure\Laravel;
 
 use Illuminate\Database\Eloquent\Collection;
 use Proxynth\Larawebhook\Audit\Application\Commands\RecordWebhookLogCommand;
+use Proxynth\Larawebhook\Audit\Application\Data\WebhookLogData;
 use Proxynth\Larawebhook\Audit\Application\UseCases\RecordWebhookLog;
-use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Notifications\FailureDetector;
-use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Notifications\NotificationSender;
 use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Persistence\Models\WebhookLog;
 use Proxynth\Larawebhook\Exceptions\InvalidSignatureException;
 use Proxynth\Larawebhook\Exceptions\WebhookException;
@@ -20,7 +19,12 @@ use Proxynth\Larawebhook\Ingestion\Domain\ValueObjects\RawPayload;
 use Proxynth\Larawebhook\Ingestion\Domain\ValueObjects\Signature;
 use Proxynth\Larawebhook\Processing\Application\Ports\RetryPolicyResolver;
 use Proxynth\Larawebhook\Processing\Domain\ValueObjects\DeliveryAttempt;
+use Proxynth\Larawebhook\Shared\Application\Ports\Delay;
 use Proxynth\Larawebhook\Shared\Domain\Enums\WebhookService;
+use Proxynth\Larawebhook\Shared\Domain\ValueObjects\ConfiguredWebhookService;
+use Proxynth\Larawebhook\Shared\Domain\ValueObjects\WebhookServiceIdentifier;
+use Proxynth\Larawebhook\Shared\Infrastructure\Laravel\Notifications\WebhookNotificationGateway;
+use Proxynth\Larawebhook\Shared\Infrastructure\Laravel\Queries\WebhookLogQueries;
 
 /**
  * Laravel-friendly public API for LaraWebhook.
@@ -34,6 +38,8 @@ use Proxynth\Larawebhook\Shared\Domain\Enums\WebhookService;
  */
 class Larawebhook
 {
+    public function __construct(private readonly ?Delay $delay = null) {}
+
     private ?ValidateWebhook $validateWebhook = null;
 
     private ?RecordWebhookLog $recordWebhookLog = null;
@@ -42,9 +48,9 @@ class Larawebhook
 
     private ?WebhookPayloadParserResolver $payloadParserResolver = null;
 
-    private ?NotificationSender $notificationSender = null;
+    private ?WebhookNotificationGateway $notificationGateway = null;
 
-    private ?FailureDetector $failureDetector = null;
+    private ?WebhookLogQueries $logQueries = null;
 
     private ?RetryPolicyResolver $retryPolicyResolver = null;
 
@@ -54,7 +60,7 @@ class Larawebhook
      * @throws InvalidSignatureException
      * @throws WebhookException
      */
-    public function validate(string $payload, Signature $signature, string|WebhookService $service): bool
+    public function validate(string $payload, Signature $signature, string|WebhookServiceIdentifier $service): bool
     {
         $webhookService = $this->resolveService($service);
         $rawPayload = RawPayload::fromString($payload);
@@ -62,7 +68,7 @@ class Larawebhook
         $secret = $this->getSecret($webhookService);
 
         if ($secret === null || $secret === '') {
-            throw new WebhookException("No secret configured for service: {$webhookService->value}");
+            throw new WebhookException("No secret configured for service: {$webhookService->value()}.");
         }
 
         $result = $this->getValidateWebhook()->handle(new ValidateWebhookCommand(
@@ -89,7 +95,7 @@ class Larawebhook
     public function validateAndLog(
         string $payload,
         Signature $signature,
-        string|WebhookService $service,
+        string|WebhookServiceIdentifier $service,
         string $event
     ): WebhookLog {
         return $this->validateAndRecord(
@@ -113,7 +119,7 @@ class Larawebhook
     public function validateWithRetries(
         string $payload,
         Signature $signature,
-        string|WebhookService $service,
+        string|WebhookServiceIdentifier $service,
         string $event
     ): WebhookLog {
         $webhookService = $this->resolveService($service);
@@ -145,9 +151,7 @@ class Larawebhook
             if ($retryPolicy->shouldRetryAfter($attempt)) {
                 $delay = $retryPolicy->delayForAttempt($attempt) ?? 0;
 
-                if ($delay > 0) {
-                    sleep($delay);
-                }
+                $this->delay()->seconds($delay);
             }
         }
 
@@ -168,7 +172,7 @@ class Larawebhook
         int $attempt = 0,
         ?string $idempotencyKey = null
     ): WebhookLog {
-        return $this->getRecordWebhookLog()->handle(new RecordWebhookLogCommand(
+        $recorded = $this->getRecordWebhookLog()->handle(new RecordWebhookLogCommand(
             service: $service,
             event: $event,
             valid: true,
@@ -178,6 +182,8 @@ class Larawebhook
             idempotencyKey: $idempotencyKey,
             errorMessage: null,
         ));
+
+        return $this->toWebhookLog($recorded);
     }
 
     /**
@@ -193,7 +199,7 @@ class Larawebhook
         int $attempt = 0,
         ?string $idempotencyKey = null
     ): WebhookLog {
-        return $this->getRecordWebhookLog()->handle(new RecordWebhookLogCommand(
+        $recorded = $this->getRecordWebhookLog()->handle(new RecordWebhookLogCommand(
             service: $service,
             event: $event,
             valid: false,
@@ -203,6 +209,8 @@ class Larawebhook
             idempotencyKey: $idempotencyKey,
             errorMessage: $errorMessage,
         ));
+
+        return $this->toWebhookLog($recorded);
     }
 
     /**
@@ -212,7 +220,7 @@ class Larawebhook
      */
     public function logs(): Collection
     {
-        return WebhookLog::latest()->get();
+        return $this->getLogQueries()->all();
     }
 
     /**
@@ -222,11 +230,11 @@ class Larawebhook
      *
      * @throws WebhookException
      */
-    public function logsForService(string|WebhookService $service): Collection
+    public function logsForService(string|WebhookServiceIdentifier $service): Collection
     {
         $service = $this->resolveService($service);
 
-        return WebhookLog::service($service->value)->latest()->get();
+        return $this->getLogQueries()->forService($service->value());
     }
 
     /**
@@ -236,7 +244,7 @@ class Larawebhook
      */
     public function failedLogs(): Collection
     {
-        return WebhookLog::failed()->latest()->get();
+        return $this->getLogQueries()->failed();
     }
 
     /**
@@ -246,7 +254,7 @@ class Larawebhook
      */
     public function successfulLogs(): Collection
     {
-        return WebhookLog::successful()->latest()->get();
+        return $this->getLogQueries()->successful();
     }
 
     /**
@@ -254,7 +262,7 @@ class Larawebhook
      */
     public function getFailureCount(string $service, string $event): int
     {
-        return $this->getFailureDetector()->countRecentFailures($service, $event);
+        return $this->getNotificationGateway()->failureCount($service, $event);
     }
 
     /**
@@ -262,7 +270,7 @@ class Larawebhook
      */
     public function canSendNotification(string $service, string $event): bool
     {
-        return $this->getFailureDetector()->canSendNotification($service, $event);
+        return $this->getNotificationGateway()->canSend($service, $event);
     }
 
     /**
@@ -270,7 +278,7 @@ class Larawebhook
      */
     public function sendNotificationIfNeeded(string $service, string $event): bool
     {
-        return $this->getNotificationSender()->sendIfNeeded($service, $event);
+        return $this->getNotificationGateway()->sendIfNeeded($service, $event);
     }
 
     /**
@@ -278,7 +286,7 @@ class Larawebhook
      */
     public function notificationsEnabled(): bool
     {
-        return $this->getNotificationSender()->isEnabled();
+        return $this->getNotificationGateway()->enabled();
     }
 
     /**
@@ -288,7 +296,7 @@ class Larawebhook
      */
     public function getNotificationChannels(): array
     {
-        return $this->getNotificationSender()->getChannels();
+        return $this->getNotificationGateway()->channels();
     }
 
     /**
@@ -296,21 +304,15 @@ class Larawebhook
      */
     public function clearCooldown(string $service, string $event): void
     {
-        $this->getFailureDetector()->clearCooldown($service, $event);
+        $this->getNotificationGateway()->clearCooldown($service, $event);
     }
 
     /**
      * Get the secret for a service from config.
      */
-    public function getSecret(string|WebhookService $service): ?string
+    public function getSecret(string|WebhookServiceIdentifier $service): ?string
     {
-        $webhookService = $service instanceof WebhookService
-            ? $service
-            : WebhookService::tryFromString($service);
-
-        if ($webhookService === null) {
-            return null;
-        }
+        $webhookService = is_string($service) ? ConfiguredWebhookService::resolve($service) : $service;
 
         return $this->getSecretResolver()->resolve($webhookService);
     }
@@ -320,7 +322,7 @@ class Larawebhook
      */
     public function isServiceSupported(string $service): bool
     {
-        return WebhookService::isSupported($service);
+        return array_key_exists($service, (array) config('larawebhook.services', []));
     }
 
     /**
@@ -330,7 +332,7 @@ class Larawebhook
      */
     public function supportedServices(): array
     {
-        return WebhookService::values();
+        return array_keys((array) config('larawebhook.services', []));
     }
 
     /**
@@ -346,9 +348,13 @@ class Larawebhook
     /**
      * Get a service enum from string.
      */
-    public function service(string $service): ?WebhookService
+    public function service(string $service): ?WebhookServiceIdentifier
     {
-        return WebhookService::tryFromString($service);
+        if (! $this->isServiceSupported($service)) {
+            return null;
+        }
+
+        return ConfiguredWebhookService::resolve($service);
     }
 
     /**
@@ -356,41 +362,40 @@ class Larawebhook
      *
      * @throws WebhookException
      */
-    private function resolveService(string|WebhookService $service): WebhookService
+    private function resolveService(string|WebhookServiceIdentifier $service): WebhookServiceIdentifier
     {
         if ($service instanceof WebhookService) {
             return $service;
         }
 
-        if (! WebhookService::isSupported($service)) {
+        if (! $this->isServiceSupported($service)) {
             throw new WebhookException("Webhook service '{$service}' is not supported");
         }
 
-        return WebhookService::fromString($service);
+        return ConfiguredWebhookService::resolve($service);
     }
 
-    /**
-     * Get the notification sender instance.
-     */
-    private function getNotificationSender(): NotificationSender
+    private function getNotificationGateway(): WebhookNotificationGateway
     {
-        if ($this->notificationSender === null) {
-            $this->notificationSender = app(NotificationSender::class);
+        if ($this->notificationGateway === null) {
+            $this->notificationGateway = app(WebhookNotificationGateway::class);
         }
 
-        return $this->notificationSender;
+        return $this->notificationGateway;
     }
 
-    /**
-     * Get the failure detector instance.
-     */
-    private function getFailureDetector(): FailureDetector
+    private function delay(): Delay
     {
-        if ($this->failureDetector === null) {
-            $this->failureDetector = app(FailureDetector::class);
+        return $this->delay ?? app(Delay::class);
+    }
+
+    private function getLogQueries(): WebhookLogQueries
+    {
+        if ($this->logQueries === null) {
+            $this->logQueries = app(WebhookLogQueries::class);
         }
 
-        return $this->failureDetector;
+        return $this->logQueries;
     }
 
     private function getValidateWebhook(): ValidateWebhook
@@ -438,14 +443,14 @@ class Larawebhook
         return $this->payloadParserResolver;
     }
 
-    private function extractEvent(WebhookService $service, RawPayload $payload): string
+    private function extractEvent(WebhookServiceIdentifier $service, RawPayload $payload): string
     {
         return $this->getPayloadParserResolver()
             ->forService($service)
             ->extractEventType($payload->decoded());
     }
 
-    private function extractExternalId(WebhookService $service, RawPayload $payload): ?string
+    private function extractExternalId(WebhookServiceIdentifier $service, RawPayload $payload): ?string
     {
         return $this->getPayloadParserResolver()
             ->forService($service)
@@ -458,7 +463,7 @@ class Larawebhook
     private function validateAndRecord(
         string $payload,
         Signature $signature,
-        string|WebhookService $service,
+        string|WebhookServiceIdentifier $service,
         string $event,
         int $attempt,
         ?string $externalId = null,
@@ -468,7 +473,7 @@ class Larawebhook
         $secret = $this->getSecret($webhookService);
 
         if ($secret === null || $secret === '') {
-            throw new WebhookException("No secret configured for service: {$webhookService->value}");
+            throw new WebhookException("No secret configured for service: {$webhookService->value()}.");
         }
 
         $resolvedExternalId = $externalId ?? $this->extractExternalId($webhookService, $rawPayload);
@@ -482,7 +487,7 @@ class Larawebhook
             secret: $secret,
         ));
 
-        return $this->getRecordWebhookLog()->handle(new RecordWebhookLogCommand(
+        $recorded = $this->getRecordWebhookLog()->handle(new RecordWebhookLogCommand(
             service: $validation->service,
             event: $validation->event,
             valid: $validation->isValid(),
@@ -491,5 +496,27 @@ class Larawebhook
             externalId: $validation->externalId,
             errorMessage: $validation->errorMessage,
         ));
+
+        return $this->toWebhookLog($recorded);
+    }
+
+    private function toWebhookLog(WebhookLogData $data): WebhookLog
+    {
+        $log = WebhookLog::find($data->id);
+
+        if ($log !== null) {
+            return $log;
+        }
+
+        return new WebhookLog([
+            'service' => $data->service,
+            'event' => $data->event,
+            'status' => $data->status,
+            'payload' => $data->payload,
+            'error_message' => $data->errorMessage,
+            'attempt' => $data->attempt,
+            'external_id' => $data->externalId,
+            'idempotency_key' => $data->idempotencyKey,
+        ]);
     }
 }

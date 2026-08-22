@@ -40,6 +40,13 @@ class RawPayload implements Stringable
             : ['raw' => $this->value];
     }
 
+    public function isValidJson(): bool
+    {
+        json_decode($this->value);
+
+        return json_last_error() === JSON_ERROR_NONE;
+    }
+
     /**
      * {@inheritDoc}
      */

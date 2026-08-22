@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Proxynth\Larawebhook\Shared\Domain\Enums;
 
 use Proxynth\Larawebhook\Exceptions\WebhookException;
+use Proxynth\Larawebhook\Shared\Domain\ValueObjects\WebhookServiceIdentifier;
 
 /**
  * Supported webhook services.
@@ -12,12 +13,17 @@ use Proxynth\Larawebhook\Exceptions\WebhookException;
  * This enum is intentionally pure: it only identifies supported providers
  * and offers string conversion helpers for application code.
  */
-enum WebhookService: string
+enum WebhookService: string implements WebhookServiceIdentifier
 {
     case Stripe = 'stripe';
     case Github = 'github';
     case Slack = 'slack';
     case Shopify = 'shopify';
+
+    public function value(): string
+    {
+        return $this->value;
+    }
 
     /**
      * Check if a service is supported.

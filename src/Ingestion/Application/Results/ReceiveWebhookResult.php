@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Proxynth\Larawebhook\Ingestion\Application\Results;
 
-use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Persistence\Models\WebhookLog;
+use Proxynth\Larawebhook\Audit\Application\Data\WebhookLogData;
 use Proxynth\Larawebhook\Shared\Application\Results\Result;
 use Proxynth\Larawebhook\Shared\Domain\Events\DomainEvent;
 
@@ -22,25 +22,24 @@ final readonly class ReceiveWebhookResult implements Result
 
     private function __construct(
         public string $status,
-        public ?WebhookLog $log = null,
+        public ?WebhookLogData $log = null,
         public ?string $event = null,
         public ?string $externalId = null,
         public ?string $idempotencyKey = null,
         public ?string $errorMessage = null,
         public ?int $failureStatusCode = null,
-        public ?string $secret = null,
         /** @var list<DomainEvent> */
         public array $events = [],
     ) {}
 
-    public static function success(WebhookLog $log, array $events = []): self
+    public static function success(WebhookLogData $log, array $events = []): self
     {
         return new self(
             status: self::STATUS_SUCCESS,
             log: $log,
             event: $log->event,
-            externalId: $log->external_id,
-            idempotencyKey: $log->idempotency_key,
+            externalId: $log->externalId,
+            idempotencyKey: $log->idempotencyKey,
             events: $events,
         );
     }
@@ -65,9 +64,8 @@ final readonly class ReceiveWebhookResult implements Result
     }
 
     public static function acceptedForRetry(
-        WebhookLog $log,
+        WebhookLogData $log,
         string $event,
-        string $secret,
         ?string $externalId,
         ?string $idempotencyKey,
         array $events = [],
@@ -79,20 +77,19 @@ final readonly class ReceiveWebhookResult implements Result
             externalId: $externalId,
             idempotencyKey: $idempotencyKey,
             errorMessage: 'Webhook validation failed, queued for retry',
-            secret: $secret,
             events: $events,
         );
     }
 
-    public static function failed(WebhookLog $log, int $statusCode, array $events = []): self
+    public static function failed(WebhookLogData $log, int $statusCode, array $events = []): self
     {
         return new self(
             status: self::STATUS_FAILED,
             log: $log,
             event: $log->event,
-            externalId: $log->external_id,
-            idempotencyKey: $log->idempotency_key,
-            errorMessage: $log->error_message,
+            externalId: $log->externalId,
+            idempotencyKey: $log->idempotencyKey,
+            errorMessage: $log->errorMessage,
             failureStatusCode: $statusCode,
             events: $events,
         );

@@ -1,6 +1,6 @@
 <?php
 
-use Illuminate\Pagination\LengthAwarePaginator;
+use Proxynth\Larawebhook\Audit\Application\Data\WebhookLogPage;
 use Proxynth\Larawebhook\Audit\Application\Ports\WebhookLogReadRepository;
 use Proxynth\Larawebhook\Audit\Application\Queries\ListWebhookLogs;
 use Proxynth\Larawebhook\Audit\Application\Queries\ListWebhookLogsQuery;
@@ -13,11 +13,11 @@ it('delegates pagination to the read repository', function () {
     {
         public ?ListWebhookLogsQuery $query = null;
 
-        public function paginateSummaries(ListWebhookLogsQuery $query): LengthAwarePaginator
+        public function paginateSummaries(ListWebhookLogsQuery $query): WebhookLogPage
         {
             $this->query = $query;
 
-            return new LengthAwarePaginator([
+            return new WebhookLogPage([
                 new WebhookLogSummary(
                     id: 2,
                     service: 'github',
@@ -38,7 +38,12 @@ it('delegates pagination to the read repository', function () {
                     idempotencyKey: 'delivery_1',
                     createdAt: '2026-06-16T12:00:00+00:00',
                 ),
-            ], 2, $query->perPage);
+            ], 2, $query->perPage, 1, 1, [
+                'first' => '/logs?page=1',
+                'last' => '/logs?page=1',
+                'prev' => null,
+                'next' => null,
+            ]);
         }
 
         public function findDetails(int|string $id): WebhookLogDetails
@@ -67,7 +72,7 @@ it('delegates pagination to the read repository', function () {
         ->and($repository->query?->status)->toBe('failed')
         ->and($repository->query?->event)->toBe('invoice.paid')
         ->and($repository->query?->date)->toBe('2026-06-16')
-        ->and($result->total())->toBe(2)
-        ->and($result->items()[0])->toBeInstanceOf(WebhookLogSummary::class)
-        ->and($result->items()[0]->id)->toBe(2);
+        ->and($result->total)->toBe(2)
+        ->and($result->items[0])->toBeInstanceOf(WebhookLogSummary::class)
+        ->and($result->items[0]->id)->toBe(2);
 });

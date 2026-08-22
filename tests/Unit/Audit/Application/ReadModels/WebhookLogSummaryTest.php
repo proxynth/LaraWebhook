@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Proxynth\Larawebhook\Audit\Application\ReadModels\WebhookLogSummary;
 use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Persistence\Models\WebhookLog;
+use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Persistence\WebhookLogReadModelFactory;
 
 it('can be created from webhook log model', function () {
     $log = WebhookLog::factory()->create([
@@ -15,7 +16,7 @@ it('can be created from webhook log model', function () {
         'idempotency_key' => 'delivery_123',
     ]);
 
-    $readModel = WebhookLogSummary::fromModel($log);
+    $readModel = (new WebhookLogReadModelFactory)->summary($log);
 
     expect($readModel)->toBeInstanceOf(WebhookLogSummary::class)
         ->and($readModel->id)->toBe($log->id)

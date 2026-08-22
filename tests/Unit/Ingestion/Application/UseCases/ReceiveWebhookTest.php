@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Illuminate\Support\Facades\Queue;
+use Proxynth\Larawebhook\Audit\Application\Data\WebhookLogData;
 use Proxynth\Larawebhook\Audit\Domain\Events\WebhookLogged;
 use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Persistence\Models\WebhookLog;
 use Proxynth\Larawebhook\Ingestion\Application\Commands\ReceiveWebhookCommand;
@@ -69,10 +70,10 @@ it('receives a valid webhook and logs it successfully', function () {
 
     expect($result)->toBeInstanceOf(ReceiveWebhookResult::class)
         ->and($result->isSuccess())->toBeTrue()
-        ->and($result->log)->toBeInstanceOf(WebhookLog::class)
+        ->and($result->log)->toBeInstanceOf(WebhookLogData::class)
         ->and($result->log->service)->toBe('github')
         ->and($result->log->status)->toBe('success')
-        ->and($result->log->external_id)->toBe('delivery_123')
+        ->and($result->log->externalId)->toBe('delivery_123')
         ->and($result->idempotencyKey)->toBe('delivery_123')
         ->and($result->events)->toHaveCount(3)
         ->and($result->events[0])->toBeInstanceOf(WebhookReceived::class)
@@ -127,7 +128,7 @@ it('uses payload hash idempotency fallback when no external id is available', fu
 
     expect($result->isSuccess())->toBeTrue()
         ->and($result->externalId)->toBeNull()
-        ->and($result->log?->external_id)->toBeNull()
+        ->and($result->log?->externalId)->toBeNull()
         ->and($result->idempotencyKey)->toStartWith('payload_hash:');
 });
 
@@ -168,7 +169,7 @@ it('returns failed when signature is invalid and async retries are disabled', fu
     ));
 
     expect($result->isFailed())->toBeTrue()
-        ->and($result->log)->toBeInstanceOf(WebhookLog::class)
+        ->and($result->log)->toBeInstanceOf(WebhookLogData::class)
         ->and($result->log?->status)->toBe('failed')
         ->and($result->failureStatusCode)->toBeInt()
         ->and($result->errorMessage)->not->toBeNull()
@@ -202,10 +203,9 @@ it('returns accepted for retry when signature is invalid and async retires are e
     ));
 
     expect($result->isAcceptedForRetry())->toBeTrue()
-        ->and($result->log)->toBeInstanceOf(WebhookLog::class)
+        ->and($result->log)->toBeInstanceOf(WebhookLogData::class)
         ->and($result->log?->status)->toBe('failed')
         ->and($result->event)->not->toBeNull()
-        ->and($result->secret)->toBe('github_secret')
         ->and($result->idempotencyKey)->toBe('delivery_retry');
 });
 
@@ -250,8 +250,8 @@ it('records the idempotency key separately from provider external id', function 
     expect($result->isSuccess())->toBeTrue()
         ->and($result->externalId)->toBeNull()
         ->and($result->idempotencyKey)->toStartWith('payload_hash:')
-        ->and($result->log?->external_id)->toBeNull()
-        ->and($result->log?->idempotency_key)->toBe($result->idempotencyKey);
+        ->and($result->log?->externalId)->toBeNull()
+        ->and($result->log?->idempotencyKey)->toBe($result->idempotencyKey);
 });
 
 it('processes valid webhook through domain event lifecycle', function () {
@@ -270,9 +270,9 @@ it('processes valid webhook through domain event lifecycle', function () {
     ));
 
     expect($result->isSuccess())->toBeTrue()
-        ->and($result->log)->toBeInstanceOf(WebhookLog::class)
+        ->and($result->log)->toBeInstanceOf(WebhookLogData::class)
         ->and($result->log?->status)->toBe('success')
-        ->and($result->log?->external_id)->toBe('delivery_123')
+        ->and($result->log?->externalId)->toBe('delivery_123')
         ->and($result->idempotencyKey)->toBe('delivery_123');
 });
 
@@ -291,7 +291,7 @@ it('marks webhook as failed when validation fails and async retries are disabled
     ));
 
     expect($result->isFailed())->toBeTrue()
-        ->and($result->log)->toBeInstanceOf(WebhookLog::class)
+        ->and($result->log)->toBeInstanceOf(WebhookLogData::class)
         ->and($result->log?->status)->toBe('failed')
         ->and($result->errorMessage)->not->toBeNull();
 });

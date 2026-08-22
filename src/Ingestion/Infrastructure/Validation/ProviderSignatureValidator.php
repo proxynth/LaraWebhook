@@ -7,7 +7,7 @@ namespace Proxynth\Larawebhook\Ingestion\Infrastructure\Validation;
 use Proxynth\Larawebhook\Ingestion\Application\Ports\SignatureValidator;
 use Proxynth\Larawebhook\Ingestion\Domain\ValueObjects\RawPayload;
 use Proxynth\Larawebhook\Ingestion\Domain\ValueObjects\Signature;
-use Proxynth\Larawebhook\Shared\Domain\Enums\WebhookService;
+use Proxynth\Larawebhook\Shared\Domain\ValueObjects\WebhookServiceIdentifier;
 
 final readonly class ProviderSignatureValidator implements SignatureValidator
 {
@@ -16,7 +16,7 @@ final readonly class ProviderSignatureValidator implements SignatureValidator
     ) {}
 
     public function validate(
-        WebhookService $service,
+        WebhookServiceIdentifier $service,
         RawPayload $payload,
         Signature $signature,
         string $secret,

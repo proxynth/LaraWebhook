@@ -6,13 +6,15 @@ use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Facade;
 use Illuminate\Support\Facades\Notification;
 use Proxynth\Larawebhook\Audit\Application\Commands\RecordWebhookLogCommand;
+use Proxynth\Larawebhook\Audit\Application\Data\WebhookLogData;
 use Proxynth\Larawebhook\Audit\Application\Ports\WebhookAuditLogWriter;
 use Proxynth\Larawebhook\Audit\Application\UseCases\RecordWebhookLog;
 use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Notifications\FailureDetector;
 use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Persistence\Models\WebhookLog;
-use Proxynth\Larawebhook\Shared\Application\Larawebhook as LarawebhookClass;
+use Proxynth\Larawebhook\Audit\Infrastructure\Logging\WebhookLogDataFactory;
 use Proxynth\Larawebhook\Shared\Domain\Enums\WebhookService;
 use Proxynth\Larawebhook\Shared\Infrastructure\Laravel\Facades\Larawebhook;
+use Proxynth\Larawebhook\Shared\Infrastructure\Laravel\Larawebhook as LarawebhookClass;
 
 describe('Larawebhook Facade', function () {
     it('extends the base Facade class', function () {
@@ -178,7 +180,7 @@ describe('Larawebhook Facade methods - Logging', function () {
         {
             public ?RecordWebhookLogCommand $command = null;
 
-            public function record(RecordWebhookLogCommand $command): WebhookLog
+            public function record(RecordWebhookLogCommand $command): WebhookLogData
             {
                 $this->command = $command;
 
@@ -194,7 +196,7 @@ describe('Larawebhook Facade methods - Logging', function () {
 
                 $log->id = 1001;
 
-                return $log;
+                return WebhookLogDataFactory::fromModel($log);
             }
         };
 
@@ -218,7 +220,7 @@ describe('Larawebhook Facade methods - Logging', function () {
         {
             public ?RecordWebhookLogCommand $command = null;
 
-            public function record(RecordWebhookLogCommand $command): WebhookLog
+            public function record(RecordWebhookLogCommand $command): WebhookLogData
             {
                 $this->command = $command;
 
@@ -234,7 +236,7 @@ describe('Larawebhook Facade methods - Logging', function () {
 
                 $log->id = 1002;
 
-                return $log;
+                return WebhookLogDataFactory::fromModel($log);
             }
         };
 

@@ -1,8 +1,8 @@
 <?php
 
 use Proxynth\Larawebhook\Audit\Application\Commands\RecordWebhookLogCommand;
+use Proxynth\Larawebhook\Audit\Application\Data\WebhookLogData;
 use Proxynth\Larawebhook\Audit\Application\UseCases\RecordWebhookLog;
-use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Persistence\Models\WebhookLog;
 use Proxynth\Larawebhook\Processing\Domain\ValueObjects\DeliveryAttempt;
 
 it('does not store payload when payload storage mode is none', function () {
@@ -22,7 +22,7 @@ it('does not store payload when payload storage mode is none', function () {
         externalId: 'evt_test_123',
     ));
 
-    expect($log)->toBeInstanceOf(WebhookLog::class)
+    expect($log)->toBeInstanceOf(WebhookLogData::class)
         ->and($log->status)->toBe('success')
         ->and($log->payload)->toBeNull();
 });
@@ -92,6 +92,6 @@ it('applies payload storage mode when recording failed webhook logs', function (
     ));
 
     expect($log->status)->toBe('failed')
-        ->and($log->error_message)->toBe('Invalid signature.')
+        ->and($log->errorMessage)->toBe('Invalid signature.')
         ->and($log->payload)->toBeNull();
 });

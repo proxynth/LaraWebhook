@@ -7,8 +7,8 @@ use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Notifications\FailureDetec
 use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Persistence\Models\WebhookLog;
 use Proxynth\Larawebhook\Exceptions\InvalidSignatureException;
 use Proxynth\Larawebhook\Exceptions\WebhookException;
-use Proxynth\Larawebhook\Shared\Application\Larawebhook;
 use Proxynth\Larawebhook\Shared\Domain\Enums\WebhookService;
+use Proxynth\Larawebhook\Shared\Infrastructure\Laravel\Larawebhook;
 
 beforeEach(function () {
     $this->larawebhook = new Larawebhook;

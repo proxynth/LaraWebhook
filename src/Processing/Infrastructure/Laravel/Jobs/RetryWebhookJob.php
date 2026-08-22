@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Proxynth\Larawebhook\Processing\Infrastructure\Laravel\Jobs;
 
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
@@ -15,7 +16,7 @@ use Proxynth\Larawebhook\Processing\Application\Commands\RetryWebhookCommand;
 use Proxynth\Larawebhook\Processing\Application\UseCases\RetryWebhook;
 use Proxynth\Larawebhook\Shared\Application\Ports\EventBus;
 
-class RetryWebhookJob implements ShouldQueue
+class RetryWebhookJob implements ShouldBeUnique, ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
@@ -32,7 +33,6 @@ class RetryWebhookJob implements ShouldQueue
         private readonly Signature $signature,
         private readonly string $service,
         private readonly string $event,
-        private readonly string $secret,
         private readonly int $attempt = 0,
         private readonly ?string $externalId = null,
         private readonly ?string $idempotencyKey = null,
@@ -43,14 +43,15 @@ class RetryWebhookJob implements ShouldQueue
      *
      * @throws WebhookException
      */
-    public function handle(RetryWebhook $retryWebhook, EventBus $eventBus): void
-    {
+    public function handle(
+        RetryWebhook $retryWebhook,
+        EventBus $eventBus,
+    ): void {
         $result = $retryWebhook->handle(new RetryWebhookCommand(
             payload: $this->payload,
             signature: $this->signature,
             service: $this->service,
             event: $this->event,
-            secret: $this->secret,
             attempt: $this->attempt,
             externalId: $this->externalId,
             idempotencyKey: $this->idempotencyKey,
@@ -67,7 +68,6 @@ class RetryWebhookJob implements ShouldQueue
             signature: $this->signature,
             service: $this->service,
             event: $this->event,
-            secret: $this->secret,
             attempt: $result->nextAttempt ?? $this->attempt + 1,
             externalId: $this->externalId,
             idempotencyKey: $this->idempotencyKey,

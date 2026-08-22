@@ -21,18 +21,25 @@ use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Persistence\EloquentWebhoo
 use Proxynth\Larawebhook\Audit\Infrastructure\Logging\WebhookLogger;
 use Proxynth\Larawebhook\Audit\Infrastructure\Logging\WebhookLoggerAuditLogWriter;
 use Proxynth\Larawebhook\Audit\Infrastructure\Payload\PayloadStorageResolver;
+use Proxynth\Larawebhook\Contracts\PayloadParserInterface;
+use Proxynth\Larawebhook\Contracts\SignatureValidatorInterface;
+use Proxynth\Larawebhook\Ingestion\Application\Ports\AuditLogRecorder as IngestionAuditLogRecorder;
 use Proxynth\Larawebhook\Ingestion\Application\Ports\SignatureValidator;
 use Proxynth\Larawebhook\Ingestion\Application\Ports\WebhookPayloadParserResolver;
 use Proxynth\Larawebhook\Ingestion\Application\Ports\WebhookSecretResolver;
 use Proxynth\Larawebhook\Ingestion\Application\Ports\WebhookServiceMetadataResolver;
+use Proxynth\Larawebhook\Ingestion\Application\Services\ReceiveWebhookEventFactory;
 use Proxynth\Larawebhook\Ingestion\Application\UseCases\ReceiveWebhook;
 use Proxynth\Larawebhook\Ingestion\Application\UseCases\ValidateWebhook as ValidateWebhookUseCase;
 use Proxynth\Larawebhook\Ingestion\Infrastructure\Config\ConfigWebhookSecretResolver;
 use Proxynth\Larawebhook\Ingestion\Infrastructure\Laravel\Middleware\ValidateWebhook as ValidateWebhookMiddleware;
+use Proxynth\Larawebhook\Ingestion\Infrastructure\Parsing\PayloadParserRegistry;
 use Proxynth\Larawebhook\Ingestion\Infrastructure\Parsing\ProviderPayloadParserResolver;
 use Proxynth\Larawebhook\Ingestion\Infrastructure\Support\LaravelWebhookServiceMetadataResolver;
 use Proxynth\Larawebhook\Ingestion\Infrastructure\Validation\ProviderSignatureValidator;
+use Proxynth\Larawebhook\Ingestion\Infrastructure\Validation\SignatureValidatorRegistry;
 use Proxynth\Larawebhook\Ingestion\Infrastructure\Validation\WebhookValidatorFactory;
+use Proxynth\Larawebhook\Processing\Application\Ports\AuditLogRecorder as ProcessingAuditLogRecorder;
 use Proxynth\Larawebhook\Processing\Application\Ports\IdempotencyResolver;
 use Proxynth\Larawebhook\Processing\Application\Ports\ProcessedWebhookRecorder;
 use Proxynth\Larawebhook\Processing\Application\Ports\ReplayableWebhookRepository;
@@ -47,9 +54,15 @@ use Proxynth\Larawebhook\Processing\Infrastructure\Deduplication\EloquentWebhook
 use Proxynth\Larawebhook\Processing\Infrastructure\Idempotency\DefaultIdempotencyResolver;
 use Proxynth\Larawebhook\Processing\Infrastructure\Persistence\EloquentProcessedWebhookRecorder;
 use Proxynth\Larawebhook\Processing\Infrastructure\Persistence\EloquentReplayableWebhookRepository;
-use Proxynth\Larawebhook\Shared\Application\Larawebhook;
+use Proxynth\Larawebhook\Shared\Application\Ports\Delay;
 use Proxynth\Larawebhook\Shared\Application\Ports\EventBus;
+use Proxynth\Larawebhook\Shared\Application\Ports\TransactionRunner;
 use Proxynth\Larawebhook\Shared\Infrastructure\Laravel\EventBus\LaravelEventBus;
+use Proxynth\Larawebhook\Shared\Infrastructure\Laravel\Larawebhook;
+use Proxynth\Larawebhook\Shared\Infrastructure\Laravel\Notifications\WebhookNotificationGateway;
+use Proxynth\Larawebhook\Shared\Infrastructure\Laravel\Queries\WebhookLogQueries;
+use Proxynth\Larawebhook\Shared\Infrastructure\Laravel\Timing\SleepDelay;
+use Proxynth\Larawebhook\Shared\Infrastructure\Laravel\Transactions\LaravelTransactionRunner;
 use Spatie\LaravelPackageTools\Package;
 use Spatie\LaravelPackageTools\PackageServiceProvider;
 
@@ -112,6 +125,8 @@ class LarawebhookServiceProvider extends PackageServiceProvider
         // Register main Larawebhook class as singleton
 
         $this->app->singleton(Larawebhook::class);
+        $this->app->singleton(WebhookNotificationGateway::class);
+        $this->app->singleton(WebhookLogQueries::class);
 
         $this->app->alias(Larawebhook::class, 'larawebhook');
         $this->app->alias(Larawebhook::class, \Proxynth\Larawebhook\Larawebhook::class);
@@ -138,6 +153,8 @@ class LarawebhookServiceProvider extends PackageServiceProvider
         });
 
         $this->app->singleton(WebhookAuditLogWriter::class, WebhookLoggerAuditLogWriter::class);
+        $this->app->alias(WebhookAuditLogWriter::class, IngestionAuditLogRecorder::class);
+        $this->app->alias(WebhookAuditLogWriter::class, ProcessingAuditLogRecorder::class);
 
         // Register IdempotencyResolver as singleton with default implementation
         $this->app->singleton(IdempotencyResolver::class, DefaultIdempotencyResolver::class);
@@ -149,12 +166,48 @@ class LarawebhookServiceProvider extends PackageServiceProvider
         $this->app->singleton(WebhookValidatorFactory::class);
         $this->app->singleton(SignatureValidator::class, ProviderSignatureValidator::class);
         $this->app->singleton(WebhookServiceMetadataResolver::class, LaravelWebhookServiceMetadataResolver::class);
+        $this->app->singleton(PayloadParserRegistry::class, function ($app) {
+            $parsers = PayloadParserRegistry::defaults();
+
+            foreach (config('larawebhook.custom_parsers', []) as $service => $parser) {
+                $instance = is_string($parser) ? $app->make($parser) : $parser;
+
+                if (! $instance instanceof PayloadParserInterface) {
+                    throw new \InvalidArgumentException(
+                        "Custom parser for {$service} must implement ".PayloadParserInterface::class
+                    );
+                }
+
+                $parsers[$service] = $instance;
+            }
+
+            return new PayloadParserRegistry($parsers);
+        });
         $this->app->singleton(WebhookPayloadParserResolver::class, ProviderPayloadParserResolver::class);
+        $this->app->singleton(SignatureValidatorRegistry::class, function ($app) {
+            $validators = SignatureValidatorRegistry::defaults();
+
+            foreach (config('larawebhook.custom_validators', []) as $service => $validator) {
+                $instance = is_string($validator) ? $app->make($validator) : $validator;
+
+                if (! $instance instanceof SignatureValidatorInterface) {
+                    throw new \InvalidArgumentException(
+                        "Custom validator for {$service} must implement ".SignatureValidatorInterface::class
+                    );
+                }
+
+                $validators[$service] = $instance;
+            }
+
+            return new SignatureValidatorRegistry($validators);
+        });
 
         // Register ReplayWebhook use case
         $this->app->singleton(ReplayWebhook::class);
         $this->app->singleton(RetryWebhook::class);
         $this->app->singleton(EventBus::class, LaravelEventBus::class);
+        $this->app->singleton(TransactionRunner::class, LaravelTransactionRunner::class);
+        $this->app->singleton(Delay::class, SleepDelay::class);
 
         $this->app->singleton(
             ReplayableWebhookRepository::class,
@@ -175,6 +228,7 @@ class LarawebhookServiceProvider extends PackageServiceProvider
         $this->app->singleton(ValidateWebhookUseCase::class);
         $this->app->singleton(RecordWebhookLog::class);
         $this->app->singleton(ReceiveWebhook::class);
+        $this->app->singleton(ReceiveWebhookEventFactory::class);
 
         $this->app->singleton(WebhookSecretResolver::class, ConfigWebhookSecretResolver::class);
 

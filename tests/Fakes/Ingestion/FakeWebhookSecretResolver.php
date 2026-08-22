@@ -3,7 +3,7 @@
 namespace Proxynth\Larawebhook\Tests\Fakes\Ingestion;
 
 use Proxynth\Larawebhook\Ingestion\Application\Ports\WebhookSecretResolver;
-use Proxynth\Larawebhook\Shared\Domain\Enums\WebhookService;
+use Proxynth\Larawebhook\Shared\Domain\ValueObjects\WebhookServiceIdentifier;
 
 final readonly class FakeWebhookSecretResolver implements WebhookSecretResolver
 {
@@ -11,7 +11,7 @@ final readonly class FakeWebhookSecretResolver implements WebhookSecretResolver
         private array $secrets = [],
     ) {}
 
-    public function resolve(WebhookService $service): ?string
+    public function resolve(WebhookServiceIdentifier $service): ?string
     {
         return $this->secrets[$service->value] ?? null;
     }

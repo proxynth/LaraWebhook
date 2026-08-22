@@ -18,7 +18,7 @@ final readonly class ValidateWebhook
 
     public function handle(ValidateWebhookCommand $command): ValidateWebhookResult
     {
-        $serviceName = $command->service->value;
+        $serviceName = $command->service->value();
         $decodedPayload = $command->payload->decoded();
 
         try {

@@ -12,6 +12,7 @@ use Proxynth\Larawebhook\Audit\Application\ReadModels\WebhookFailureDetails;
 use Proxynth\Larawebhook\Audit\Application\ReadModels\WebhookLogDetails;
 use Proxynth\Larawebhook\Audit\Application\ReadModels\WebhookLogSummary;
 use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Persistence\Models\WebhookLog;
+use Proxynth\Larawebhook\Audit\Infrastructure\Laravel\Persistence\WebhookLogReadModelFactory;
 
 /**
  * @mixin WebhookLog
@@ -34,7 +35,7 @@ class WebhookLogResource extends JsonResource
             $this->resource instanceof WebhookLogSummary => $this->summary($this->resource),
             $this->resource instanceof WebhookLogDetails => $this->details($this->resource),
             $this->resource instanceof WebhookFailureDetails => $this->failureDetails($this->resource),
-            $this->resource instanceof WebhookLog => $this->details(WebhookLogDetails::fromModel($this->resource)),
+            $this->resource instanceof WebhookLog => $this->details((new WebhookLogReadModelFactory)->details($this->resource)),
             default => throw new InvalidArgumentException(sprintf(
                 'WebhookLogResource expects [%s], [%s], [%s] or [%s], [%s] given.',
                 WebhookLogSummary::class,

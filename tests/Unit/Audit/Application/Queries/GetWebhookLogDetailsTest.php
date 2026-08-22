@@ -1,6 +1,6 @@
 <?php
 
-use Illuminate\Pagination\LengthAwarePaginator;
+use Proxynth\Larawebhook\Audit\Application\Data\WebhookLogPage;
 use Proxynth\Larawebhook\Audit\Application\Ports\WebhookLogReadRepository;
 use Proxynth\Larawebhook\Audit\Application\Queries\GetWebhookLogDetails;
 use Proxynth\Larawebhook\Audit\Application\Queries\GetWebhookLogDetailsQuery;
@@ -13,7 +13,7 @@ it('delegates detail lookup to the read repository', function () {
     {
         public int|string|null $id = null;
 
-        public function paginateSummaries(ListWebhookLogsQuery $query): LengthAwarePaginator
+        public function paginateSummaries(ListWebhookLogsQuery $query): WebhookLogPage
         {
             throw new LogicException('Not expected.');
         }
